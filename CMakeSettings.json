@@ -1,0 +1,47 @@
+﻿{
+  "configurations": [
+    {
+      "name": "clang-x64-Debug",
+      "generator": "Visual Studio 16 2019 Win64",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "clang_cl_x64" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "variables": [
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "C:/Program Files/LLVM/bin/clang-cl.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "C:/Program Files/LLVM/bin/clang-cl.exe",
+          "type": "FILEPATH"
+        }
+      ],
+      "intelliSenseMode": "windows-msvc-x64"
+    },
+    {
+      "name": "msvc-x64-Debug",
+      "generator": "Visual Studio 16 2019 Win64",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "/std:c++17 /DWIN32 /D_WINDOWS /GR /EHsc",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "windows-msvc-x64"
+    }
+  ]
+}
