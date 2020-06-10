@@ -3,7 +3,8 @@ add_library(Utilities
     pch.cpp
     )
 
-set(GLM_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/Libraries/glm)
+set(LOCAL_LIB_DIR C:/Libraries)
+set(GLM_INCLUDE_DIR ${LOCAL_LIB_DIR}/glm)
 set(VULKAN_DIR C:\\VulkanSDK\\1.2.135.0)
 set(VULKAN_INCLUDE_DIR ${VULKAN_DIR}\\Include)
 

@@ -18,13 +18,21 @@ class Renderer
 
 public:
     static void Initialize(std::weak_ptr<Window> window);
+    static void MakeMesh();
     static void DrawFrame() { Get().Impl_DrawFrame(); }
+    static vk::Device GetDevice() { return Get().m_Device; }
+    static vk::PhysicalDevice GetPhysicalDevice() { return Get().m_PhysicalDevice; }
+
+    // Pool/queue
+    static vk::CommandPool GetGraphicsPool() { return Get().m_GraphicsCmdPool; }
+    static vk::Queue GetGraphicsQueue() { return Get().m_GraphicsQueue; }
     
 
 private:
     Renderer(std::weak_ptr<Window> winHandle);
     ~Renderer();
-    static Renderer& Get(std::weak_ptr<Window> winHandle = {})
+
+    inline static Renderer& Get(std::weak_ptr<Window> winHandle = {})
     {
         static Renderer renderer(winHandle);
         return renderer;

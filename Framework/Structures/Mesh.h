@@ -12,19 +12,13 @@ class Mesh
 public:
     Mesh(vk::PhysicalDevice physDevice, vk::Device device, const std::vector<Vertex>& vertices);
 
-    int GetVertexCount() const;
-    vk::Buffer GetVertexBuffer() const;
-    void DestroyVertexBuffer();
+    int GetVertexCount() const { return m_VertexBuffer.GetVertexCount(); }
+    vk::Buffer GetVertexBuffer() const { return m_VertexBuffer.GetBuffer(); }
+    void DestroyVertexBuffer() { m_VertexBuffer.Destroy(); }
 
 private:
-    int m_VertexCount = {};
-    vk::PhysicalDevice m_PhysicalDevice = {};
-    vk::Device m_Device = {};
-    vk::Buffer m_VertexBuffer = {};
-    vk::DeviceMemory m_VertexBufferMemory;
+    VertexBuffer m_VertexBuffer = {};
 
-    void CreateVertexBuffer(const std::vector<Vertex>& vertices);
-    uint32_t FindMemoryTypeIndex(uint32_t allowedTypes, vk::MemoryPropertyFlags properties);
 };
 
 

@@ -8,12 +8,13 @@ add_library(Framework
     Structures/RenderingStructures.hpp
     Structures/Vertex.cpp
     Structures/Mesh.cpp
+    Structures/Buffer.cpp
 )
 
+set(LOCAL_LIB_DIR C:/Libraries)
 set(VULKAN_DIR C:\\VulkanSDK\\1.2.135.0)
 set(VULKAN_INCLUDE_DIR ${VULKAN_DIR}\\Include)
 set(VULKAN_LIB_DIR ${VULKAN_DIR}\\Lib)
-set(LOCAL_LIB_DIR C:/Libraries)
 
 set(GLFW_INCLUDE_DIR ${LOCAL_LIB_DIR}/glfw/include/GLFW)
 set(GLFW_LIB_DIR ${LOCAL_LIB_DIR}/glfw/lib-vc2019)

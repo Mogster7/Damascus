@@ -61,6 +61,13 @@ void Renderer::Initialize(std::weak_ptr<Window> window)
     Get(window);
 }
 
+void Renderer::MakeMesh()
+{
+    Get().mesh = std::make_unique<Mesh>(Get().m_PhysicalDevice, Get().m_Device, meshVerts);
+    Get().CreateCommandBuffers();
+}
+
+
 Renderer::Renderer(std::weak_ptr<Window> winHandle) :
     m_Window(winHandle)
 {
@@ -74,7 +81,6 @@ void Renderer::InitVulkan() {
     PickPhysicalDevice();
     CreateLogicalDevice();
 
-    mesh = std::make_unique<Mesh>(m_PhysicalDevice, m_Device, meshVerts);
 
     CreateSwapChain();
     CreateImageViews();
@@ -82,7 +88,6 @@ void Renderer::InitVulkan() {
     CreateGraphicsPipeline();
     CreateFramebuffers();
     CreateCommandPool();
-    CreateCommandBuffers();
     CreateSync();
 }
 

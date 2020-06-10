@@ -9,6 +9,7 @@ public:
     {
         window = std::make_shared<Window>(windowDimensions, "Vulkan");
         Renderer::Initialize(window);
+        Renderer::MakeMesh();
     }
 
     void Run() {
