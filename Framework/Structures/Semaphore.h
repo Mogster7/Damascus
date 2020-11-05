@@ -1,19 +1,15 @@
 //------------------------------------------------------------------------------
 //
-// File Name:	Vertex.h
+// File Name:	Semaphore.h
 // Author(s):	Jonathan Bourim (j.bourim)
-// Date:        6/8/2020 
+// Date:        6/26/2020 
 //
 //------------------------------------------------------------------------------
 #pragma once
 
 
-struct Vertex
-{
-    glm::vec3 pos;
-    glm::vec3 color;
+CUSTOM_VK_DECLARE_DERIVE(Semaphore, Semaphore, Device)
 
-    inline static const uint32_t NUM_ATTRIBS = 2;
 };
 
 

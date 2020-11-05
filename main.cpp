@@ -7,25 +7,28 @@ class Application {
 public:
     Application(const glm::uvec2& windowDimensions)
     {
-        window = std::make_shared<Window>(windowDimensions, "Vulkan");
+        window = eastl::shared_ptr<Window>(new Window(windowDimensions, "Vulkan"));
         Renderer::Initialize(window);
-        Renderer::MakeMesh();
     }
 
     void Run() {
-        while (window->Update(0.0f))
+        float dt = 0.0f;
+        while (window->Update(dt))
         {
+            Renderer::Update();
+            dt = Renderer::dt;
             Renderer::DrawFrame();
         }
     }
 
 private:
-    std::shared_ptr<Window> window;
+    eastl::shared_ptr<Window> window;
 
 };
 
 int main() {
     Application app({ 800, 600 });
+
 
     try {
         app.Run();

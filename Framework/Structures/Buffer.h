@@ -7,51 +7,52 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-class Buffer
-{
+CUSTOM_VK_DECLARE_NO_CREATE(Buffer, Buffer, Device)
 public:
-    Buffer() = default;
-    Buffer(vk::PhysicalDevice physDevice, vk::Device device, vk::DeviceSize bufferSize,
-        vk::MemoryPropertyFlags bufferProps, vk::BufferUsageFlags bufferUsage, 
-        vk::SharingMode sharingMode = vk::SharingMode::eExclusive);
+    void Create(vk::BufferCreateInfo& bufferCreateInfo, VmaAllocationCreateInfo& allocCreateInfo,
+        Device& owner, VmaAllocator allocator);
 
-    ~Buffer() = default;
+    void CreateStaged(void* data, uint32_t numElements, uint32_t sizeOfElement,
+        vk::BufferUsageFlags usage, Device& owner, VmaAllocator allocator);
 
-    vk::Buffer GetBuffer() const { return m_Buffer; }
-    vk::DeviceMemory GetMemory() const { return m_Memory; }
+    vk::DeviceMemory GetMemory() const { return m_AllocationInfo.deviceMemory; }
+    const VmaAllocation& GetAllocation() const { return m_Allocation; }
+    const VmaAllocationInfo& GetAllocationInfo() const { return m_AllocationInfo; }
+    VmaAllocator GetAllocator() { return m_Allocator; }
 
-    static void StageTransfer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size);
-
-    void Destroy();
-
+    static void StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size);
 
 protected:
-    uint32_t FindMemoryTypeIndex(uint32_t allowedTypes) const;
 
-    vk::Buffer m_Buffer = {};
-    vk::PhysicalDevice m_PhysicalDevice = {};
-    vk::Device m_Device = {};
-    vk::MemoryPropertyFlags m_Properties = {};
-    vk::BufferUsageFlags m_Usage = {};
-    vk::SharingMode m_SharingMode = {};
+    VmaAllocator m_Allocator = {};
+    VmaAllocation m_Allocation = {};
+    VmaAllocationInfo m_AllocationInfo = {};
+    vk::BufferUsageFlags m_BufferUsage = {};
+    VmaMemoryUsage m_MemoryUsage = {};
     vk::DeviceSize m_Size = {};
-    vk::DeviceMemory m_Memory = {};
-
 };
-
 
 
 class VertexBuffer : public Buffer
 {
 public:
-    VertexBuffer() = default;
-    VertexBuffer(vk::PhysicalDevice physDevice, vk::Device device, 
-        const std::vector<Vertex>& vertices);
-    ~VertexBuffer() = default;
+    void Create(const eastl::vector<Vertex> vertices, Device& owner, VmaAllocator allocator);
 
     uint32_t GetVertexCount() const { return m_VertexCount; }
 
 private:
     uint32_t m_VertexCount = 0;
 };
+
+class IndexBuffer : public Buffer
+{
+public:
+    void Create(const eastl::vector<uint32_t> indices, Device& owner, VmaAllocator allocator);
+
+    uint32_t GetIndexCount() const { return m_IndexCount; }
+private:
+    uint32_t m_IndexCount = 0;
+};
+
+
 

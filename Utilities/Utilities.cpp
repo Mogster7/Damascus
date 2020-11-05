@@ -5,12 +5,16 @@
 // Date:        6/6/2020 
 //
 //------------------------------------------------------------------------------
+#include <string>
+#include <fstream>
+
 
 namespace utils
 {
-    std::vector<char> ReadFile(const std::string& filename)
+    std::vector<char> ReadFile(const eastl::string& filename)
     {
-        std::ifstream file(filename, std::ios::ate | std::ios::binary);
+        std::string convertedName = filename.c_str();
+        std::ifstream file(convertedName, std::ios::ate | std::ios::binary);
 
         if (!file.is_open()) {
             throw std::runtime_error("failed to open file!");
@@ -27,10 +31,12 @@ namespace utils
         return buffer;
     }
 
-    void CheckVkResult(vk::Result result, const std::string& error)
+    void CheckVkResult(vk::Result result, const eastl::string& error)
     {
-        (result == vk::Result::eSuccess) ? NULL : throw std::runtime_error(error.c_str());
+        ASSERT(result == vk::Result::eSuccess, error.c_str());
     }
 
 }
+
+
 

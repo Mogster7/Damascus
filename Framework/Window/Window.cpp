@@ -1,5 +1,4 @@
 #include "Window.h"
-#include "RenderingStructures.hpp"
 #include "Renderer.h"
 #include <glfw3.h>
 

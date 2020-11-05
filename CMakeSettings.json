@@ -30,7 +30,7 @@
       "configurationType": "Debug",
       "buildRoot": "${projectDir}\\out\\build\\${name}",
       "installRoot": "${projectDir}\\out\\install\\${name}",
-      "cmakeCommandArgs": "",
+      "cmakeCommandArgs": "/MD",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "msvc_x64_x64" ],
@@ -38,6 +38,11 @@
         {
           "name": "CMAKE_CXX_FLAGS",
           "value": "/std:c++17 /DWIN32 /D_WINDOWS /GR /EHsc",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_FLAGS_DEBUG",
+          "value": "/Zi /Ob0 /Od /RTC1 /MD",
           "type": "STRING"
         }
       ],

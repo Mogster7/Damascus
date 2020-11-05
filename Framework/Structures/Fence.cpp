@@ -1,21 +1,11 @@
 //------------------------------------------------------------------------------
 //
-// File Name:	Vertex.h
+// File Name:	Fence.cpp
 // Author(s):	Jonathan Bourim (j.bourim)
-// Date:        6/8/2020 
+// Date:		6/26/2020
 //
 //------------------------------------------------------------------------------
-#pragma once
 
-
-struct Vertex
-{
-    glm::vec3 pos;
-    glm::vec3 color;
-
-    inline static const uint32_t NUM_ATTRIBS = 2;
-};
-
-
+CUSTOM_VK_DEFINE(Fence, Fence, Device)
 
 

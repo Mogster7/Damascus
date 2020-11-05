@@ -10,19 +10,24 @@ set(
     )
 
 add_executable(${PROJECT_NAME} ${source_list})
+set(LOCAL_LIB_DIR C:/Libraries)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-    ${CMAKE_SOURCE_DIR} ${GLM_INCLUDE_DIR} ${GLFW_INCLUDE_DIR}
-    Utilities
-    )
-target_link_directories(${PROJECT_NAME} PUBLIC
+    ${CMAKE_SOURCE_DIR} 
+    ${GLM_INCLUDE_DIR} 
+    ${GLFW_INCLUDE_DIR}
     Utilities
     )
 
+target_link_directories(${PROJECT_NAME} PUBLIC
+    ThirdParty
+    Utilities
+    )
 
 add_subdirectory(Utilities)
 add_subdirectory(Framework)
-target_link_libraries(${PROJECT_NAME} PUBLIC Utilities Framework)
+add_subdirectory(ThirdParty)
+target_link_libraries(${PROJECT_NAME} PUBLIC ThirdParty Utilities Framework)
 target_precompile_headers(${PROJECT_NAME} REUSE_FROM Utilities)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

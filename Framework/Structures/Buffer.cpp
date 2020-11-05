@@ -5,54 +5,25 @@
 // Date:		6/9/2020
 //
 //------------------------------------------------------------------------------
-#include "RenderingStructures.hpp"
 #include "Renderer.h"
+#include "Device.h"
 
-
-Buffer::Buffer(vk::PhysicalDevice physDevice, vk::Device device, vk::DeviceSize bufferSize, 
-    vk::MemoryPropertyFlags bufferProps, vk::BufferUsageFlags bufferUsage, 
-    vk::SharingMode sharingMode
-    ) :
-
-    m_PhysicalDevice(physDevice), m_Device(device),
-    m_Properties(bufferProps), m_Usage(bufferUsage),
-    m_Size(bufferSize)
+void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo,
+        VmaAllocationCreateInfo& allocCreateInfo, Device& owner, VmaAllocator allocator)
 {
-    // Create buffer
-    vk::BufferCreateInfo createInfo;
-    createInfo.size = bufferSize;
-    createInfo.usage = bufferUsage;
-    createInfo.sharingMode = sharingMode;
+    m_Owner = &owner;
+    m_Allocator = allocator;
+    m_Size = bufferCreateInfo.size;
 
-    utils::CheckVkResult(m_Device.createBuffer(&createInfo, nullptr, &m_Buffer), 
-        "Failed to create vertex buffer");
-
-    // Get buffer memory requirements
-    vk::MemoryRequirements memReq;
-    m_Device.getBufferMemoryRequirements(m_Buffer, &memReq);
-
-    // Allocate memory
-    vk::MemoryAllocateInfo allocInfo;
-    allocInfo.allocationSize = memReq.size;
-    // Provide index of memory type on physical device that has the required bits
-    // Memory is visible to the host, and allows placement of data straight into buffer after mapping
-    // (No flushing required)
-    allocInfo.memoryTypeIndex = FindMemoryTypeIndex(memReq.memoryTypeBits);
-
-    // Allocate memory to device memory
-    utils::CheckVkResult(m_Device.allocateMemory(&allocInfo, nullptr, &m_Memory),
-        "Failed to allocate vertex buffer memory");
-
-    // Allocate memory to the vertex buffer
-    m_Device.bindBufferMemory(m_Buffer, m_Memory, 0);
-    
+    utils::CheckVkResult((vk::Result)vmaCreateBuffer(m_Allocator, (VkBufferCreateInfo*)&bufferCreateInfo, &allocCreateInfo,
+        (VkBuffer*)&m_Buffer, &m_Allocation, &m_AllocationInfo), 
+        "Failed to allocate buffer");
 }
 
-void Buffer::StageTransfer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size)
+void Buffer::StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size)
 {
-    vk::Device device = Renderer::GetDevice();
-    vk::Queue transferQueue = Renderer::GetGraphicsQueue();
-    vk::CommandPool transferCmdPool = Renderer::GetGraphicsPool();
+    vk::Queue transferQueue = device.GetGraphicsQueue();
+    vk::CommandPool transferCmdPool = device.GetGraphicsCmdPool();
 
     // Command buffer to hold transfer commands
     vk::CommandBuffer transferCmdBuffer;
@@ -101,66 +72,60 @@ void Buffer::StageTransfer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size)
 
 void Buffer::Destroy()
 {
-    m_Device.freeMemory(m_Memory);
-    m_Device.destroyBuffer(m_Buffer);
+    vmaDestroyBuffer(m_Allocator, (VkBuffer)m_Buffer, m_Allocation);
 }
 
-uint32_t Buffer::FindMemoryTypeIndex(uint32_t allowedTypes) const
+void Buffer::CreateStaged(void* data, uint32_t numElements, uint32_t sizeOfElement, 
+    vk::BufferUsageFlags usage, Device& owner, VmaAllocator allocator)
 {
-    // Get properties of physical device memory
-    vk::PhysicalDeviceMemoryProperties memProps;
-    m_PhysicalDevice.getMemoryProperties(&memProps);
+    m_Owner = &owner;
+    m_Allocator = allocator;
+    m_Size = sizeOfElement * numElements;
 
-    for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i)
-    {
-        // Index of memory type must match corresponding bit in allowed types
-        // And that the property types are valid by checking if the result
-        // of propertyFlags and properties give us the original property field back
-        // In other words, the propertyFlags allowed either match or exceed the number
-        // of properties described by the local variable 'properties'
-        if ((allowedTypes & (1 << i))
-            && (memProps.memoryTypes[i].propertyFlags & m_Properties) == m_Properties)
-        {
-            // Memory is valid, return index
-            return i;
-        }
+    vk::BufferCreateInfo bCreateInfo;
+    bCreateInfo.usage = usage | vk::BufferUsageFlagBits::eTransferDst;
+    bCreateInfo.size = m_Size;
 
-    }
+    VmaAllocationCreateInfo aCreateInfo = {};
+    aCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-    throw std::runtime_error("Failed to find a correct physical device memory index for our flags");
-}
+    Buffer::Create(bCreateInfo, aCreateInfo, *m_Owner, m_Allocator);
 
-VertexBuffer::VertexBuffer(vk::PhysicalDevice physDevice, vk::Device device, 
-    const std::vector<Vertex>& vertices) :
 
-    // Our buffer, destination
-    Buffer(
-        physDevice, device, 
-        sizeof(Vertex) * vertices.size(), // Buffer size
-        vk::MemoryPropertyFlagBits::eDeviceLocal,
-        vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst
-    ), 
-    m_VertexCount(vertices.size())
-{
-    // Staging buffer, source
-    Buffer stagingBuffer(
-        physDevice, device,
-        m_Size,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-        vk::BufferUsageFlagBits::eTransferSrc
-    );
+    // STAGING BUFFER
+    Buffer stagingBuffer;
+
+    bCreateInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+    // we can reuse size
+
+    aCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+    stagingBuffer.Create(bCreateInfo, aCreateInfo, *m_Owner, allocator);
 
     // Create pointer to memory
-    void* data; 
+    void* mapped; 
 
-    // Map and copy vertices to the memory, then unmap
-    m_Device.mapMemory(stagingBuffer.GetMemory(), 0, m_Size, {}, &data);
-    std::memcpy(data, vertices.data(), (size_t)m_Size);
-    m_Device.unmapMemory(stagingBuffer.GetMemory());
+    //// Map and copy data to the memory, then unmap
+    vmaMapMemory(allocator, stagingBuffer.GetAllocation(), &mapped);
+    std::memcpy(mapped, data, (size_t)m_Size);
+    vmaUnmapMemory(allocator, stagingBuffer.GetAllocation());
 
     // Copy staging buffer to GPU-side vertex buffer
-    StageTransfer(stagingBuffer.GetBuffer(), m_Buffer, m_Size);
+    StageTransfer(stagingBuffer, *this, *m_Owner, m_Size);
 
     // Cleanup
     stagingBuffer.Destroy();
+}
+
+void VertexBuffer::Create(const eastl::vector<Vertex> vertices, Device& owner, VmaAllocator allocator)
+{
+    CreateStaged((void*)&vertices[0], vertices.size(), sizeof(Vertex), 
+        vk::BufferUsageFlagBits::eVertexBuffer, owner, allocator);
+    m_VertexCount = vertices.size();
+}
+
+void IndexBuffer::Create(const eastl::vector<uint32_t> indices, Device& owner, VmaAllocator allocator)
+{
+    CreateStaged((void*)indices.data(), indices.size(), sizeof(uint32_t), 
+        vk::BufferUsageFlagBits::eIndexBuffer, owner, allocator);
+    m_IndexCount = indices.size();
 }

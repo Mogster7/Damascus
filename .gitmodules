@@ -1,0 +1,6 @@
+[submodule "ThirdParty/VulkanMemoryAllocator"]
+	path = ThirdParty/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "ThirdParty/EASTL"]
+	path = ThirdParty/EASTL
+	url = https://github.com/electronicarts/EASTL
