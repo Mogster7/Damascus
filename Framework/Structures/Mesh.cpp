@@ -7,19 +7,19 @@
 //------------------------------------------------------------------------------
 #include "RenderingStructures.hpp"
 
-void Mesh::Create(Device& device, const eastl::vector<Vertex>& vertices, 
-    const eastl::vector<uint32_t>& indices)
+void Mesh::Create(Device& device, const std::vector<Vertex>& vertices, 
+    const std::vector<uint32_t>& indices)
 {
-    m_VertexBuffer.Create(vertices, device, device.GetMemoryAllocator());
+    m_vertexBuffer.Create(vertices, device, device.allocator);
 
     if (!indices.empty())
-        m_IndexBuffer.Create(indices, device, device.GetMemoryAllocator());
+        m_indexBuffer.Create(indices, device, device.allocator);
 }
 
 void Mesh::Destroy()
 {
-    if (m_IndexBuffer.GetIndexCount() > 0)
-        m_IndexBuffer.Destroy();
+    if (m_indexBuffer.GetIndexCount() > 0)
+        m_indexBuffer.Destroy();
 
-    m_VertexBuffer.Destroy();
+    m_vertexBuffer.Destroy();
 }

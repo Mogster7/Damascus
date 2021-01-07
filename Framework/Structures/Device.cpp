@@ -12,7 +12,7 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
-const eastl::vector<Vertex> Device::meshVerts = {
+const std::vector<Vertex> Device::meshVerts = {
     { { -0.4, 0.4, 0.0 },{ 1.0f, 0.0f, 0.0f } },	// 0
     { { -0.4, -0.4, 0.0 },{ 1.0f, 0.0f, 0.0f } },	    // 1
     { { 0.4, -0.4, 0.0 },{ 1.0f, 0.0f, 0.0f } },    // 2
@@ -20,7 +20,7 @@ const eastl::vector<Vertex> Device::meshVerts = {
 
 };
 
-const eastl::vector<Vertex> Device::meshVerts2 = {
+const std::vector<Vertex> Device::meshVerts2 = {
     { { -0.25, 0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },	// 0
     { { -0.25, -0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },	    // 1
     { { 0.25, -0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },    // 2
@@ -28,7 +28,7 @@ const eastl::vector<Vertex> Device::meshVerts2 = {
 
 };
 
-const eastl::vector<uint32_t> Device::meshIndices = {
+const std::vector<uint32_t> Device::meshIndices = {
     0, 1, 2,
     2, 3, 0
 };
@@ -36,17 +36,17 @@ const eastl::vector<uint32_t> Device::meshIndices = {
 
 void Device::Initialization()
 {
-    const QueueFamilyIndices& indices = m_Owner->GetQueueFamilyIndices();
-    getQueue(indices.graphics.value(), 0, &m_GraphicsQueue);
-    getQueue(indices.present.value(), 0, &m_PresentQueue);
-    //m_MinUniformBufferOffset = m_Owner->GetMinimumUniformBufferOffset();
+    const QueueFamilyIndices& indices = m_owner->GetQueueFamilyIndices();
+    getQueue(indices.graphics.value(), 0, &graphicsQueue);
+    getQueue(indices.present.value(), 0, &presentQueue);
+    //minUniformBufferOffset = owner->GetMinimumUniformBufferOffset();
     //// Calculate alignment of model uniform 
-    //m_ModelUniformAlignment = (sizeof(Model) + m_MinUniformBufferOffset - 1)
-    //                            & ~(m_MinUniformBufferOffset - 1);
+    //modelUniformAlignment = (sizeof(Model) + minUniformBufferOffset - 1)
+    //                            & ~(minUniformBufferOffset - 1);
 
     CreateAllocator();
     CreateSwapchain();
-    m_DepthBuffer.Create(*this);
+    depthBuffer.Create(*this);
     CreateRenderPass();
     CreateDescriptorSetLayout();
     CreatePushConstantRange();
@@ -54,19 +54,19 @@ void Device::Initialization()
     CreateFramebuffers();
     CreateCommandPool();
 
-    const auto& extent = m_Swapchain.GetExtent();
-    m_UboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
-    m_UboViewProjection.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    const auto& extent = swapchain.GetExtent();
+    uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
+    uboViewProjection.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     // Invert up direction so that pos y is up 
     // its down by default in Vulkan
-    m_UboViewProjection.projection[1][1] *= -1;
+    uboViewProjection.projection[1][1] *= -1;
 
     objects.emplace_back().Create(*this, Device::meshVerts, Device::meshIndices);
     objects.emplace_back().Create(*this, Device::meshVerts2, Device::meshIndices);
 
-    objects[0].SetModel(glm::translate(objects[0].GetModel().model, glm::vec3(0.0f, 0.0f, -3.0f)));
-    objects[1].SetModel(glm::translate(objects[1].GetModel().model, glm::vec3(0.0f, 0.0f, -2.5f)));
+    objects[0].SetModel(glm::translate(objects[0].GetModel(), glm::vec3(0.0f, 0.0f, -3.0f)));
+    objects[1].SetModel(glm::translate(objects[1].GetModel(), glm::vec3(0.0f, 0.0f, -2.5f)));
 
     CreateUniformBuffers();
     AllocateDynamicBufferTransferSpace();
@@ -79,55 +79,55 @@ void Device::Initialization()
 
 void Device::CreateAllocator()
 {
-    ASSERT(m_Allocator == nullptr, "Creating an existing member");
+    ASSERT(allocator == nullptr, "Creating an existing member");
     VmaAllocatorCreateInfo info = {};
     info.instance = Renderer::GetInstance();
     info.physicalDevice = Renderer::GetPhysicalDevice();
     info.device = *this;
 
-    vmaCreateAllocator(&info, &m_Allocator);
+    vmaCreateAllocator(&info, &allocator);
 }
 
 void Device::Destroy()
 {
-    m_DescriptorPool.Destroy();
-    m_DescriptorSetLayout.Destroy();
+    descriptorPool.Destroy();
+    descriptorSetLayout.Destroy();
 
-    for (size_t i = 0; i < m_Swapchain.GetImages().size(); ++i)
+    for (size_t i = 0; i < swapchain.GetImages().size(); ++i)
     {
-        m_UniformBufferViewProjection[i].Destroy();
+        uniformBufferViewProjection[i].Destroy();
     }
 
     for (size_t i = 0; i < objects.size(); ++i)
         objects[i].Destroy();
 
-    for(auto& fence : m_DrawFences)
+    for(auto& fence : drawFences)
         fence.Destroy();
 
-    for (size_t i = 0; i < m_RenderFinished.size(); ++i)
+    for (size_t i = 0; i < renderFinished.size(); ++i)
     {
-        m_RenderFinished[i].Destroy();
-        m_ImageAvailable[i].Destroy();
+        renderFinished[i].Destroy();
+        imageAvailable[i].Destroy();
     }
 
-    m_GraphicsCmdPool.Destroy();
-    for (auto& fb : m_Framebuffers)
+    graphicsCmdPool.Destroy();
+    for (auto& fb : framebuffers)
         fb.Destroy();
 
-    m_GraphicsPipeline.Destroy();
-    m_PipelineLayout.Destroy();
+    graphicsPipeline.Destroy();
+    pipelineLayout.Destroy();
 
-    m_RenderPass.Destroy();
-    m_DepthBuffer.Destroy();
-    m_Swapchain.Destroy();
-    vmaDestroyAllocator(m_Allocator);
+    renderPass.Destroy();
+    depthBuffer.Destroy();
+    swapchain.Destroy();
+    vmaDestroyAllocator(allocator);
 
     destroy();
 }
 
 void Device::CreateSwapchain()
 {    
-    vk::PhysicalDevice physDevice = *m_Owner;
+    vk::PhysicalDevice physDevice = *m_owner;
     vk::SurfaceKHR surface = Renderer::GetInstance().GetSurface();
 
     vk::SurfaceCapabilitiesKHR capabilities = physDevice.getSurfaceCapabilitiesKHR(surface);
@@ -162,7 +162,7 @@ void Device::CreateSwapchain()
     );
 
 
-    const QueueFamilyIndices& indices = m_Owner->GetQueueFamilyIndices();
+    const QueueFamilyIndices& indices = m_owner->GetQueueFamilyIndices();
     uint32_t queueFamilyIndices[] = { indices.graphics.value(), indices.present.value() };
 
     if (indices.graphics != indices.present) {
@@ -181,7 +181,7 @@ void Device::CreateSwapchain()
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
     // Old swap chain is default
-    m_Swapchain.Create(m_Swapchain, createInfo, *this,
+    swapchain.Create(swapchain, createInfo, *this,
         format.format, extent);
 }
 
@@ -189,7 +189,7 @@ void Device::CreateRenderPass()
 {
     // ATTACHMENTS
     vk::AttachmentDescription colorAttachment;
-    colorAttachment.format = m_Swapchain.GetImageFormat();
+    colorAttachment.format = swapchain.GetImageFormat();
     colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
     colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;				// Describes what to do with attachment before rendering
     colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
@@ -204,7 +204,7 @@ void Device::CreateRenderPass()
 
     // Depth
     vk::AttachmentDescription depthAttachment = {};
-    depthAttachment.format = m_DepthBuffer.GetFormat();
+    depthAttachment.format = depthBuffer.GetFormat();
     depthAttachment.samples = vk::SampleCountFlagBits::e1;
     depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
     depthAttachment.storeOp = vk::AttachmentStoreOp::eDontCare;
@@ -214,10 +214,10 @@ void Device::CreateRenderPass()
     depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
 
-    eastl::array<vk::AttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+    std::array<vk::AttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
 
     // REFERENCES
-    // Attachment reference uses an attachment index that refers to index in the attachment list passed to m_RenderPassCreateInfo
+    // Attachment reference uses an attachment index that refers to index in the attachment list passed to renderPassCreateInfo
     vk::AttachmentReference colorAttachmentRef;
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
@@ -273,7 +273,7 @@ void Device::CreateRenderPass()
     createInfo.dependencyCount = 1;
     createInfo.pDependencies = &dependency;
 
-    m_RenderPass.Create(createInfo, *this);
+    renderPass.Create(createInfo, *this);
 }
 
 void Device::CreateGraphicsPipeline()
@@ -353,7 +353,7 @@ void Device::CreateGraphicsPipeline()
 
     // VIEWPORT
 
-    vk::Extent2D extent = m_Swapchain.GetExtent();
+    vk::Extent2D extent = swapchain.GetExtent();
 
     vk::Viewport viewport{};
     viewport.x = 0.0f;
@@ -426,11 +426,11 @@ void Device::CreateGraphicsPipeline()
 
     vk::PipelineLayoutCreateInfo layout = {};
     layout.setLayoutCount = 1;
-    layout.pSetLayouts = &m_DescriptorSetLayout;
+    layout.pSetLayouts = &descriptorSetLayout;
     layout.pushConstantRangeCount = 1;
-    layout.pPushConstantRanges = &m_PushRange;
+    layout.pPushConstantRanges = &pushRange;
 
-    m_PipelineLayout.Create(m_PipelineLayout, layout, *this);
+    pipelineLayout.Create(pipelineLayout, layout, *this);
 
     // Depth testing
     vk::PipelineDepthStencilStateCreateInfo depthStencilState = {};
@@ -453,13 +453,13 @@ void Device::CreateGraphicsPipeline()
     pipelineInfo.pMultisampleState = &multisampleState;
     pipelineInfo.pColorBlendState = &colorBlendState;
     pipelineInfo.pDepthStencilState = &depthStencilState;
-    pipelineInfo.layout = m_PipelineLayout;							// Pipeline Layout pipeline should use
-    pipelineInfo.renderPass = m_RenderPass;							// Render pass description the pipeline is compatible with
+    pipelineInfo.layout = (pipelineLayout);							// Pipeline Layout pipeline should use
+    pipelineInfo.renderPass = renderPass;							// Render pass description the pipeline is compatible with
     pipelineInfo.subpass = 0;										// Subpass of render pass to use with pipeline
 
-    m_GraphicsPipeline.Create(m_GraphicsPipeline, pipelineInfo, *this, vk::PipelineCache(), 1);
+    graphicsPipeline.Create(graphicsPipeline, pipelineInfo, *this, vk::PipelineCache(), 1);
 
-    if (bool(m_GraphicsPipeline) != VK_TRUE)
+    if (bool(graphicsPipeline) != VK_TRUE)
     {
         throw std::runtime_error("Failed to create graphics pipeline");
     }
@@ -470,10 +470,10 @@ void Device::CreateGraphicsPipeline()
 
 void Device::CreateFramebuffers()
 {
-    const auto& imageViews = m_Swapchain.GetImageViews();
-    const auto& extent = m_Swapchain.GetExtent();
+    const auto& imageViews = swapchain.GetImageViews();
+    const auto& extent = swapchain.GetExtent();
     size_t imageViewsSize = imageViews.size();
-    m_Framebuffers.resize(imageViewsSize);
+    framebuffers.resize(imageViewsSize);
 
     vk::FramebufferCreateInfo createInfo;
     // FB width/height
@@ -481,11 +481,11 @@ void Device::CreateFramebuffers()
     createInfo.height = extent.height;
     // FB layers
     createInfo.layers = 1;
-    createInfo.renderPass = m_RenderPass;
+    createInfo.renderPass = renderPass;
     createInfo.attachmentCount = 2;
 
 
-    vk::ImageView depthView = m_DepthBuffer.GetImageView();
+    vk::ImageView depthView = depthBuffer.GetImageView();
     for (size_t i = 0; i < imageViewsSize; ++i)
     {
         std::array<vk::ImageView, 2> attachments = {
@@ -496,47 +496,47 @@ void Device::CreateFramebuffers()
         // List of attachments 1 to 1 with render pass
         createInfo.pAttachments = attachments.data();
 
-        m_Framebuffers[i].Create(&m_Framebuffers[i], createInfo, *this);
+        framebuffers[i].Create(&framebuffers[i], createInfo, *this);
     }
 }
 
 void Device::CreateCommandPool()
 {
-    QueueFamilyIndices indices = m_Owner->GetQueueFamilyIndices();
+    QueueFamilyIndices indices = m_owner->GetQueueFamilyIndices();
 
     vk::CommandPoolCreateInfo poolInfo;
     poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
     poolInfo.queueFamilyIndex = indices.graphics.value();
 
-    m_GraphicsCmdPool.Create(m_GraphicsCmdPool, poolInfo, *this);
+    graphicsCmdPool.Create(graphicsCmdPool, poolInfo, *this);
 }
 
 void Device::CreateCommandBuffers()
 {
-    size_t fbSize = m_Framebuffers.size();
-    m_CommandBuffers.resize(fbSize);
+    size_t fbSize = framebuffers.size();
+    commandBuffers.resize(fbSize);
 
     vk::CommandBufferAllocateInfo allocInfo;
-    allocInfo.commandPool = m_GraphicsCmdPool;
+    allocInfo.commandPool = graphicsCmdPool;
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandBufferCount = static_cast<uint32_t>(fbSize);
 
-    utils::CheckVkResult(allocateCommandBuffers(&allocInfo, m_CommandBuffers.data()), "Failed to allocate command buffers");
+    utils::CheckVkResult(allocateCommandBuffers(&allocInfo, commandBuffers.data()), "Failed to allocate command buffers");
 }
 
 void Device::RecordCommandBuffers(uint32_t imageIndex)
 {
-    eastl::array<vk::ClearValue, 2> clearValues = {};
+    std::array<vk::ClearValue, 2> clearValues = {};
     clearValues[0].color = vk::ClearColorValue(std::array<float, 4>{0.6f, 0.65f, 0.4f, 1.0f });
     clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
 
 
-    vk::RenderPassBeginInfo m_RenderPassInfo;
-    m_RenderPassInfo.renderPass = m_RenderPass;
-    m_RenderPassInfo.renderArea.extent = m_Swapchain.GetExtent();
-    m_RenderPassInfo.renderArea.offset = vk::Offset2D(0, 0);
-    m_RenderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    m_RenderPassInfo.pClearValues = clearValues.data();
+    vk::RenderPassBeginInfo renderPassInfo;
+    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.renderArea.extent = swapchain.GetExtent();
+    renderPassInfo.renderArea.offset = vk::Offset2D(0, 0);
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
 
     // Record command buffers
     vk::CommandBufferBeginInfo info(
@@ -544,13 +544,13 @@ void Device::RecordCommandBuffers(uint32_t imageIndex)
         nullptr
     );
 
-    auto& cmdBuf = m_CommandBuffers[imageIndex];
+    auto& cmdBuf = commandBuffers[imageIndex];
 
     utils::CheckVkResult(cmdBuf.begin(&info), "Failed to begin recording command buffer");
-    m_RenderPassInfo.framebuffer = m_Framebuffers[imageIndex];
+    renderPassInfo.framebuffer = framebuffers[imageIndex];
 
-    cmdBuf.beginRenderPass(&m_RenderPassInfo, vk::SubpassContents::eInline);
-    cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, m_GraphicsPipeline);
+    cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
+    cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
 
     for (int j = 0; j < objects.size(); ++j)
     {
@@ -564,10 +564,10 @@ void Device::RecordCommandBuffers(uint32_t imageIndex)
         cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
 
         // Dynamic offset amount
-        //uint32_t dynamicOffset = static_cast<uint32_t>(m_ModelUniformAlignment) * j;
+        //uint32_t dynamicOffset = static_cast<uint32_t>(modelUniformAlignment) * j;
 
         cmdBuf.pushConstants(
-            m_PipelineLayout, 
+            pipelineLayout, 
             // Stage
             vk::ShaderStageFlagBits::eVertex, 
             // Offset
@@ -582,12 +582,12 @@ void Device::RecordCommandBuffers(uint32_t imageIndex)
         cmdBuf.bindDescriptorSets(
             // Point of pipeline and layout
             vk::PipelineBindPoint::eGraphics,
-            m_PipelineLayout,
+            pipelineLayout,
 
             // First set, num sets, pointer to set
             0,
             1,
-            &m_DescriptorSets[imageIndex], // 1 to 1 with command buffers
+            &descriptorSets[imageIndex], // 1 to 1 with command buffers
 
             // Dynamic offsets
             //1,
@@ -606,9 +606,9 @@ void Device::RecordCommandBuffers(uint32_t imageIndex)
 
 void Device::CreateSync()
 {
-    m_ImageAvailable.resize(MAX_FRAME_DRAWS);
-    m_RenderFinished.resize(MAX_FRAME_DRAWS);
-    m_DrawFences.resize(MAX_FRAME_DRAWS);
+    imageAvailable.resize(MAX_FRAME_DRAWS);
+    renderFinished.resize(MAX_FRAME_DRAWS);
+    drawFences.resize(MAX_FRAME_DRAWS);
 
     vk::SemaphoreCreateInfo semInfo{};
     vk::FenceCreateInfo fenceInfo{};
@@ -616,9 +616,9 @@ void Device::CreateSync()
 
     for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
     {
-        m_ImageAvailable[i].Create(m_ImageAvailable[i], semInfo, *this);
-        m_RenderFinished[i].Create(m_RenderFinished[i], semInfo, *this);
-        m_DrawFences[i].Create(m_DrawFences[i], fenceInfo, *this);
+        imageAvailable[i].Create(imageAvailable[i], semInfo, *this);
+        renderFinished[i].Create(renderFinished[i], semInfo, *this);
+        drawFences[i].Create(drawFences[i], fenceInfo, *this);
     }
 }
 
@@ -627,12 +627,12 @@ void Device::DrawFrame(const uint32_t frameIndex)
     uint32_t imageIndex;
 
     // Freeze until previous image is drawn
-    waitForFences(1, &m_DrawFences[frameIndex], VK_TRUE, std::numeric_limits<uint64_t>().max());
+    waitForFences(1, &drawFences[frameIndex], VK_TRUE, std::numeric_limits<uint64_t>().max());
     // Close the fence for this current frame again
-    resetFences(1, &m_DrawFences[frameIndex]);
+    resetFences(1, &drawFences[frameIndex]);
 
-    acquireNextImageKHR(m_Swapchain, std::numeric_limits<uint64_t>().max(), 
-        m_ImageAvailable[frameIndex], nullptr, &imageIndex);
+    acquireNextImageKHR(swapchain, std::numeric_limits<uint64_t>().max(), 
+        imageAvailable[frameIndex], nullptr, &imageIndex);
 
 
     RecordCommandBuffers(imageIndex);
@@ -644,32 +644,33 @@ void Device::DrawFrame(const uint32_t frameIndex)
 
     submitInfo.waitSemaphoreCount = 1;
     // Semaphores to wait on 
-    submitInfo.pWaitSemaphores = &m_ImageAvailable[frameIndex];
+    submitInfo.pWaitSemaphores = &imageAvailable[frameIndex];
     // Stages to check semaphores at
     submitInfo.pWaitDstStageMask = waitStages.data();
 
     // Number of command buffers to submit
     submitInfo.commandBufferCount = 1;
     // Command buffers for submission
-    submitInfo.pCommandBuffers = &m_CommandBuffers[imageIndex];
+    submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
 
     submitInfo.signalSemaphoreCount = 1;
     // Signals command buffer is finished
-    submitInfo.pSignalSemaphores = &m_RenderFinished[frameIndex];
+    submitInfo.pSignalSemaphores = &renderFinished[frameIndex];
 
 
-    utils::CheckVkResult(m_GraphicsQueue.submit(1, &submitInfo, m_DrawFences[frameIndex]), "Failed to submit draw command buffer");
+    utils::CheckVkResult(graphicsQueue.submit(1, &submitInfo, drawFences[frameIndex]), 
+        "Failed to submit draw command buffer");
 
     vk::PresentInfoKHR presentInfo{};
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &m_RenderFinished[frameIndex];
+    presentInfo.pWaitSemaphores = &renderFinished[frameIndex];
 
-    std::array<vk::SwapchainKHR, 1> m_Swapchains = { m_Swapchain };
-    presentInfo.swapchainCount = (uint32_t)m_Swapchains.size();
-    presentInfo.pSwapchains = m_Swapchains.data();
+    std::array<vk::SwapchainKHR, 1> swapchains = { swapchain };
+    presentInfo.swapchainCount = (uint32_t)swapchains.size();
+    presentInfo.pSwapchains = swapchains.data();
     presentInfo.pImageIndices = &imageIndex;
 
-    utils::CheckVkResult(m_PresentQueue.presentKHR(presentInfo), "Failed to present image");
+    utils::CheckVkResult(presentQueue.presentKHR(presentInfo), "Failed to present image");
 
 }
 
@@ -691,25 +692,25 @@ void Device::CreateDescriptorSetLayout()
     //modelBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
     //modelBinding.pImmutableSamplers = nullptr;
 
-    eastl::vector<vk::DescriptorSetLayoutBinding> bindings = { vpBinding };
+    std::vector<vk::DescriptorSetLayoutBinding> bindings = { vpBinding };
 
     vk::DescriptorSetLayoutCreateInfo createInfo = {};
     createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     createInfo.pBindings = bindings.data();
 
     // Create descriptor set layout
-    m_DescriptorSetLayout.Create(m_DescriptorSetLayout, createInfo, *this);
+    DescriptorSetLayout::Create(descriptorSetLayout, createInfo, *this);
 }
 
 void Device::CreateUniformBuffers()
 {
     vk::DeviceSize vpBufferSize = sizeof(UboViewProjection);
-    //vk::DeviceSize modelBufferSize = m_ModelUniformAlignment * MAX_OBJECTS;
+    //vk::DeviceSize modelBufferSize = modelUniformAlignment * MAX_OBJECTS;
 
-    const auto& images = m_Swapchain.GetImages();
+    const auto& images = swapchain.GetImages();
     // One uniform buffer for each image
-    //m_UniformBufferModel.resize(images.size());
-    m_UniformBufferViewProjection.resize(images.size());
+    //uniformBufferModel.resize(images.size());
+    uniformBufferViewProjection.resize(images.size());
 
     //vk::BufferCreateInfo modelCreateInfo = {};
     //modelCreateInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
@@ -724,8 +725,8 @@ void Device::CreateUniformBuffers()
 
     for (size_t i = 0; i < images.size(); ++i)
     {
-        //m_UniformBufferModel[i].Create(modelCreateInfo, aCreateInfo, *this, m_Allocator);
-        m_UniformBufferViewProjection[i].Create(vpCreateInfo, aCreateInfo, *this, m_Allocator);
+        //uniformBufferModel[i].Create(modelCreateInfo, aCreateInfo, *this, allocator);
+        uniformBufferViewProjection[i].Create(vpCreateInfo, aCreateInfo, *this, allocator);
     }
 }
 
@@ -734,43 +735,43 @@ void Device::CreateDescriptorPool()
     // How many descriptors, not descriptor sets
     vk::DescriptorPoolSize vpPoolSize = {};
     vpPoolSize.type = vk::DescriptorType::eUniformBuffer;
-    vpPoolSize.descriptorCount = static_cast<uint32_t>(m_UniformBufferViewProjection.size());
+    vpPoolSize.descriptorCount = static_cast<uint32_t>(uniformBufferViewProjection.size());
 
     //vk::DescriptorPoolSize modelPoolSize = {};
     //modelPoolSize.type = vk::DescriptorType::eUniformBufferDynamic;
-    //modelPoolSize.descriptorCount = static_cast<uint32_t>(m_UniformBufferModel.size());
+    //modelPoolSize.descriptorCount = static_cast<uint32_t>(uniformBufferModel.size());
 
-    eastl::vector<vk::DescriptorPoolSize> poolSizes = { vpPoolSize };
+    std::vector<vk::DescriptorPoolSize> poolSizes = { vpPoolSize };
 
     // Pool creation
     vk::DescriptorPoolCreateInfo poolCreateInfo = {};
     // Maximum number of descriptor sets that can be created from the pool
-    poolCreateInfo.maxSets = static_cast<uint32_t>(m_Swapchain.GetImages().size());
+    poolCreateInfo.maxSets = static_cast<uint32_t>(swapchain.GetImages().size());
     // Number of pool sizes being passed 
     poolCreateInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolCreateInfo.pPoolSizes = poolSizes.data();
 
     // Create descriptor pool
-    m_DescriptorPool.Create(m_DescriptorPool, poolCreateInfo, *this);
+    descriptorPool.Create(descriptorPool, poolCreateInfo, *this);
 }
 
 void Device::CreateDescriptorSets()
 {
-    size_t ubSize = m_Swapchain.GetImages().size();
+    size_t ubSize = swapchain.GetImages().size();
     // One descriptor set for every uniform buffer
-    m_DescriptorSets.resize(ubSize);
+    descriptorSets.resize(ubSize);
 
     // Create one copy of our descriptor set layout per buffer
-    eastl::vector<vk::DescriptorSetLayout> setLayouts(ubSize, m_DescriptorSetLayout.Get());
+    std::vector<vk::DescriptorSetLayout> setLayouts(ubSize, descriptorSetLayout.Get());
 
     vk::DescriptorSetAllocateInfo allocInfo = {};
-    allocInfo.descriptorPool = m_DescriptorPool;
+    allocInfo.descriptorPool = descriptorPool;
     // Number of sets to allocate
     allocInfo.descriptorSetCount = static_cast<uint32_t>(ubSize);
     // Layouts to use to allocate sets (1:1 relationship)
     allocInfo.pSetLayouts = setLayouts.data();
 
-    utils::CheckVkResult(allocateDescriptorSets(&allocInfo, m_DescriptorSets.data()), 
+    utils::CheckVkResult(allocateDescriptorSets(&allocInfo, descriptorSets.data()), 
         "Failed to allocate descriptor sets");
 
 
@@ -795,7 +796,7 @@ void Device::CreateDescriptorSets()
     //// Model version
     //vk::DescriptorBufferInfo modelBufferInfo = {};
     //modelBufferInfo.offset = 0;
-    //modelBufferInfo.range = m_ModelUniformAlignment;
+    //modelBufferInfo.range = modelUniformAlignment;
 
     //vk::WriteDescriptorSet modelSetWrite = {};
     //modelSetWrite.dstBinding = 1;
@@ -807,18 +808,18 @@ void Device::CreateDescriptorSets()
     for (size_t i = 0; i < ubSize; ++i)
     {
         // Buffer to get data from
-        vpBufferInfo.buffer = m_UniformBufferViewProjection[i];
-        //modelBufferInfo.buffer = m_UniformBufferModel[i];
+        vpBufferInfo.buffer = uniformBufferViewProjection[i];
+        //modelBufferInfo.buffer = uniformBufferModel[i];
 
         // Current descriptor set 
-        vpSetWrite.dstSet = m_DescriptorSets[i];
-        //modelSetWrite.dstSet = m_DescriptorSets[i];
+        vpSetWrite.dstSet = descriptorSets[i];
+        //modelSetWrite.dstSet = descriptorSets[i];
 
         // Update with new buffer info
         vpSetWrite.pBufferInfo = &vpBufferInfo;
         //modelSetWrite.pBufferInfo = &modelBufferInfo;
 
-        eastl::array<vk::WriteDescriptorSet> setWrites = { vpSetWrite };
+        std::array<vk::WriteDescriptorSet, 1> setWrites = { vpSetWrite };
 
         updateDescriptorSets(
             static_cast<uint32_t>(setWrites.size()), 
@@ -832,9 +833,9 @@ void Device::CreateDescriptorSets()
 void Device::AllocateDynamicBufferTransferSpace()
 {
     //// Allocate memory for objects
-    //m_ModelTransferSpace = (Model*)_aligned_malloc(
-    //    m_ModelUniformAlignment * MAX_OBJECTS, 
-    //    m_ModelUniformAlignment
+    //modelTransferSpace = (Model*)_aligned_malloc(
+    //    modelUniformAlignment * MAX_OBJECTS, 
+    //    modelUniformAlignment
     //);
 
 }
@@ -844,9 +845,9 @@ void Device::CreatePushConstantRange()
     // NO create needed
 
     // Where push constant is located
-    m_PushRange.stageFlags = vk::ShaderStageFlagBits::eVertex;
-    m_PushRange.offset = 0;
-    m_PushRange.size = sizeof(Model);
+    pushRange.stageFlags = vk::ShaderStageFlagBits::eVertex;
+    pushRange.offset = 0;
+    pushRange.size = sizeof(Model);
 }
 
 
@@ -854,29 +855,29 @@ void Device::CreatePushConstantRange()
 void Device::UpdateUniformBuffers(uint32_t imageIndex)
 {
     // Copy view & projection data
-    auto& vpBuffer = m_UniformBufferViewProjection[imageIndex];
+    auto& vpBuffer = uniformBufferViewProjection[imageIndex];
     void* data;
     const auto& vpAllocInfo = vpBuffer.GetAllocationInfo();
     vk::DeviceMemory memory = vpAllocInfo.deviceMemory;
     vk::DeviceSize offset = vpAllocInfo.offset;
     mapMemory(memory, offset, sizeof(UboViewProjection), {}, &data);
-    memcpy(data, &m_UboViewProjection, sizeof(UboViewProjection));
+    memcpy(data, &uboViewProjection, sizeof(UboViewProjection));
     unmapMemory(memory);
 
     // Copy model data
     //size_t numObjects = objects.size();
     //for (size_t i = 0; i < numObjects; ++i)
     //{
-    //    Model* model = (Model*)((uint64_t) m_ModelTransferSpace + (i * m_ModelUniformAlignment));
+    //    Model* model = (Model*)((uint64_t) modelTransferSpace + (i * modelUniformAlignment));
     //    *model = objects[i].GetModel();
     //}
 
-    //auto& modelBuffer = m_UniformBufferModel[imageIndex];
+    //auto& modelBuffer = uniformBufferModel[imageIndex];
     //auto& modelAllocInfo = modelBuffer.GetAllocationInfo();
     //memory = modelAllocInfo.deviceMemory;
     //offset = modelAllocInfo.offset;
-    //mapMemory(memory, offset, m_ModelUniformAlignment * numObjects, {}, &data);
-    //memcpy(data, m_ModelTransferSpace, m_ModelUniformAlignment * numObjects);
+    //mapMemory(memory, offset, modelUniformAlignment * numObjects, {}, &data);
+    //memcpy(data, modelTransferSpace, modelUniformAlignment * numObjects);
     //unmapMemory(memory);
 }
 
@@ -885,9 +886,9 @@ void Device::Update(float dt)
     static float speed = 90.0f;
     static float speed2 = 230.0f;
 
-    const auto& model = objects[0].GetModel().model;
+    const auto& model = objects[0].GetModel();
     objects[0].SetModel(glm::rotate(model, glm::radians(speed * dt), { 0.0f, 0.0f,1.0f }));
 
-    const auto& model2 = objects[1].GetModel().model;
-    objects[1].SetModel(glm::rotate(model2, glm::radians(speed2 * dt), { 0.0f, 0.0f,1.0f }));
+    const auto& model2 = objects[1].GetModel();
+    objects[1].SetModel(glm::rotate(model2, glm::radians(speed2 * dt), { 0.0f, 1.0f,1.0f }));
 }

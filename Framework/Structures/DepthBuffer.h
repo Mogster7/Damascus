@@ -8,20 +8,22 @@
 #pragma once
 class Device;
 
-class DepthBuffer : public eastl::safe_object
+class DepthBuffer 
 {
-    Image m_Image;
-    ImageView m_ImageView;
-    eastl::safe_ptr<Device> m_Owner;
-    vk::Format m_Format;
+	Device* m_owner = nullptr;
 
-    static vk::Format ChooseFormat(const eastl::vector<vk::Format>& formats, 
+    static vk::Format ChooseFormat(const std::vector<vk::Format>& formats, 
         vk::ImageTiling tiling, vk::FormatFeatureFlagBits features);
+
 public:
     void Create(Device& owner);
     void Destroy();
-    
-    vk::Format GetFormat() const { return m_Format; }
-    ImageView& GetImageView() { return m_ImageView; }
+
+	Image image;
+    ImageView imageView;
+    vk::Format format;
+
+    vk::Format GetFormat() const { return format; }
+    ImageView& GetImageView() { return imageView; }
 };
 

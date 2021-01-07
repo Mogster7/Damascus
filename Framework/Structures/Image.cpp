@@ -8,11 +8,11 @@
 void Image::Create(vk::ImageCreateInfo& imageCreateInfo, VmaAllocationCreateInfo& allocCreateInfo,
     Device& owner, VmaAllocator allocator)
 {
-    m_Owner = &owner;
-    m_Allocator = allocator;
+    m_owner = &owner;
+    this->allocator = allocator;
 
-    utils::CheckVkResult((vk::Result)vmaCreateImage(m_Allocator, (VkImageCreateInfo*)&imageCreateInfo, &allocCreateInfo,
-        (VkImage*)&m_Image, &m_Allocation, &m_AllocationInfo), 
+    utils::CheckVkResult((vk::Result)vmaCreateImage(allocator, (VkImageCreateInfo*)&imageCreateInfo, &allocCreateInfo,
+        (VkImage*)&m_object, &allocation, &allocationInfo), 
         "Failed to allocate image");
 }
 
@@ -20,6 +20,8 @@ void Image::Create(vk::ImageCreateInfo& imageCreateInfo, VmaAllocationCreateInfo
 void Image::Create(glm::uvec2 size, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage,
     Device& owner, VmaAllocator allocator)
 {
+    m_owner = &owner;
+
     vk::ImageCreateInfo imageCreateInfo = {};
 
     imageCreateInfo.imageType = vk::ImageType::e2D;
@@ -46,11 +48,13 @@ void Image::Create(glm::uvec2 size, vk::Format format, vk::ImageTiling tiling, v
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-    Create(imageCreateInfo, allocInfo, owner, owner.GetMemoryAllocator());
+
+
+    Create(imageCreateInfo, allocInfo, *m_owner, m_owner->allocator);
 }
 
 
 void Image::Destroy()
 {
-    vmaDestroyImage(m_Allocator, m_Image, m_Allocation);
+    vmaDestroyImage(allocator, m_object, allocation);
 }

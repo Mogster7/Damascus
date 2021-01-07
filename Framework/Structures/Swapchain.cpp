@@ -13,9 +13,9 @@ void Swapchain::Create(Swapchain& obj, const vk::SwapchainCreateInfoKHR& createI
     Device& owner, vk::Format imageFormat, vk::Extent2D extent)
 {
     Create(obj, createInfo, owner);
-    obj.m_ImageFormat = imageFormat;
-    obj.m_Extent = extent;
-    obj.m_Images = owner.getSwapchainImagesKHR(obj);
+    obj.imageFormat = imageFormat;
+    obj.extent = extent;
+    obj.images = owner.getSwapchainImagesKHR(obj);
     obj.CreateImageViews();
 }
 
@@ -78,23 +78,23 @@ vk::SurfaceFormatKHR Swapchain::ChooseSurfaceFormat(const std::vector<vk::Surfac
 
 void Swapchain::CreateImageViews()
 {
-    size_t m_ImagesSize = m_Images.size();
-    m_ImageViews.resize(m_ImagesSize);
+    size_t imagesSize = images.size();
+    imageViews.resize(imagesSize);
 
-    for (size_t i = 0; i < m_ImagesSize; ++i)
+    for (size_t i = 0; i < imagesSize; ++i)
     {
         vk::ImageViewCreateInfo createInfo(
             {},
-            m_Images[i],
+            images[i],
             vk::ImageViewType::e2D,
-            m_ImageFormat,
+            imageFormat,
             vk::ComponentMapping(),
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
         );
 
-        m_ImageViews[i].Create(m_ImageViews[i], createInfo, *m_Owner);
+        imageViews[i].Create(imageViews[i], createInfo, *m_owner);
 
-        if (bool(m_ImageViews[i]) == false)
+        if (bool(imageViews[i]) == false)
             throw std::runtime_error("Failed to create image views");
     }
 
@@ -103,10 +103,10 @@ void Swapchain::CreateImageViews()
 
 void Swapchain::Destroy()
 {
-    for (auto& imageView : m_ImageViews)
+    for (auto& imageView : imageViews)
         imageView.Destroy();
 
-    m_Owner->destroySwapchainKHR(*this);
+    m_owner->destroySwapchainKHR(*this);
 }
 
 

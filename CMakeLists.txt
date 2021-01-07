@@ -9,8 +9,12 @@ set(
     main.cpp
     )
 
+
+set(VULKAN_DIR C:\\VulkanSDK\\1.2.162.0)
+set(VULKAN_INCLUDE_DIR ${VULKAN_DIR}\\Include)
+set(VULKAN_LIB_DIR ${VULKAN_DIR}\\Lib)
+
 add_executable(${PROJECT_NAME} ${source_list})
-set(LOCAL_LIB_DIR C:/Libraries)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_SOURCE_DIR} 

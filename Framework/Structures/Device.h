@@ -9,71 +9,60 @@
 
 CUSTOM_VK_DECLARE_DERIVE(Device, Device, PhysicalDevice)
 
-    VmaAllocator m_Allocator = {};
-    Swapchain m_Swapchain = {};
-
-    vk::Queue m_GraphicsQueue = {};
-    vk::Queue m_PresentQueue = {};
-
-    RenderPass m_RenderPass = {};
-
-    PipelineLayout m_PipelineLayout = {};
-    GraphicsPipeline m_GraphicsPipeline = {};
-
-    eastl::vector<Framebuffer> m_Framebuffers = {};
-
-    CommandPool m_GraphicsCmdPool = {};
-    eastl::vector<vk::CommandBuffer> m_CommandBuffers;
-
-    eastl::vector<Semaphore> m_ImageAvailable = {};
-    eastl::vector<Semaphore> m_RenderFinished = {};
-    eastl::vector<Fence> m_DrawFences = {};
 
 public:
     void Update(float dt);
     void DrawFrame(const uint32_t frameIndex);
     void Initialization();
 
-    static const eastl::vector<Vertex> Device::meshVerts;
-    static const eastl::vector<Vertex> Device::meshVerts2;
+    static const std::vector<Vertex> Device::meshVerts;
+    static const std::vector<Vertex> Device::meshVerts2;
 
-    static const eastl::vector<uint32_t> Device::meshIndices;
-    eastl::vector<Mesh> objects;
+    static const std::vector<uint32_t> Device::meshIndices;
+    std::vector<Mesh> objects;
+
+    VmaAllocator allocator = {};
+    Swapchain swapchain = {};
+
+    vk::Queue graphicsQueue = {};
+    vk::Queue presentQueue = {};
+
+    RenderPass renderPass = {};
+
+    PipelineLayout pipelineLayout = {};
+    GraphicsPipeline graphicsPipeline = {};
+
+    std::vector<Framebuffer> framebuffers = {};
+
+    CommandPool graphicsCmdPool = {};
+    std::vector<vk::CommandBuffer> commandBuffers;
+
+    std::vector<Semaphore> imageAvailable = {};
+    std::vector<Semaphore> renderFinished = {};
+    std::vector<Fence> drawFences = {};
 
     // Descriptors
-    DescriptorSetLayout m_DescriptorSetLayout;
-    vk::PushConstantRange m_PushRange;
+    DescriptorSetLayout descriptorSetLayout;
+    vk::PushConstantRange pushRange;
 
-    DescriptorPool m_DescriptorPool;
-    eastl::vector<vk::DescriptorSet> m_DescriptorSets;
+    DescriptorPool descriptorPool;
+    std::vector<vk::DescriptorSet> descriptorSets;
 
-    eastl::vector<Buffer> m_UniformBufferModel;
-    eastl::vector<Buffer> m_UniformBufferViewProjection;
+    std::vector<Buffer> uniformBufferModel;
+    std::vector<Buffer> uniformBufferViewProjection;
 
     struct UboViewProjection
     {
         glm::mat4 projection;
         glm::mat4 view;
-    } m_UboViewProjection;
+    } uboViewProjection;
 
-    DepthBuffer m_DepthBuffer;
+    DepthBuffer depthBuffer;
 
-    //size_t m_ModelUniformAlignment;
-    //vk::DeviceSize m_MinUniformBufferOffset;
-    //Model* m_ModelTransferSpace;
+    //size_t modelUniformAlignment;
+    //vk::DeviceSize minUniformBufferOffset;
+    //Model* modelTransferSpace;
 
-    
-
-    VmaAllocator GetMemoryAllocator() const { return m_Allocator; }
-    Swapchain& GetSwapchain() { return m_Swapchain; }
-    vk::Queue GetGraphicsQueue() const { return m_GraphicsQueue; }
-    vk::Queue GetPresentQueue() const { return m_PresentQueue; }
-    eastl::vector<Framebuffer>& GetFramebuffers() { return m_Framebuffers; }
-    CommandPool& GetGraphicsCmdPool() { return m_GraphicsCmdPool; }
-    eastl::vector<vk::CommandBuffer>& GetCommandBuffers() { return m_CommandBuffers; }
-    eastl::vector<Fence>& GetDrawFences() { return m_DrawFences; }
-    eastl::vector<Semaphore>& GetImageAvailableSemaphores() { return m_ImageAvailable; }
-    eastl::vector<Semaphore>& GetRenderFinishedSemaphores() { return m_RenderFinished; }
 
     void AllocateDynamicBufferTransferSpace();
 

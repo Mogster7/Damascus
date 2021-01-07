@@ -59,14 +59,14 @@ void PhysicalDevice::Create()
         throw std::runtime_error("Failed to find a suitable GPU");
 
     (*this) = PhysicalDevice(*it);
-    m_QueueFamilyIndices = FindQueueFamilies(*this);
-    getProperties(&m_Properties);
+    queueFamilyIndices = FindQueueFamilies(*this);
+    getProperties(&properties);
 }
 
 void PhysicalDevice::CreateLogicalDevice(Device& device)
 {
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> queueFamilies = { m_QueueFamilyIndices.graphics.value(), m_QueueFamilyIndices.present.value() };
+    std::set<uint32_t> queueFamilies = { queueFamilyIndices.graphics.value(), queueFamilyIndices.present.value() };
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : queueFamilies)
@@ -98,12 +98,12 @@ void PhysicalDevice::CreateLogicalDevice(Device& device)
 
 const QueueFamilyIndices& PhysicalDevice::GetQueueFamilyIndices() const
 {
-    return m_QueueFamilyIndices;
+    return queueFamilyIndices;
 }
 
 vk::DeviceSize PhysicalDevice::GetMinimumUniformBufferOffset() const
 {
-    return m_Properties.limits.minUniformBufferOffsetAlignment;
+    return properties.limits.minUniformBufferOffsetAlignment;
 }
 
 QueueFamilyIndices PhysicalDevice::FindQueueFamilies(vk::PhysicalDevice pd)

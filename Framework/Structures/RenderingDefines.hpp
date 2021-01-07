@@ -38,7 +38,7 @@ constexpr void CheckInitialization(T& obj)
 
 #define CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, derived, EXT) \
     class ownerName;\
-    class myName : public eastl::safe_object derived \
+    class myName derived \
     { \
     public:\
         myName() = default;\
@@ -47,7 +47,7 @@ constexpr void CheckInitialization(T& obj)
         operator vk::vkName##EXT () { return Get(); }\
     \
     protected:\
-        eastl::safe_ptr<ownerName> m_Owner = {};\
+        ownerName* m_owner = {};\
     private:
 
 
@@ -57,9 +57,9 @@ constexpr void CheckInitialization(T& obj)
         template <class ...Args>\
         void Create(const vk::vkName##CreateInfo##EXT & createInfo, ownerName& owner, Args&&... args)\
         {\
-            m_Owner = &owner; \
-            utils::CheckVkResult(m_Owner->create##vkName##EXT(args... , &createInfo, nullptr, &m_##myName), \
-                eastl::string("Failed to construct ") + #vkName );\
+            m_owner = &owner; \
+            utils::CheckVkResult(m_owner->create##vkName##EXT(args... , &createInfo, nullptr, &m_object), \
+                std::string("Failed to construct ") + #vkName );\
             CheckInitialization<myName>(*this);\
         }\
     private:\
@@ -71,8 +71,8 @@ constexpr void CheckInitialization(T& obj)
             ownerName& owner, Args&&... args)\
         {\
             utils::CheckVkResult(owner.create##constructName##EXT(args... , &createInfo, nullptr, &obj), \
-                eastl::string("Failed to construct ") + #vkName );\
-            obj.m_Owner = &owner; \
+                std::string("Failed to construct ") + #vkName );\
+            obj.m_owner = &owner; \
             CheckInitialization<myName>(obj);\
         }\
         template <class ...Args>\
@@ -89,9 +89,9 @@ constexpr void CheckInitialization(T& obj)
 
 #define MEMBER_GETTER(myName, vkName, EXT)\
 public:\
-    inline vk::vkName##EXT Get() const { return static_cast<vk::vkName##EXT>(m_##myName); }\
+    inline vk::vkName##EXT Get() const { return static_cast<vk::vkName##EXT>(m_object); }\
 private:\
-    vk::vkName##EXT m_##myName = {};
+    vk::vkName##EXT m_object = {};
 
 #define DERIVED_GETTER(myName, vkName, EXT)\
 public:\
@@ -110,18 +110,18 @@ private:
     CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, , KHR) CUSTOM_VK_CREATE(myName, vkName, ownerName, KHR) MEMBER_GETTER(myName, vkName, KHR)
 
 #define CUSTOM_VK_DECLARE_DERIVE(myName, vkName, ownerName) \
-    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, CONCAT_COMMA(public vk::##vkName) , ) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, ) DERIVED_GETTER(myName, vkName, )
+    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::##vkName , ) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, ) DERIVED_GETTER(myName, vkName, )
 
 #define CUSTOM_VK_DECLARE_DERIVE_NO_CREATE(myName, vkName, ownerName) \
-    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, CONCAT_COMMA(public vk::##vkName) , ) DERIVED_GETTER(myName, vkName, ) 
+    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::##vkName , ) DERIVED_GETTER(myName, vkName, ) 
 
 #define CUSTOM_VK_DECLARE_DERIVE_KHR(myName, vkName, ownerName) \
-    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, CONCAT_COMMA(public vk::##vkName##KHR) , KHR) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, KHR) DERIVED_GETTER(myName, vkName, KHR)
+    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::##vkName##KHR , KHR) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, KHR) DERIVED_GETTER(myName, vkName, KHR)
 
 #define CUSTOM_VK_DEFINE_FULL(myName, vkName, ownerName, EXT)\
     void myName::Destroy()\
     {\
-        m_Owner->destroy##vkName##EXT(Get());\
+        m_owner->destroy##vkName##EXT(Get());\
     }
 
 #define CUSTOM_VK_DEFINE(myName, vkName, ownerName) CUSTOM_VK_DEFINE_FULL(myName, vkName, ownerName,)

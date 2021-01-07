@@ -26,7 +26,7 @@ public:
     inline static float dt = 0.0f;
     inline static float time = 0.0f;
 
-    static void Initialize(eastl::weak_ptr<Window> window);
+    static void Initialize(std::weak_ptr<Window> window);
     static void Update();
     static void Destroy();
 
@@ -42,7 +42,7 @@ public:
     
 
 private:
-    static eastl::unique_ptr<Renderer_Impl> impl;
+    static std::unique_ptr<Renderer_Impl> impl;
 
     friend class Window;
 };

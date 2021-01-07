@@ -61,7 +61,7 @@ std::vector<const char*> GetRequiredExtensions()
 
 void Instance::Create()
 {
-    auto vkGetInstanceProcAddr = m_DynamicLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+    auto vkGetInstanceProcAddr = dynamicLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
     if (enableValidationLayers && !checkValidationLayerSupport())
@@ -106,17 +106,17 @@ void Instance::Create()
     vk::Result result = vk::createInstance(&createInfo, nullptr, this);
     if (result != vk::Result::eSuccess)
     {
-        throw std::runtime_error("failed to create m_Instance");
+        throw std::runtime_error("failed to create instance");
     }
     VULKAN_HPP_DEFAULT_DISPATCHER.init(*this);
 
     ConstructDebugMessenger();
 }
 
-void Instance::CreateSurface(eastl::weak_ptr<Window> winHandle)
+void Instance::CreateSurface(std::weak_ptr<Window> winHandle)
 {
-    m_Window = winHandle;
-    if (glfwCreateWindowSurface((VkInstance)(*this), m_Window.lock()->GetHandle(), nullptr, (VkSurfaceKHR*)&m_Surface) != VK_SUCCESS)
+    window = winHandle;
+    if (glfwCreateWindowSurface((VkInstance)(*this), window.lock()->GetHandle(), nullptr, (VkSurfaceKHR*)&surface) != VK_SUCCESS)
     {
         ASSERT(false, "Failed to create window surface");
     }
@@ -125,9 +125,9 @@ void Instance::CreateSurface(eastl::weak_ptr<Window> winHandle)
 void Instance::Destroy()
 {
     if (enableValidationLayers)
-        destroyDebugUtilsMessengerEXT(m_DebugMessenger, nullptr);
+        destroyDebugUtilsMessengerEXT(debugMessenger, nullptr);
 
-    destroySurfaceKHR(m_Surface);
+    destroySurfaceKHR(surface);
 
     destroy();
 }
@@ -168,6 +168,6 @@ void Instance::ConstructDebugMessenger()
     vk::DebugUtilsMessengerCreateInfoEXT info;
     PopulateDebugCreateInfo(info);
 
-    if (createDebugUtilsMessengerEXT(&info, nullptr, &m_DebugMessenger) != vk::Result::eSuccess)
+    if (createDebugUtilsMessengerEXT(&info, nullptr, &debugMessenger) != vk::Result::eSuccess)
         throw std::runtime_error("Failed to set up debug messenger");
 }

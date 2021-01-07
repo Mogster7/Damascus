@@ -21,23 +21,23 @@ struct Renderer_Impl
 
     
     // Init functions
-    void InitVulkan(eastl::weak_ptr<Window> winHandle);
+    void InitVulkan(std::weak_ptr<Window> winHandle);
 
-    Instance m_Instance = {};
-    PhysicalDevice m_PhysicalDevice = {};
-    Device m_Device = {};
+    Instance instance = {};
+    PhysicalDevice physicalDevice = {};
+    Device device = {};
 
-    uint32_t m_CurrentFrame = 0;
+    uint32_t currentFrame = 0;
 
     
 
-    eastl::unique_ptr<Mesh> mesh = {};
+    std::unique_ptr<Mesh> mesh = {};
 };
 
-eastl::unique_ptr<Renderer_Impl> Renderer::impl = {};
-void Renderer::Initialize(eastl::weak_ptr<Window> window)
+std::unique_ptr<Renderer_Impl> Renderer::impl = {};
+void Renderer::Initialize(std::weak_ptr<Window> window)
 {
-    impl = eastl::make_unique<Renderer_Impl>();
+    impl = std::make_unique<Renderer_Impl>();
     impl->InitVulkan(window);
 }
 
@@ -62,57 +62,44 @@ void Renderer::DrawFrame()
 
 Instance& Renderer::GetInstance()
 {   
-    return impl->m_Instance;
+    return impl->instance;
 }
 
 Device& Renderer::GetDevice()
 {
-    return impl->m_Device;
+    return impl->device;
 }
 
 PhysicalDevice& Renderer::GetPhysicalDevice()
 {
-    return impl->m_PhysicalDevice;
+    return impl->physicalDevice;
 }
 
 
-void Renderer_Impl::InitVulkan(eastl::weak_ptr<Window> winHandle) {
-    m_Instance.Create();
-    m_Instance.CreateSurface(winHandle);
-    m_PhysicalDevice.Create();
-    m_PhysicalDevice.CreateLogicalDevice(m_Device);
-    //m_Device.CreateSwapchain();
-    //m_Device.GetSwapchain().CreateImageViews();
-    //m_Device.CreateRenderPass();
-    //m_Device.CreateDescriptorSetLayout();
-    //m_Device.CreateGraphicsPipeline();
-    //m_Device.CreateFramebuffers();
-    //m_Device.CreateCommandPool();
-
-    //m_Device.CreateCommandBuffers();
-    //m_Device.CreateUniformBuffers();
-    //m_Device.RecordCommandBuffers();
-
-    //m_Device.CreateSync();
+void Renderer_Impl::InitVulkan(std::weak_ptr<Window> winHandle) {
+    instance.Create();
+    instance.CreateSurface(winHandle);
+    physicalDevice.Create();
+    physicalDevice.CreateLogicalDevice(device);
 }
 
 Renderer_Impl::~Renderer_Impl()
 {
-    m_Device.Get().waitIdle();
+    device.Get().waitIdle();
 
-    m_Device.Destroy();
-    m_Instance.Destroy();
+    device.Destroy();
+    instance.Destroy();
 }
 
 void Renderer_Impl::DrawFrame()
 {
-    m_Device.DrawFrame(m_CurrentFrame);
-    m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAME_DRAWS;
+    device.DrawFrame(currentFrame);
+    currentFrame = (currentFrame + 1) % MAX_FRAME_DRAWS;
 }
 
 void Renderer_Impl::Update(float dt)
 {
-    m_Device.Update(dt);
+    device.Update(dt);
 }
 
 

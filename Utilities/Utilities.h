@@ -11,8 +11,8 @@ constexpr unsigned MAX_OBJECTS = 2;
 
 namespace utils
 {
-    std::vector<char> ReadFile(const eastl::string& filename);
-    void CheckVkResult(vk::Result result, const eastl::string& error);
+    std::vector<char> ReadFile(const std::string& filename);
+    void CheckVkResult(vk::Result result, const std::string& error);
 }
 
 

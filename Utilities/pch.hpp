@@ -9,16 +9,12 @@ void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, cons
 #include <glm/glm.hpp>
 #include <stdexcept>
 #include <cstdlib>
-#include <EASTL/vector.h>
-#include <EASTL/array.h>
-#include <EASTL/optional.h>
-#include <EASTL/string.h>
-#include <EASTL/shared_ptr.h>
-#include <EASTL/weak_ptr.h>
-#include <EASTL/unique_ptr.h>
-#include <EASTL/safe_ptr.h>
-#include <EASTL/functional.h>
-
+#include <optional>
+#include <memory>
+#include <vector>
+#include <array>
+#include <algorithm>
+#include <string>
 
 #ifndef NDEBUG
 #   define ASSERT(condition, message) \

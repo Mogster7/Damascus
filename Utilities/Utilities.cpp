@@ -11,7 +11,7 @@
 
 namespace utils
 {
-    std::vector<char> ReadFile(const eastl::string& filename)
+    std::vector<char> ReadFile(const std::string& filename)
     {
         std::string convertedName = filename.c_str();
         std::ifstream file(convertedName, std::ios::ate | std::ios::binary);
@@ -31,7 +31,7 @@ namespace utils
         return buffer;
     }
 
-    void CheckVkResult(vk::Result result, const eastl::string& error)
+    void CheckVkResult(vk::Result result, const std::string& error)
     {
         ASSERT(result == vk::Result::eSuccess, error.c_str());
     }

@@ -18,12 +18,12 @@ public:
 
 protected:
 
-    VmaAllocator m_Allocator = {};
-    VmaAllocation m_Allocation = {};
-    VmaAllocationInfo m_AllocationInfo = {};
-    vk::ImageUsageFlags m_ImageUsage = {};
-    VmaMemoryUsage m_MemoryUsage = {};
-    vk::DeviceSize m_Size = {};
+    VmaAllocator allocator = {};
+    VmaAllocation allocation = {};
+    VmaAllocationInfo allocationInfo = {};
+    vk::ImageUsageFlags imageUsage = {};
+    VmaMemoryUsage memoryUsage = {};
+    vk::DeviceSize size = {};
 };
 
 

@@ -7,7 +7,7 @@ class Application {
 public:
     Application(const glm::uvec2& windowDimensions)
     {
-        window = eastl::shared_ptr<Window>(new Window(windowDimensions, "Vulkan"));
+        window = std::shared_ptr<Window>(new Window(windowDimensions, "Vulkan"));
         Renderer::Initialize(window);
     }
 
@@ -22,7 +22,7 @@ public:
     }
 
 private:
-    eastl::shared_ptr<Window> window;
+    std::shared_ptr<Window> window;
 
 };
 

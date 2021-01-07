@@ -17,22 +17,22 @@
 
 class Window;
 
-class Instance : public eastl::safe_object, public vk::Instance
+class Instance : public vk::Instance
 {
-    eastl::weak_ptr<Window> m_Window;
-    vk::SurfaceKHR m_Surface;
-    vk::DebugUtilsMessengerEXT m_DebugMessenger = {};
-    vk::DynamicLoader m_DynamicLoader = {};
+    std::weak_ptr<Window> window;
+    vk::SurfaceKHR surface;
+    vk::DebugUtilsMessengerEXT debugMessenger = {};
+    vk::DynamicLoader dynamicLoader = {};
 
 public:
     Instance() = default;
     void Create();
-    void CreateSurface(eastl::weak_ptr<Window> winHandle);
+    void CreateSurface(std::weak_ptr<Window> winHandle);
     void Destroy();
     ~Instance() = default;
 
-    vk::SurfaceKHR GetSurface() const { return m_Surface; }
-    eastl::weak_ptr<Window> GetWindow() const { return m_Window; }
+    vk::SurfaceKHR GetSurface() const { return surface; }
+    std::weak_ptr<Window> GetWindow() const { return window; }
 
 private:
     static void PopulateDebugCreateInfo(vk::DebugUtilsMessengerCreateInfoEXT& createInfo);

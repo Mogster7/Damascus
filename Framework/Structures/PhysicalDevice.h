@@ -16,18 +16,18 @@ namespace vk
 class QueueFamilyIndices
 {
 public:
-    eastl::optional<uint32_t> graphics;
-    eastl::optional<uint32_t> present;
+    std::optional<uint32_t> graphics;
+    std::optional<uint32_t> present;
 
     bool isComplete() const
     {
-        return graphics.has_value() & present.has_value();
+        return graphics.has_value() && present.has_value();
     }
 };
 
 class Device;
 
-class PhysicalDevice : public eastl::safe_object, public vk::PhysicalDevice
+class PhysicalDevice : public vk::PhysicalDevice
 {
 public:
     PhysicalDevice() = default;
@@ -37,7 +37,7 @@ public:
     void Create();
     void CreateLogicalDevice(Device& device);
     const QueueFamilyIndices& GetQueueFamilyIndices() const;
-    vk::PhysicalDeviceProperties GetProperties() const { return m_Properties; }
+    vk::PhysicalDeviceProperties GetProperties() const { return properties; }
     vk::DeviceSize GetMinimumUniformBufferOffset() const;
 
 
@@ -49,8 +49,8 @@ private:
     bool IsDeviceSuitable(vk::PhysicalDevice) const;
     bool CheckDeviceExtensionSupport(vk::PhysicalDevice) const;
 
-    QueueFamilyIndices m_QueueFamilyIndices;
-    vk::PhysicalDeviceProperties m_Properties;
+    QueueFamilyIndices queueFamilyIndices;
+    vk::PhysicalDeviceProperties properties;
 };
 
 

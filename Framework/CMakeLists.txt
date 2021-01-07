@@ -24,16 +24,9 @@ add_library(Framework
     Structures/Fence.cpp
     Structures/Descriptors.cpp
     Structures/Image.cpp
-    Structures/DepthBuffer.cpp)
+    Structures/DepthBuffer.cpp
+    )
 
-set(LOCAL_LIB_DIR C:/Libraries)
-set(VULKAN_DIR C:\\VulkanSDK\\1.2.135.0)
-set(VULKAN_INCLUDE_DIR ${VULKAN_DIR}\\Include)
-set(VULKAN_LIB_DIR ${VULKAN_DIR}\\Lib)
-
-
-set(GLFW_INCLUDE_DIR ${LOCAL_LIB_DIR}/glfw/include/GLFW)
-set(GLFW_LIB_DIR ${LOCAL_LIB_DIR}/glfw/lib-vc2019)
 
 set(LIBS
     glfw3
@@ -54,5 +47,6 @@ target_link_directories(Framework PUBLIC
     ${CMAKE_SOURCE_DIR}/Utilities
     ${GLFW_LIB_DIR}
     )
+
 target_link_libraries(Framework Utilities ${LIBS})
 target_precompile_headers(Framework REUSE_FROM Utilities)

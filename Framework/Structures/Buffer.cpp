@@ -11,19 +11,19 @@
 void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo,
         VmaAllocationCreateInfo& allocCreateInfo, Device& owner, VmaAllocator allocator)
 {
-    m_Owner = &owner;
-    m_Allocator = allocator;
-    m_Size = bufferCreateInfo.size;
+    m_owner = &owner;
+    this->allocator = allocator;
+    size = bufferCreateInfo.size;
 
-    utils::CheckVkResult((vk::Result)vmaCreateBuffer(m_Allocator, (VkBufferCreateInfo*)&bufferCreateInfo, &allocCreateInfo,
-        (VkBuffer*)&m_Buffer, &m_Allocation, &m_AllocationInfo), 
+    utils::CheckVkResult((vk::Result)vmaCreateBuffer(allocator, (VkBufferCreateInfo*)&bufferCreateInfo, &allocCreateInfo,
+        (VkBuffer*)&m_object, &allocation, &allocationInfo), 
         "Failed to allocate buffer");
 }
 
 void Buffer::StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size)
 {
-    vk::Queue transferQueue = device.GetGraphicsQueue();
-    vk::CommandPool transferCmdPool = device.GetGraphicsCmdPool();
+    vk::Queue transferQueue = device.graphicsQueue;
+    vk::CommandPool transferCmdPool = device.graphicsCmdPool;
 
     // Command buffer to hold transfer commands
     vk::CommandBuffer transferCmdBuffer;
@@ -72,24 +72,24 @@ void Buffer::StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceS
 
 void Buffer::Destroy()
 {
-    vmaDestroyBuffer(m_Allocator, (VkBuffer)m_Buffer, m_Allocation);
+    vmaDestroyBuffer(allocator, (VkBuffer)m_object, allocation);
 }
 
 void Buffer::CreateStaged(void* data, uint32_t numElements, uint32_t sizeOfElement, 
     vk::BufferUsageFlags usage, Device& owner, VmaAllocator allocator)
 {
-    m_Owner = &owner;
-    m_Allocator = allocator;
-    m_Size = sizeOfElement * numElements;
+    m_owner = &owner;
+    this->allocator = allocator;
+    size = sizeOfElement * numElements;
 
     vk::BufferCreateInfo bCreateInfo;
     bCreateInfo.usage = usage | vk::BufferUsageFlagBits::eTransferDst;
-    bCreateInfo.size = m_Size;
+    bCreateInfo.size = size;
 
     VmaAllocationCreateInfo aCreateInfo = {};
     aCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-    Buffer::Create(bCreateInfo, aCreateInfo, *m_Owner, m_Allocator);
+    Buffer::Create(bCreateInfo, aCreateInfo, *m_owner, allocator);
 
 
     // STAGING BUFFER
@@ -99,33 +99,33 @@ void Buffer::CreateStaged(void* data, uint32_t numElements, uint32_t sizeOfEleme
     // we can reuse size
 
     aCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-    stagingBuffer.Create(bCreateInfo, aCreateInfo, *m_Owner, allocator);
+    stagingBuffer.Create(bCreateInfo, aCreateInfo, *m_owner, allocator);
 
     // Create pointer to memory
     void* mapped; 
 
     //// Map and copy data to the memory, then unmap
     vmaMapMemory(allocator, stagingBuffer.GetAllocation(), &mapped);
-    std::memcpy(mapped, data, (size_t)m_Size);
+    std::memcpy(mapped, data, (size_t)size);
     vmaUnmapMemory(allocator, stagingBuffer.GetAllocation());
 
     // Copy staging buffer to GPU-side vertex buffer
-    StageTransfer(stagingBuffer, *this, *m_Owner, m_Size);
+    StageTransfer(stagingBuffer, *this, *m_owner, size);
 
     // Cleanup
     stagingBuffer.Destroy();
 }
 
-void VertexBuffer::Create(const eastl::vector<Vertex> vertices, Device& owner, VmaAllocator allocator)
+void VertexBuffer::Create(const std::vector<Vertex> vertices, Device& owner, VmaAllocator allocator)
 {
     CreateStaged((void*)&vertices[0], vertices.size(), sizeof(Vertex), 
         vk::BufferUsageFlagBits::eVertexBuffer, owner, allocator);
-    m_VertexCount = vertices.size();
+    vertexCount = vertices.size();
 }
 
-void IndexBuffer::Create(const eastl::vector<uint32_t> indices, Device& owner, VmaAllocator allocator)
+void IndexBuffer::Create(const std::vector<uint32_t> indices, Device& owner, VmaAllocator allocator)
 {
     CreateStaged((void*)indices.data(), indices.size(), sizeof(uint32_t), 
         vk::BufferUsageFlagBits::eIndexBuffer, owner, allocator);
-    m_IndexCount = indices.size();
+    indexCount = indices.size();
 }

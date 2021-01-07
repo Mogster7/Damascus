@@ -15,43 +15,43 @@ public:
     void CreateStaged(void* data, uint32_t numElements, uint32_t sizeOfElement,
         vk::BufferUsageFlags usage, Device& owner, VmaAllocator allocator);
 
-    vk::DeviceMemory GetMemory() const { return m_AllocationInfo.deviceMemory; }
-    const VmaAllocation& GetAllocation() const { return m_Allocation; }
-    const VmaAllocationInfo& GetAllocationInfo() const { return m_AllocationInfo; }
-    VmaAllocator GetAllocator() { return m_Allocator; }
+    vk::DeviceMemory GetMemory() const { return allocationInfo.deviceMemory; }
+    const VmaAllocation& GetAllocation() const { return allocation; }
+    const VmaAllocationInfo& GetAllocationInfo() const { return allocationInfo; }
+    VmaAllocator GetAllocator() { return allocator; }
 
     static void StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size);
 
 protected:
 
-    VmaAllocator m_Allocator = {};
-    VmaAllocation m_Allocation = {};
-    VmaAllocationInfo m_AllocationInfo = {};
-    vk::BufferUsageFlags m_BufferUsage = {};
-    VmaMemoryUsage m_MemoryUsage = {};
-    vk::DeviceSize m_Size = {};
+    VmaAllocator allocator = {};
+    VmaAllocation allocation = {};
+    VmaAllocationInfo allocationInfo = {};
+    vk::BufferUsageFlags bufferUsage = {};
+    VmaMemoryUsage memoryUsage = {};
+    vk::DeviceSize size = {};
 };
 
 
 class VertexBuffer : public Buffer
 {
 public:
-    void Create(const eastl::vector<Vertex> vertices, Device& owner, VmaAllocator allocator);
+    void Create(const std::vector<Vertex> vertices, Device& owner, VmaAllocator allocator);
 
-    uint32_t GetVertexCount() const { return m_VertexCount; }
+    uint32_t GetVertexCount() const { return vertexCount; }
 
 private:
-    uint32_t m_VertexCount = 0;
+    uint32_t vertexCount = 0;
 };
 
 class IndexBuffer : public Buffer
 {
 public:
-    void Create(const eastl::vector<uint32_t> indices, Device& owner, VmaAllocator allocator);
+    void Create(const std::vector<uint32_t> indices, Device& owner, VmaAllocator allocator);
 
-    uint32_t GetIndexCount() const { return m_IndexCount; }
+    uint32_t GetIndexCount() const { return indexCount; }
 private:
-    uint32_t m_IndexCount = 0;
+    uint32_t indexCount = 0;
 };
 
 

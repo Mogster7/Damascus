@@ -3,15 +3,14 @@ add_library(Utilities
     pch.cpp
     )
 
-set(LOCAL_LIB_DIR C:/Libraries)
-set(GLM_INCLUDE_DIR ${LOCAL_LIB_DIR}/glm)
-set(VULKAN_DIR C:\\VulkanSDK\\1.2.135.0)
+set(GLM_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/ThirdParty/)
+set(VULKAN_DIR C:\\VulkanSDK\\1.2.162.0)
 set(VULKAN_INCLUDE_DIR ${VULKAN_DIR}\\Include)
 set(RENDER_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/Framework/Structures)
 
 set(LOCAL_LIB_DIR C:/Libraries)
 set(EASTL_ROOT_DIR ${CMAKE_SOURCE_DIR}/ThirdParty/EASTL)
-set(EABASE_ROOT_DIR ${LOCAL_LIB_DIR}/ThirdParty/EASTL/test/packages/EABase)
+set(EABASE_ROOT_DIR ${CMAKE_SOURCE_DIR}/ThirdParty/EASTL/test/packages/EABase)
 set(EASTL_LIB_DIR ${EASTL_ROOT_DIR}/lib)
 
     
