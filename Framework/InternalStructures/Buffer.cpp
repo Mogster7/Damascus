@@ -9,13 +9,13 @@
 #include "Device.h"
 
 void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo,
-        VmaAllocationCreateInfo& allocCreateInfo, Device& owner, VmaAllocator allocator)
+        VmaAllocationCreateInfo& allocCreateInfo, Device& owner)
 {
     m_owner = &owner;
-    this->allocator = allocator;
+    this->allocator = m_owner->allocator;
     size = bufferCreateInfo.size;
 
-    utils::CheckVkResult((vk::Result)vmaCreateBuffer(allocator, (VkBufferCreateInfo*)&bufferCreateInfo, &allocCreateInfo,
+    utils::CheckVkResult((vk::Result)vmaCreateBuffer(owner.allocator, (VkBufferCreateInfo*)&bufferCreateInfo, &allocCreateInfo,
         (VkBuffer*)&m_object, &allocation, &allocationInfo), 
         "Failed to allocate buffer");
 }
@@ -23,7 +23,7 @@ void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo,
 void Buffer::StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size)
 {
     vk::Queue transferQueue = device.graphicsQueue;
-    vk::CommandPool transferCmdPool = device.graphicsCmdPool;
+    vk::CommandPool transferCmdPool = device.commandPool;
 
     // Command buffer to hold transfer commands
     vk::CommandBuffer transferCmdBuffer;
@@ -75,31 +75,34 @@ void Buffer::Destroy()
     vmaDestroyBuffer(allocator, (VkBuffer)m_object, allocation);
 }
 
-void Buffer::CreateStaged(void* data, uint32_t numElements, uint32_t sizeOfElement, 
-    vk::BufferUsageFlags usage, Device& owner, VmaAllocator allocator)
+void Buffer::CreateStaged(void* data, const vk::DeviceSize size,
+    vk::BufferUsageFlags bufferUsage,
+    VmaMemoryUsage memoryUsage, 
+    Device& owner)
 {
     m_owner = &owner;
-    this->allocator = allocator;
-    size = sizeOfElement * numElements;
+    this->allocator = m_owner->allocator;
 
     vk::BufferCreateInfo bCreateInfo;
-    bCreateInfo.usage = usage | vk::BufferUsageFlagBits::eTransferDst;
+    bCreateInfo.usage = vk::BufferUsageFlagBits::eTransferDst | bufferUsage;
     bCreateInfo.size = size;
 
     VmaAllocationCreateInfo aCreateInfo = {};
-    aCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    aCreateInfo.usage = memoryUsage;
 
-    Buffer::Create(bCreateInfo, aCreateInfo, *m_owner, allocator);
+    // Create THIS buffer, which is the destination buffer
+    Buffer::Create(bCreateInfo, aCreateInfo, *m_owner);
 
 
     // STAGING BUFFER
     Buffer stagingBuffer;
 
+    // Reuse create info, except this time its the source 
     bCreateInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
-    // we can reuse size
 
+    // we can reuse size
     aCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-    stagingBuffer.Create(bCreateInfo, aCreateInfo, *m_owner, allocator);
+    stagingBuffer.Create(bCreateInfo, aCreateInfo, *m_owner);
 
     // Create pointer to memory
     void* mapped; 
@@ -116,16 +119,20 @@ void Buffer::CreateStaged(void* data, uint32_t numElements, uint32_t sizeOfEleme
     stagingBuffer.Destroy();
 }
 
-void VertexBuffer::Create(const std::vector<Vertex> vertices, Device& owner, VmaAllocator allocator)
+void VertexBuffer::Create(const std::vector<Vertex> vertices, Device& owner)
 {
-    CreateStaged((void*)&vertices[0], vertices.size(), sizeof(Vertex), 
-        vk::BufferUsageFlagBits::eVertexBuffer, owner, allocator);
+    CreateStaged((void*)&vertices[0], vertices.size() * sizeof(Vertex), 
+        vk::BufferUsageFlagBits::eVertexBuffer, 
+        VMA_MEMORY_USAGE_GPU_ONLY,
+        owner);
     vertexCount = vertices.size();
 }
 
-void IndexBuffer::Create(const std::vector<uint32_t> indices, Device& owner, VmaAllocator allocator)
+void IndexBuffer::Create(const std::vector<uint32_t> indices, Device& owner)
 {
-    CreateStaged((void*)indices.data(), indices.size(), sizeof(uint32_t), 
-        vk::BufferUsageFlagBits::eIndexBuffer, owner, allocator);
+    CreateStaged((void*)indices.data(), indices.size() * sizeof(uint32_t),
+        vk::BufferUsageFlagBits::eIndexBuffer, 
+		VMA_MEMORY_USAGE_GPU_ONLY,
+        owner);
     indexCount = indices.size();
 }

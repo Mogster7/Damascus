@@ -13,6 +13,7 @@ set(
 set(VULKAN_DIR C:\\VulkanSDK\\1.2.162.0)
 set(VULKAN_INCLUDE_DIR ${VULKAN_DIR}\\Include)
 set(VULKAN_LIB_DIR ${VULKAN_DIR}\\Lib)
+set(FRAMEWORK_INCLUDE_DIR ${CMAKE_SOURCE_DIR}\\Framework\\InternalStructures)
 
 add_executable(${PROJECT_NAME} ${source_list})
 
@@ -28,12 +29,14 @@ target_link_directories(${PROJECT_NAME} PUBLIC
     Utilities
     )
 
-add_subdirectory(Utilities)
 add_subdirectory(Framework)
+add_subdirectory(Utilities)
 add_subdirectory(ThirdParty)
-target_link_libraries(${PROJECT_NAME} PUBLIC ThirdParty Utilities Framework)
+target_link_libraries(${PROJECT_NAME} PUBLIC ThirdParty Framework Utilities)
 target_precompile_headers(${PROJECT_NAME} REUSE_FROM Utilities)
+target_precompile_headers(Framework REUSE_FROM Utilities)
+
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       ${CMAKE_SOURCE_DIR}/Shaders $<TARGET_FILE_DIR:${PROJECT_NAME}>/Shaders)
+                       ${CMAKE_SOURCE_DIR}/Assets $<TARGET_FILE_DIR:${PROJECT_NAME}>/Assets)

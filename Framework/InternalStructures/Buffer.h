@@ -9,11 +9,15 @@
 
 CUSTOM_VK_DECLARE_NO_CREATE(Buffer, Buffer, Device)
 public:
-    void Create(vk::BufferCreateInfo& bufferCreateInfo, VmaAllocationCreateInfo& allocCreateInfo,
-        Device& owner, VmaAllocator allocator);
+    void Create(vk::BufferCreateInfo& bufferCreateInfo, 
+        VmaAllocationCreateInfo& allocCreateInfo,
+        Device& owner);
 
-    void CreateStaged(void* data, uint32_t numElements, uint32_t sizeOfElement,
-        vk::BufferUsageFlags usage, Device& owner, VmaAllocator allocator);
+    void CreateStaged(void* data,
+        vk::DeviceSize size,
+        vk::BufferUsageFlags bufferUsage,
+        VmaMemoryUsage memoryUsage,
+        Device& owner);
 
     vk::DeviceMemory GetMemory() const { return allocationInfo.deviceMemory; }
     const VmaAllocation& GetAllocation() const { return allocation; }
@@ -36,7 +40,7 @@ protected:
 class VertexBuffer : public Buffer
 {
 public:
-    void Create(const std::vector<Vertex> vertices, Device& owner, VmaAllocator allocator);
+    void Create(const std::vector<Vertex> vertices, Device& owner);
 
     uint32_t GetVertexCount() const { return vertexCount; }
 
@@ -47,7 +51,7 @@ private:
 class IndexBuffer : public Buffer
 {
 public:
-    void Create(const std::vector<uint32_t> indices, Device& owner, VmaAllocator allocator);
+    void Create(const std::vector<uint32_t> indices, Device& owner);
 
     uint32_t GetIndexCount() const { return indexCount; }
 private:

@@ -10,6 +10,9 @@
 
 CUSTOM_VK_DECLARE_DERIVE(CommandPool, CommandPool, Device)
     
+public:
+	vk::UniqueCommandBuffer BeginCommandBuffer();
+	void EndCommandBuffer(vk::CommandBuffer buffer) const;
 };
 
 

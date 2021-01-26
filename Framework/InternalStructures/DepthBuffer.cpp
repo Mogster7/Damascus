@@ -10,17 +10,15 @@
 
 void DepthBuffer::Create(Device& owner)
 {
-    m_owner = &owner;
-    format = ChooseFormat(
-        { vk::Format::eD32SfloatS8Uint, vk::Format::eD32Sfloat,
-          vk::Format::eD24UnormS8Uint },
-        vk::ImageTiling::eOptimal,
-        vk::FormatFeatureFlagBits::eDepthStencilAttachment
-    );
+	m_owner = &owner;
+	format = GetDepthFormat();
 
-    image.Create(m_owner->swapchain.GetExtentDimensions(), 
-        format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment,
-        *m_owner, m_owner->allocator);
+	image.Create(m_owner->swapchain.GetExtentDimensions(),
+				 format,
+				 vk::ImageTiling::eOptimal,
+				 vk::ImageUsageFlagBits::eDepthStencilAttachment,
+				 vk::ImageLayout::eDepthStencilAttachmentOptimal,
+				 *m_owner);
 
 	vk::ImageViewCreateInfo viewCreateInfo = {};
 	viewCreateInfo.image = image;											// Image to create view for
@@ -38,38 +36,24 @@ void DepthBuffer::Create(Device& owner)
 	viewCreateInfo.subresourceRange.baseArrayLayer = 0;						// Start array level to view from
 	viewCreateInfo.subresourceRange.layerCount = 1;							// Number of array levels to view
 
-    imageView.Create(imageView, viewCreateInfo, *m_owner);
+	ImageView::Create(imageView, viewCreateInfo, *m_owner);
 }
 
-vk::Format DepthBuffer::ChooseFormat(
-    const std::vector<vk::Format>& formats, 
-    vk::ImageTiling tiling, 
-    vk::FormatFeatureFlagBits features
-)
+vk::Format DepthBuffer::GetDepthFormat()
 {
-    const auto& physicalDevice = Renderer::GetPhysicalDevice();
-    for (auto format : formats)
-    {
-        // Get properties for format on this device
-        vk::FormatProperties props;
-        physicalDevice.getFormatProperties(format, &props);
+	vk::FormatProperties formatProperties{ Renderer::GetPhysicalDevice().getFormatProperties(vk::Format::eD32Sfloat) };
 
-        if (tiling == vk::ImageTiling::eLinear && (props.linearTilingFeatures & features) == features)
-        {
-            return format;
-        }
-        else if (tiling == vk::ImageTiling::eOptimal && (props.optimalTilingFeatures & features) == features)
-        {
-            return format;
-        }
-    }
+	if (formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+	{
+		return vk::Format::eD32Sfloat;
+	}
 
-    throw std::runtime_error("Failed to find a suitable image format");
+	ASSERT(false, "32-bit signed depth stencil format not supported");
 }
 
 void DepthBuffer::Destroy()
 {
-    imageView.Destroy();
-    image.Destroy();
+	imageView.Destroy();
+	image.Destroy();
 }
 

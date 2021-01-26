@@ -1,8 +1,3 @@
-// External libs
-#define EASTL_DEBUG 1
-void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned debugFlags, const char* file, int line);
-void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line);
-
 
 #include <iostream>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -15,6 +10,7 @@ void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, cons
 #include <array>
 #include <algorithm>
 #include <string>
+#include <string_view>
 
 #ifndef NDEBUG
 #   define ASSERT(condition, message) \

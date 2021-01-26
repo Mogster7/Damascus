@@ -46,13 +46,13 @@ void Device::Initialization()
 
     CreateAllocator();
     CreateSwapchain();
+    CreateCommandPool();
     depthBuffer.Create(*this);
     CreateRenderPass();
     CreateDescriptorSetLayout();
     CreatePushConstantRange();
     CreateGraphicsPipeline();
     CreateFramebuffers();
-    CreateCommandPool();
 
     const auto& extent = swapchain.GetExtent();
     uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
@@ -110,7 +110,7 @@ void Device::Destroy()
         imageAvailable[i].Destroy();
     }
 
-    graphicsCmdPool.Destroy();
+    commandPool.Destroy();
     for (auto& fb : framebuffers)
         fb.Destroy();
 
@@ -278,8 +278,8 @@ void Device::CreateRenderPass()
 
 void Device::CreateGraphicsPipeline()
 {
-    auto vertSrc = utils::ReadFile("Shaders/vert.spv");
-    auto fragSrc = utils::ReadFile("Shaders/frag.spv");
+    auto vertSrc = utils::ReadFile(std::string(ASSET_DIR) + "Shaders/vert.spv");
+    auto fragSrc = utils::ReadFile(std::string(ASSET_DIR) + "Shaders/frag.spv");
 
     vk::ShaderModuleCreateInfo shaderInfo;
     shaderInfo.codeSize = vertSrc.size();
@@ -508,7 +508,7 @@ void Device::CreateCommandPool()
     poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
     poolInfo.queueFamilyIndex = indices.graphics.value();
 
-    graphicsCmdPool.Create(graphicsCmdPool, poolInfo, *this);
+    commandPool.Create(commandPool, poolInfo, *this);
 }
 
 void Device::CreateCommandBuffers()
@@ -517,7 +517,7 @@ void Device::CreateCommandBuffers()
     commandBuffers.resize(fbSize);
 
     vk::CommandBufferAllocateInfo allocInfo;
-    allocInfo.commandPool = graphicsCmdPool;
+    allocInfo.commandPool = commandPool;
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandBufferCount = static_cast<uint32_t>(fbSize);
 
@@ -726,7 +726,7 @@ void Device::CreateUniformBuffers()
     for (size_t i = 0; i < images.size(); ++i)
     {
         //uniformBufferModel[i].Create(modelCreateInfo, aCreateInfo, *this, allocator);
-        uniformBufferViewProjection[i].Create(vpCreateInfo, aCreateInfo, *this, allocator);
+        uniformBufferViewProjection[i].Create(vpCreateInfo, aCreateInfo, *this);
     }
 }
 

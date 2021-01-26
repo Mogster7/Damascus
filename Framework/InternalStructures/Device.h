@@ -34,7 +34,7 @@ public:
 
     std::vector<Framebuffer> framebuffers = {};
 
-    CommandPool graphicsCmdPool = {};
+    CommandPool commandPool = {};
     std::vector<vk::CommandBuffer> commandBuffers;
 
     std::vector<Semaphore> imageAvailable = {};

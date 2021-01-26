@@ -7,6 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
+constexpr std::string_view ASSET_DIR = "Assets/";
 constexpr size_t MAX_FRAME_DRAWS = 2;
 
 const std::vector<const char*> deviceExtensions = {
@@ -14,7 +15,8 @@ const std::vector<const char*> deviceExtensions = {
 };
 
 
-
+// Tests if the class has a method by the name of Initialization
+// If it does, it will execute it immediately following the constructor of our underlying Vulkan structure
 template <typename T>
 class HasInitialization
 {

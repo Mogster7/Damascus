@@ -12,8 +12,7 @@ class DepthBuffer
 {
 	Device* m_owner = nullptr;
 
-    static vk::Format ChooseFormat(const std::vector<vk::Format>& formats, 
-        vk::ImageTiling tiling, vk::FormatFeatureFlagBits features);
+    static vk::Format DepthBuffer::GetDepthFormat();
 
 public:
     void Create(Device& owner);
