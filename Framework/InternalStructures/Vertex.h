@@ -8,12 +8,33 @@
 #pragma once
 
 
-struct Vertex
+struct ColorVertex
 {
     glm::vec3 pos;
     glm::vec3 color;
 
     inline static const uint32_t NUM_ATTRIBS = 2;
+};
+
+struct TexVertex 
+{
+    glm::vec3 pos;
+    glm::vec2 texPos;
+
+    inline static const uint32_t NUM_ATTRIBS = 2;
+};
+
+struct Vertex
+{
+    glm::vec3 pos;
+    glm::vec3 color;
+    glm::vec2 texPos;
+
+    bool operator==(const Vertex& other) const {
+        return pos == other.pos && color == other.color && texPos == other.texPos;
+    }
+
+    inline static const uint32_t NUM_ATTRIBS = 3;
 };
 
 

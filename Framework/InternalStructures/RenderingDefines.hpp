@@ -46,7 +46,8 @@ constexpr void CheckInitialization(T& obj)
         myName() = default;\
         ~##myName() = default;\
         void Destroy();\
-        operator vk::vkName##EXT () { return Get(); }\
+        operator vk::vkName##EXT &() { return Get(); }\
+        operator const vk::vkName##EXT &() const { return Get(); }\
     \
     protected:\
         ownerName* m_owner = {};\
@@ -91,13 +92,15 @@ constexpr void CheckInitialization(T& obj)
 
 #define MEMBER_GETTER(myName, vkName, EXT)\
 public:\
-    inline vk::vkName##EXT Get() const { return static_cast<vk::vkName##EXT>(m_object); }\
+    inline const vk::vkName##EXT& Get() const { return (m_object); }\
+    inline vk::vkName##EXT& Get() { return (m_object); }\
 private:\
     vk::vkName##EXT m_object = {};
 
 #define DERIVED_GETTER(myName, vkName, EXT)\
 public:\
-    inline vk::vkName##EXT & Get() { return *this; }\
+    inline vk::vkName##EXT  &Get() { return *this; }\
+    inline const vk::vkName##EXT & Get() const { return *this; }\
 private:
 
 #define CONCAT_COMMA(name) ,##name

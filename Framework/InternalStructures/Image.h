@@ -13,17 +13,20 @@ public:
 				VmaAllocationCreateInfo& allocCreateInfo,
 				Device& owner);
 
-	void Create(glm::uvec2 size, 
-				vk::Format format, 
-				vk::ImageTiling tiling, 
-				vk::ImageUsageFlags usage,
-				vk::ImageLayout dstLayout,
-				Device& owner);
+	void Create2D(glm::uvec2 size,
+				  vk::Format format,
+				  uint32_t mipLevels,
+				  vk::ImageTiling tiling,
+				  vk::ImageUsageFlags usage,
+				  vk::ImageLayout dstLayout,
+				  Device& owner);
 
-	void TransitionLayout(vk::Format format,
-						  uint32_t mipLevels,
-						  vk::ImageLayout oldLayout,
-						  vk::ImageLayout newLayout) const;
+	void CreateDepthImage(glm::vec2 size, 
+						  Device& owner);
+
+	void TransitionLayout(vk::ImageLayout oldLayout,
+						  vk::ImageLayout newLayout,
+						  uint32_t mipLevels) const;
 
 protected:
 

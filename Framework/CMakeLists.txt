@@ -2,10 +2,11 @@ cmake_minimum_required(VERSION 3.16)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(FRAMEWORK_SRC 
-    Renderer/Renderer.cpp
+    RenderingContext/RenderingContext.cpp
     Window/Window.cpp
     InternalStructures/RenderingDefines.hpp
     InternalStructures/RenderingStructures.hpp
+    InternalStructures/Model.cpp
     InternalStructures/Vertex.cpp
     InternalStructures/Mesh.cpp
     InternalStructures/Buffer.cpp
@@ -24,12 +25,12 @@ set(FRAMEWORK_SRC
     InternalStructures/Descriptors.cpp
     InternalStructures/Image.cpp
     InternalStructures/DepthBuffer.cpp
- "InternalStructures/Texture.cpp")
+ "InternalStructures/Texture.cpp" "Camera/Camera.cpp" "Camera/Camera.h")
 
 
 add_library(Framework
     ${FRAMEWORK_SRC}
-    )
+     )
 
 
 set(LIBS
@@ -42,7 +43,7 @@ target_include_directories(Framework PUBLIC
     ${VULKAN_INCLUDE_DIR} 
     ${GLFW_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/Utilities
-    Renderer
+    RenderingContext
     Structures
     Window
 )

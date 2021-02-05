@@ -12,7 +12,6 @@ class DepthBuffer
 {
 	Device* m_owner = nullptr;
 
-    static vk::Format DepthBuffer::GetDepthFormat();
 
 public:
     void Create(Device& owner);
@@ -24,5 +23,7 @@ public:
 
     vk::Format GetFormat() const { return format; }
     ImageView& GetImageView() { return imageView; }
+
+    static vk::Format DepthBuffer::GetDepthFormat();
 };
 

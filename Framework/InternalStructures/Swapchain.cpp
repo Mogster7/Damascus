@@ -5,7 +5,7 @@
 // Date:		6/23/2020
 //
 //------------------------------------------------------------------------------
-#include "Renderer.h"
+#include "RenderingContext.h"
 #include "Instance.h"
 #include "Window.h"
 
@@ -24,18 +24,15 @@ vk::Extent2D Swapchain::ChooseExtent(vk::SurfaceCapabilitiesKHR capabilities)
 {
     if (capabilities.currentExtent.width != UINT32_MAX) {
         return capabilities.currentExtent;
-    }
-    else {
-        glm::uvec2 winDims = Renderer::GetInstance().GetWindow().lock()->GetDimensions();
-        vk::Extent2D actualExtent = { winDims.x, winDims.y };
+	}
+	glm::uvec2 winDims = RenderingContext::GetInstance().GetWindow().lock()->GetDimensions();
+	vk::Extent2D actualExtent = { winDims.x, winDims.y };
 
-        // Clamp the capable extent to the limits defined by the program
-        actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
-        actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
+	// Clamp the capable extent to the limits defined by the program
+	actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
+	actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
 
-        return actualExtent;
-    }
-
+	return actualExtent;
 }
 
 vk::PresentModeKHR Swapchain::ChoosePresentMode(const std::vector<vk::PresentModeKHR>& presentModes)
@@ -106,7 +103,7 @@ void Swapchain::Destroy()
     for (auto& imageView : imageViews)
         imageView.Destroy();
 
-    m_owner->destroySwapchainKHR(*this);
+    m_owner->destroySwapchainKHR(Get());
 }
 
 

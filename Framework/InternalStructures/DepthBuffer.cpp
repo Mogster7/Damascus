@@ -5,7 +5,7 @@
 // Date:		7/25/2020
 //
 //------------------------------------------------------------------------------
-#include "Renderer.h"
+#include "RenderingContext.h"
 
 
 void DepthBuffer::Create(Device& owner)
@@ -13,12 +13,7 @@ void DepthBuffer::Create(Device& owner)
 	m_owner = &owner;
 	format = GetDepthFormat();
 
-	image.Create(m_owner->swapchain.GetExtentDimensions(),
-				 format,
-				 vk::ImageTiling::eOptimal,
-				 vk::ImageUsageFlagBits::eDepthStencilAttachment,
-				 vk::ImageLayout::eDepthStencilAttachmentOptimal,
-				 *m_owner);
+	image.CreateDepthImage(owner.swapchain.GetExtentDimensions(), owner);
 
 	vk::ImageViewCreateInfo viewCreateInfo = {};
 	viewCreateInfo.image = image;											// Image to create view for
@@ -41,7 +36,7 @@ void DepthBuffer::Create(Device& owner)
 
 vk::Format DepthBuffer::GetDepthFormat()
 {
-	vk::FormatProperties formatProperties{ Renderer::GetPhysicalDevice().getFormatProperties(vk::Format::eD32Sfloat) };
+	vk::FormatProperties formatProperties{ RenderingContext::GetPhysicalDevice().getFormatProperties(vk::Format::eD32Sfloat) };
 
 	if (formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
 	{

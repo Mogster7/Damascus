@@ -7,7 +7,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(
     source_list
     main.cpp
-    )
+     "Demos/deferred.cpp" "Demos/deferred.h")
 
 
 set(VULKAN_DIR C:\\VulkanSDK\\1.2.162.0)
@@ -38,5 +38,6 @@ target_precompile_headers(Framework REUSE_FROM Utilities)
 
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                   COMMAND cmd /c ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile.bat
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                        ${CMAKE_SOURCE_DIR}/Assets $<TARGET_FILE_DIR:${PROJECT_NAME}>/Assets)

@@ -37,10 +37,18 @@ protected:
 };
 
 
+template <class VertexType>
 class VertexBuffer : public Buffer
 {
 public:
-    void Create(const std::vector<Vertex> vertices, Device& owner);
+    void Create(const std::vector<VertexType> vertices, Device& owner)
+    {
+		CreateStaged((void*)&vertices[0], vertices.size() * sizeof(VertexType),
+					 vk::BufferUsageFlagBits::eVertexBuffer,
+					 VMA_MEMORY_USAGE_GPU_ONLY,
+					 owner);
+		vertexCount = vertices.size();
+    }
 
     uint32_t GetVertexCount() const { return vertexCount; }
 

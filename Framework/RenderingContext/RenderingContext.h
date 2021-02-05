@@ -16,10 +16,9 @@ namespace vk
 class Window;
 class QueueFamilyIndices;
 class Vertex;
-class Mesh;
-struct Renderer_Impl;
+struct RenderingContext_Impl;
 
-class Renderer
+class RenderingContext
 {
 
 public:
@@ -41,8 +40,8 @@ public:
     static vk::Queue GetGraphicsQueue();
     
 
-private:
-    static std::unique_ptr<Renderer_Impl> impl;
+protected:
+    static RenderingContext_Impl* impl;
 
     friend class Window;
 };

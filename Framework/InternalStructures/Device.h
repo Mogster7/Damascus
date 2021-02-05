@@ -12,14 +12,12 @@ CUSTOM_VK_DECLARE_DERIVE(Device, Device, PhysicalDevice)
 
 public:
     void Update(float dt);
+    void PrepareFrame(const uint32_t frameIndex);
+    void SubmitFrame(const uint32_t frameIndex);
     void DrawFrame(const uint32_t frameIndex);
     void Initialization();
 
-    static const std::vector<Vertex> Device::meshVerts;
-    static const std::vector<Vertex> Device::meshVerts2;
-
-    static const std::vector<uint32_t> Device::meshIndices;
-    std::vector<Mesh> objects;
+    uint32_t imageIndex;
 
     VmaAllocator allocator = {};
     Swapchain swapchain = {};
@@ -33,29 +31,14 @@ public:
     GraphicsPipeline graphicsPipeline = {};
 
     std::vector<Framebuffer> framebuffers = {};
+    std::vector<vk::CommandBuffer> drawCmdBuffers;
 
     CommandPool commandPool = {};
-    std::vector<vk::CommandBuffer> commandBuffers;
 
     std::vector<Semaphore> imageAvailable = {};
     std::vector<Semaphore> renderFinished = {};
     std::vector<Fence> drawFences = {};
 
-    // Descriptors
-    DescriptorSetLayout descriptorSetLayout;
-    vk::PushConstantRange pushRange;
-
-    DescriptorPool descriptorPool;
-    std::vector<vk::DescriptorSet> descriptorSets;
-
-    std::vector<Buffer> uniformBufferModel;
-    std::vector<Buffer> uniformBufferViewProjection;
-
-    struct UboViewProjection
-    {
-        glm::mat4 projection;
-        glm::mat4 view;
-    } uboViewProjection;
 
     DepthBuffer depthBuffer;
 
@@ -68,15 +51,15 @@ public:
 
 private:
     void CreateAllocator();
-    void CreateSwapchain();
+    void CreateSwapchain(bool recreate = false);
     void CreateRenderPass();
     void CreateDescriptorSetLayout();
     void CreatePushConstantRange();
     void CreateGraphicsPipeline();
-    void CreateDepthBufferImage();
-    void CreateFramebuffers();
+    void CreateDepthBuffer(bool recreate = false);
+    void CreateFramebuffers(bool recreate = false);
     void CreateCommandPool();
-    void CreateCommandBuffers();
+    void CreateCommandBuffers(bool recreate = false);
     void CreateSync();
     void RecordCommandBuffers(uint32_t imageIndex);
 

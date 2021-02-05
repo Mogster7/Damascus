@@ -1,23 +1,27 @@
 #include "Window.h"
-#include "Renderer.h"
+#include "Demos/deferred.h"
 #include <sstream>
+#include "glfw3.h"
 
 
 class Application {
 public:
+    float time = 0.0f;
+
     Application(const glm::uvec2& windowDimensions)
     {
+        time = static_cast<float>(glfwGetTime());
         window = std::shared_ptr<Window>(new Window(windowDimensions, "Vulkan"));
-        Renderer::Initialize(window);
+        DeferredRenderingContext::Initialize(window);
     }
 
     void Run() {
         float dt = 0.0f;
         while (window->Update(dt))
         {
-            Renderer::Update();
-            dt = Renderer::dt;
-            Renderer::DrawFrame();
+            dt = RenderingContext::dt;
+            DeferredRenderingContext::Update();
+			DeferredRenderingContext::DrawFrame();
         }
     }
 

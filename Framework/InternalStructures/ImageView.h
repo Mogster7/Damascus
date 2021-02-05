@@ -9,5 +9,7 @@
 
 CUSTOM_VK_DECLARE_DERIVE(ImageView, ImageView, Device)
 
+public:
+	void CreateTexture2DView(vk::Image image, Device& owner);
 };
 

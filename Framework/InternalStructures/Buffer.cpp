@@ -5,7 +5,7 @@
 // Date:		6/9/2020
 //
 //------------------------------------------------------------------------------
-#include "Renderer.h"
+#include "RenderingContext.h"
 #include "Device.h"
 
 void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo,
@@ -117,15 +117,6 @@ void Buffer::CreateStaged(void* data, const vk::DeviceSize size,
 
     // Cleanup
     stagingBuffer.Destroy();
-}
-
-void VertexBuffer::Create(const std::vector<Vertex> vertices, Device& owner)
-{
-    CreateStaged((void*)&vertices[0], vertices.size() * sizeof(Vertex), 
-        vk::BufferUsageFlagBits::eVertexBuffer, 
-        VMA_MEMORY_USAGE_GPU_ONLY,
-        owner);
-    vertexCount = vertices.size();
 }
 
 void IndexBuffer::Create(const std::vector<uint32_t> indices, Device& owner)

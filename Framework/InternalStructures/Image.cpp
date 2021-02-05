@@ -18,8 +18,9 @@ void Image::Create(vk::ImageCreateInfo& imageCreateInfo,
 }
 
 
-void Image::Create(glm::uvec2 size,
+void Image::Create2D(glm::uvec2 size,
 				   vk::Format format,
+				   uint32_t mipLevels,
 				   vk::ImageTiling tiling,
 				   vk::ImageUsageFlags usage,
 				   vk::ImageLayout dstLayout,
@@ -35,7 +36,7 @@ void Image::Create(glm::uvec2 size,
 	// Just 1, no 3D aspect
 	imageCreateInfo.extent.depth = 1;
 	// Number of mipmap levels
-	imageCreateInfo.mipLevels = 1;
+	imageCreateInfo.mipLevels = mipLevels;
 	// Number of levels in image array (used in cube maps)
 	imageCreateInfo.arrayLayers = 1;
 	imageCreateInfo.format = format;
@@ -53,16 +54,25 @@ void Image::Create(glm::uvec2 size,
 	VmaAllocationCreateInfo allocInfo = {};
 	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-
 	Create(imageCreateInfo, allocInfo, *m_owner);
 
-	TransitionLayout(format, 1, vk::ImageLayout::eUndefined, dstLayout);
+	TransitionLayout(vk::ImageLayout::eUndefined, dstLayout, mipLevels);
 }
 
-void Image::TransitionLayout(vk::Format format,
-							 uint32_t mipLevels,
-							 vk::ImageLayout oldLayout,
-							 vk::ImageLayout newLayout) const
+void Image::CreateDepthImage(glm::vec2 size, Device& owner)
+{
+	Create2D(size,
+		   DepthBuffer::GetDepthFormat(),
+		   1,
+		   vk::ImageTiling::eOptimal,
+		   vk::ImageUsageFlagBits::eDepthStencilAttachment,
+		   vk::ImageLayout::eDepthStencilAttachmentOptimal,
+		   owner);
+}
+
+void Image::TransitionLayout(vk::ImageLayout oldLayout,
+                             vk::ImageLayout newLayout,
+                             uint32_t mipLevels = 1) const
 {
 	// Create a barrier with sensible defaults - some properties will change
 		// depending on the old -> new layout combinations.
@@ -104,6 +114,15 @@ void Image::TransitionLayout(vk::Format format,
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eTransfer;
 	}
+	// Scenario: transfer destination -> shader resource
+	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
+	{
+		barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
+
+		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
+		dstFlags = vk::PipelineStageFlagBits::eFragmentShader;
+	}
+
 	else ASSERT(false, "Unhandled image layout transition");
 
 	auto cmdBuf = m_owner->commandPool.BeginCommandBuffer();

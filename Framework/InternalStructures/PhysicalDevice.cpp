@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #include "PhysicalDevice.h"
-#include "Renderer.h"
+#include "RenderingContext.h"
 #include <set>
 #include <vector>
 
@@ -33,7 +33,7 @@ bool PhysicalDevice::IsDeviceSuitable(vk::PhysicalDevice device) const
     bool extensionsSupported = CheckDeviceExtensionSupport(device);
     if (!extensionsSupported) return false;
 
-    vk::SurfaceKHR surface = Renderer::GetInstance().GetSurface();
+    vk::SurfaceKHR surface = RenderingContext::GetInstance().GetSurface();
     if (device.getSurfaceFormatsKHR(surface).empty() ||
         device.getSurfacePresentModesKHR(surface).empty())
         return false;
@@ -47,7 +47,7 @@ PhysicalDevice::PhysicalDevice(const vk::PhysicalDevice& other) : vk::PhysicalDe
 
 void PhysicalDevice::Create()
 {
-    std::vector<vk::PhysicalDevice> devices = Renderer::GetInstance().enumeratePhysicalDevices();
+    std::vector<vk::PhysicalDevice> devices = RenderingContext::GetInstance().enumeratePhysicalDevices();
     if (devices.empty()) throw std::runtime_error("Failed to find GPU with Vulkan support");
 
     auto it = std::find_if(devices.begin(), devices.end(), [this](const auto& device) -> bool
@@ -118,7 +118,7 @@ QueueFamilyIndices PhysicalDevice::FindQueueFamilies(vk::PhysicalDevice pd)
         if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
             indices.graphics = i;
 
-        if (pd.getSurfaceSupportKHR(i, Renderer::GetInstance().GetSurface()))
+        if (pd.getSurfaceSupportKHR(i, RenderingContext::GetInstance().GetSurface()))
             indices.present = i;
 
         if (indices.isComplete()) break;
