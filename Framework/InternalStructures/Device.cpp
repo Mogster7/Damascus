@@ -681,11 +681,22 @@ void Device::UpdateUniformBuffers(uint32_t imageIndex)
     //unmapMemory(memory);
 }
 
+void Device::RecreateSurface()
+{
+    waitIdle();
+
+    CreateSwapchain(true);
+    CreateDepthBuffer(true);
+    CreateCommandBuffers(true);
+
+    waitIdle();
+}
+
 void Device::Update(float dt)
 {
-   }
+}
 
-void Device::PrepareFrame(const uint32_t frameIndex)
+bool Device::PrepareFrame(const uint32_t frameIndex)
 {
     // Freeze until previous image is drawn
     waitForFences(1, &drawFences[frameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());
@@ -695,16 +706,19 @@ void Device::PrepareFrame(const uint32_t frameIndex)
                                       nullptr, &imageIndex);
     // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
     if ((result == vk::Result::eErrorOutOfDateKHR) || (result == vk::Result::eSuboptimalKHR)) {
-        // windowResize();
+
+		// Return if surface is out of date
+        return true;
     }
     else {
         utils::CheckVkResult(result, "Failed to prepare render frame");
+        return false;
     }
-
-	
 }
 
-void Device::SubmitFrame(const uint32_t frameIndex)
+
+// Return if surface is out of date
+bool Device::SubmitFrame(const uint32_t frameIndex)
 {
     vk::PresentInfoKHR presentInfo{};
     presentInfo.swapchainCount = 1;
@@ -716,12 +730,13 @@ void Device::SubmitFrame(const uint32_t frameIndex)
 
     if (!((result == vk::Result::eSuccess) || (result == vk::Result::eSuboptimalKHR))) {
         if (result == vk::Result::eErrorOutOfDateKHR) {
+			// Return if surface is out of date
             // Swap chain is no longer compatible with the surface and needs to be recreated
-            // windowResize();
-            return;
+            return true;
         }
         else {
             utils::CheckVkResult(result, "Failed to submit frame");
         }
     }
+	return false;
 }

@@ -200,13 +200,17 @@ public:
 		
 		glfwSetCursorPosCallback(win, cursorPosCallback);
 		
+		camera.flipY = false;
 		const auto& extent = device.swapchain.extent;
-		uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
+		camera.SetPerspective(45.0f, (float)extent.width / extent.height, 0.1f, 100.0f);
+		// uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
+		uboViewProjection.projection = camera.matrices.perspective;
 		uboViewProjection.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     
-		// Invert up direction so that pos y is up 
-		// its down by default in Vulkan
+		// // Invert up direction so that pos y is up 
+		// // its down by default in Vulkan
 		uboViewProjection.projection[1][1] *= -1;
+		
     
 		// objects.emplace_back().Create(device, cubeVerts, cubeIndices);
 		// objects.emplace_back().Create(device, meshVerts, squareIndices);
@@ -727,13 +731,21 @@ public:
 
 	}
 
+	void OnSurfaceRecreate()
+	{
+		const auto& extent = device.swapchain.extent;
+		camera.SetPerspective(45.0f, (float)extent.width / extent.height, 0.1f, 100.0f);
+		uboViewProjection.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	}
+
 	
 	void Draw()
 	{
 		UpdateUniformBuffers(device.imageIndex);
-		
-		
-		device.PrepareFrame(currentFrame);
+		if (device.PrepareFrame(currentFrame))
+			OnSurfaceRecreate();
+
 		PrepareCommandBuffers(device.imageIndex);
 
 		vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
@@ -752,7 +764,8 @@ public:
 			"Failed to submit draw queue"
 		);
 
-		device.SubmitFrame(currentFrame);
+		if (device.SubmitFrame(currentFrame))
+			OnSurfaceRecreate();
 
 		currentFrame = (currentFrame + 1) % MAX_FRAME_DRAWS;
 		device.waitIdle();

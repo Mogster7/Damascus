@@ -12,8 +12,11 @@ CUSTOM_VK_DECLARE_DERIVE(Device, Device, PhysicalDevice)
 
 public:
     void Update(float dt);
-    void PrepareFrame(const uint32_t frameIndex);
-    void SubmitFrame(const uint32_t frameIndex);
+    
+    // Return whether or not the surface is out of date
+    bool PrepareFrame(const uint32_t frameIndex);
+    bool SubmitFrame(const uint32_t frameIndex);
+
     void DrawFrame(const uint32_t frameIndex);
     void Initialization();
 
@@ -69,6 +72,8 @@ private:
 
     void UpdateUniformBuffers(uint32_t imageIndex);
     void UpdateModel(glm::mat4& newModel);
+
+    void RecreateSurface();
 };
 
 
