@@ -36,6 +36,7 @@ add_library(Framework
 set(LIBS
     glfw3
     vulkan-1
+    ThirdParty
 )
 
 target_include_directories(Framework PUBLIC 
@@ -51,6 +52,9 @@ target_include_directories(Framework PUBLIC
 target_link_directories(Framework PUBLIC
     ${VULKAN_LIB_DIR} 
     ${CMAKE_SOURCE_DIR}/Utilities
+    ${CMAKE_SOURCE_DIR}/ThirdParty
+    ${CMAKE_SOURCE_DIR}/ThirdParty/imgui
+    ${CMAKE_SOURCE_DIR}/ThirdParty/imgui/backends
     ${GLFW_LIB_DIR}
     )
 

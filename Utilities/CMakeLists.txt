@@ -17,6 +17,8 @@ target_include_directories(Utilities PUBLIC
     ${VULKAN_INCLUDE_DIR}
     ${VMA_INCLUDE_DIR}
     ${FRAMEWORK_INCLUDE_DIR}
+    ${IMGUI_INCLUDE_DIR}
+    ${IMGUI_INCLUDE_BACKENDS_DIR}
     )
 
 

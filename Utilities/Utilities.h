@@ -13,6 +13,7 @@ namespace utils
 {
     std::vector<char> ReadFile(const std::string& filename);
     void CheckVkResult(vk::Result result, const std::string& error);
+    void AssertVkBase(VkResult result);
 }
 
 

@@ -4,6 +4,8 @@
 
 #include "Window.h"
 #include "glfw3.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 #include "Camera/Camera.h"
 #include "glm/glm.hpp"
 #include "glm/ext/matrix_clip_space.hpp"
@@ -144,20 +146,20 @@ public:
 	vk::DescriptorSet descriptorSet;
 	// vk::DescriptorSetLayout descriptorSetLayout;
 
-	// Framebuffer for offscreen rendering
-	struct FrameBufferAttachment {
-		vk::Image image;
-		vk::DeviceMemory mem;
-		vk::ImageView view;
-		vk::Format format;
-	};
-	struct FrameBuffer {
-		int32_t width, height;
-		Framebuffer frameBuffer;
-		FrameBufferAttachment position, normal, albedo;
-		FrameBufferAttachment depth;
-		RenderPass renderPass;
-	} offScreenFrameBuf;
+	// // Framebuffer for offscreen rendering
+	// struct FrameBufferAttachment {
+	// 	vk::Image image;
+	// 	vk::DeviceMemory mem;
+	// 	vk::ImageView view;
+	// 	vk::Format format;
+	// };
+	// struct FrameBuffer {
+	// 	int32_t width, height;
+	// 	Framebuffer framebuffer;
+	// 	FrameBufferAttachment position, normal, albedo;
+	// 	FrameBufferAttachment depth;
+	// 	RenderPass renderPass;
+	// } offScreenFrameBuf;
 
 	struct
 	{
@@ -186,19 +188,37 @@ public:
     std::vector<Buffer> uniformBufferModel;
     std::vector<Buffer> uniformBufferViewProjection;
 
+	
+	// TODO: MOVE THESE OUT
+    DescriptorPool descriptorPoolUI;
+	RenderPass renderPassUI;
+	CommandPool commandPoolUI;
+	std::vector<vk::CommandBuffer> commandBuffersUI;
+	std::vector<Framebuffer> framebuffersUI;
+
+	bool cursorActive = false;
+
+	void SetCursorCallback(bool set)
+	{
+		auto win = ((Window*)window.lock().get())->GetHandle();
+		static auto cursorPosCallback = [](GLFWwindow* window, double xPos, double yPos)
+		{
+			auto context = reinterpret_cast<DeferredRenderingContext_Impl*>(glfwGetWindowUserPointer(window));
+			context->camera.ProcessMouseMovement({ xPos, yPos });
+		};
+		if (set)
+			glfwSetCursorPosCallback(win, cursorPosCallback);
+		else 
+			glfwSetCursorPosCallback(win, nullptr);
+	}
+
 	void Initialization()
 	{
 		auto win = ((Window*)window.lock().get())->GetHandle();
 		// glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		glfwSetWindowUserPointer(win, this);
 
-		auto cursorPosCallback = [](GLFWwindow* window, double xPos, double yPos)
-		{
-			auto context = reinterpret_cast<DeferredRenderingContext_Impl*>(glfwGetWindowUserPointer(window));
-			context->camera.ProcessMouseMovement({ xPos, yPos });
-		};
-		
-		glfwSetCursorPosCallback(win, cursorPosCallback);
+		SetCursorCallback(true);
 		
 		camera.flipY = false;
 		const auto& extent = device.swapchain.extent;
@@ -228,6 +248,7 @@ public:
 		InitializeDescriptorPool();
 		InitializeDescriptorSets();
 		InitializePipelines();
+		InitializeUI();
 	}
 
 	void Destroy()
@@ -243,7 +264,126 @@ public:
 		for (size_t i = 0; i < objects.size(); ++i)
 			objects[i].Destroy();
 
+		// UI
+		// -------------
+		for (auto framebuffer : framebuffersUI)
+			framebuffer.Destroy();
 
+		renderPassUI.Destroy();
+		device.freeCommandBuffers(commandPoolUI.Get(),
+								  commandBuffersUI.size(),
+								  commandBuffersUI.data());
+		commandPoolUI.Destroy();
+		ImGui_ImplVulkan_Shutdown();
+		ImGui::DestroyContext();
+		descriptorPoolUI.Destroy();
+		// --------------
+	}
+
+	void InitializeUI()
+	{
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		ImGui::StyleColorsDark();
+
+		ImGui_ImplGlfw_InitForVulkan(static_cast<Window*>(window.lock().get())->GetHandle(), true);
+		ImGui_ImplVulkan_InitInfo initInfo = {};
+
+		initInfo.Instance = instance;
+		initInfo.PhysicalDevice = physicalDevice;
+		initInfo.Device = device;
+		initInfo.QueueFamily = 0;
+		initInfo.Queue = device.graphicsQueue;
+		initInfo.PipelineCache = VK_NULL_HANDLE;
+		initInfo.DescriptorPool = descriptorPoolUI;
+		initInfo.Allocator = nullptr;
+		initInfo.MinImageCount = device.swapchain.images.size();
+		initInfo.ImageCount = device.swapchain.images.size();
+		initInfo.CheckVkResultFn = utils::AssertVkBase;
+
+		vk::AttachmentDescription attachment = {};
+		attachment.format = device.swapchain.imageFormat;
+		attachment.samples = vk::SampleCountFlagBits::e1;
+		attachment.loadOp = vk::AttachmentLoadOp::eLoad;
+		attachment.storeOp = vk::AttachmentStoreOp::eStore;
+		attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+		attachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+		attachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+		attachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+		vk::AttachmentReference colorAttach = {};
+		colorAttach.attachment = 0;
+		colorAttach.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+		vk::SubpassDescription subpass = {};
+		subpass.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
+		subpass.colorAttachmentCount = 1;
+		subpass.pColorAttachments = &colorAttach;
+
+		vk::SubpassDependency dependency = {};
+		dependency.setSrcSubpass(VK_SUBPASS_EXTERNAL);
+		dependency.dstSubpass = 0;
+		dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+		dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+		dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+		dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
+		vk::RenderPassCreateInfo createInfo = {};
+		createInfo.attachmentCount = 1;
+		createInfo.pAttachments = &attachment;
+		createInfo.subpassCount = 1;
+		createInfo.pSubpasses = &subpass;
+		createInfo.dependencyCount = 1;
+		createInfo.pDependencies = &dependency;
+		renderPassUI.Create(createInfo, device);
+
+		ImGui_ImplVulkan_Init(&initInfo, renderPassUI.Get());
+
+
+		// COMMAND POOL 
+		vk::CommandPoolCreateInfo poolInfo = {};
+		poolInfo.queueFamilyIndex = physicalDevice.GetQueueFamilyIndices().graphics.value();
+		poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+		commandPoolUI.Create(commandPoolUI, poolInfo, device);
+
+		// COMMAND BUFFER
+		commandBuffersUI.resize(device.swapchain.imageViews.size());
+
+		vk::CommandBufferAllocateInfo bufferInfo = {};
+		bufferInfo.level = vk::CommandBufferLevel::ePrimary;
+		bufferInfo.commandPool = commandPoolUI.Get();
+		bufferInfo.commandBufferCount = commandBuffersUI.size();
+		utils::CheckVkResult(
+			device.allocateCommandBuffers(&bufferInfo, commandBuffersUI.data()),
+			"Failed to allocate ImGui command buffers");
+
+		
+		auto cmdBuf = commandPoolUI.BeginCommandBuffer();
+		ImGui_ImplVulkan_CreateFontsTexture(cmdBuf.get());
+		device.commandPool.EndCommandBuffer(cmdBuf.get());
+
+		{
+			vk::ImageView attachment[1];
+			vk::FramebufferCreateInfo info = {};
+			info.renderPass = renderPassUI;
+			info.attachmentCount = 1;
+			info.pAttachments = attachment;
+			auto extent = device.swapchain.GetExtentDimensions();
+			info.width = extent.x;
+			info.height = extent.y;
+			info.layers = 1;
+
+			framebuffersUI.resize(device.swapchain.images.size());
+
+			for(uint32_t i = 0; i < device.swapchain.images.size(); ++i)
+			{
+				auto view = device.swapchain.imageViews[i];
+				attachment[0] = view.Get();
+				framebuffersUI[i].Create(framebuffersUI[i], info, device);
+			}
+		}
+			
 	}
 
 	void InitializeAssets()
@@ -619,6 +759,27 @@ public:
 		uint32_t imageCount = device.swapchain.images.size();
 		// How many descriptors, not descriptor sets
 
+        vk::DescriptorPoolSize pool_sizes[] =
+        {
+            { vk::DescriptorType::eSampler, 1000 },
+            { vk::DescriptorType::eCombinedImageSampler, 1000 },
+            { vk::DescriptorType::eSampledImage, 1000 },
+            { vk::DescriptorType::eStorageImage, 1000 },
+            { vk::DescriptorType::eUniformTexelBuffer, 1000 },
+            { vk::DescriptorType::eStorageTexelBuffer, 1000 },
+            { vk::DescriptorType::eUniformBuffer, 1000 },
+            { vk::DescriptorType::eStorageBuffer, 1000 },
+            { vk::DescriptorType::eUniformBufferDynamic, 1000 },
+            { vk::DescriptorType::eStorageBufferDynamic, 1000 },
+            { vk::DescriptorType::eInputAttachment, 1000 }
+        };
+
+        vk::DescriptorPoolCreateInfo pool_info = {};
+		pool_info.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+        pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+        pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
+
 
 		// VP UBO
 		std::array<vk::DescriptorPoolSize, 2> poolSizes;
@@ -643,6 +804,8 @@ public:
 
 		// Create descriptor pool
 		descriptorPool.Create(descriptorPool, poolCreateInfo, device);
+		descriptorPoolUI.Create(descriptorPoolUI, poolCreateInfo, device);
+
 	}
 
 	void PrepareCommandBuffers(uint32_t imageIndex)
@@ -731,12 +894,41 @@ public:
 
 	}
 
+	void PrepareCommandBuffersUI(uint32_t imageIndex)
+	{
+		auto extent = device.swapchain.extent;
+		vk::RenderPassBeginInfo info = { };
+		info.renderPass = renderPassUI;
+		info.framebuffer = framebuffersUI[imageIndex].Get();
+		info.renderArea.extent = extent;
+		info.clearValueCount = 1;
+		auto clearColor = vk::ClearColorValue(std::array<float,4>{ 0.0f, 0.0f, 1.0f, 1.0f });
+		vk::ClearValue clearValue = {};
+		clearValue.color = clearColor;
+		info.pClearValues = &clearValue;
+
+		// Record command buffers
+		vk::CommandBufferBeginInfo cmdBufBeginInfo(
+			{},
+			nullptr
+		);
+
+
+		auto cmdBuf = commandBuffersUI[imageIndex];
+		cmdBuf.begin(cmdBufBeginInfo);
+		cmdBuf.beginRenderPass(info, vk::SubpassContents::eInline);
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdBuf);
+		cmdBuf.endRenderPass();
+		cmdBuf.end();
+	}
+	
+
 	void OnSurfaceRecreate()
 	{
 		const auto& extent = device.swapchain.extent;
 		camera.SetPerspective(45.0f, (float)extent.width / extent.height, 0.1f, 100.0f);
 		uboViewProjection.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
+		// ImGui_ImplVulkan_SetMinImageCount()
 	}
 
 	
@@ -747,6 +939,12 @@ public:
 			OnSurfaceRecreate();
 
 		PrepareCommandBuffers(device.imageIndex);
+		PrepareCommandBuffersUI(device.imageIndex);
+
+		vk::CommandBuffer commandBuffers[2] = {
+			device.drawCmdBuffers[device.imageIndex],
+			commandBuffersUI[device.imageIndex]
+		};
 
 		vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 		vk::SubmitInfo submitInfo;
@@ -754,8 +952,8 @@ public:
 		submitInfo.pWaitSemaphores = &device.imageAvailable[currentFrame];
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = &device.renderFinished[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &device.drawCmdBuffers[device.imageIndex];
+		submitInfo.commandBufferCount = 2;
+		submitInfo.pCommandBuffers = commandBuffers;
 		submitInfo.pWaitDstStageMask = waitStages;
 		utils::CheckVkResult(
 			device.graphicsQueue.submit(1,
@@ -770,6 +968,7 @@ public:
 		currentFrame = (currentFrame + 1) % MAX_FRAME_DRAWS;
 		device.waitIdle();
 	}
+
 
 	void UpdateUniformBuffers(const uint32_t imageIndex)
 	{
@@ -786,35 +985,53 @@ public:
 	}
 
 
-	void UpdateInput()
+	void UpdateInput(float dt)
 	{
 		auto win = static_cast<Window*>(window.lock().get())->GetHandle();
 		if (glfwGetKey(win, GLFW_KEY_ESCAPE))
 			glfwSetWindowShouldClose(win, 1);
 
+		static float spaceCooldown = 1.0f;
+		static float spaceTimer = 1.0f;
+		if(glfwGetKey(win, GLFW_KEY_SPACE) && spaceTimer > spaceCooldown)
+		{
+			cursorActive = !cursorActive;
+			glfwSetInputMode(win, GLFW_CURSOR,
+							 cursorActive ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+			spaceTimer = 0.0f;
+		}
+		spaceTimer += dt;
+
 		camera.keys.up = (glfwGetKey(win, GLFW_KEY_W) == GLFW_PRESS);
 		camera.keys.down = (glfwGetKey(win, GLFW_KEY_S) == GLFW_PRESS);
 		camera.keys.left = (glfwGetKey(win, GLFW_KEY_A) == GLFW_PRESS);
 		camera.keys.right = (glfwGetKey(win, GLFW_KEY_D) == GLFW_PRESS);
-
 	}
 
 
 	void Update(float dt)
 	{
 		static float speed = 90.0f;
-		UpdateInput();
+		UpdateInput(dt);
 
 		const auto& model = objects[0].GetModel();
 		objects[0].SetModel(glm::rotate(model, glm::radians(speed * dt), { 0.0f, 0.0f,1.0f }));
 
-		camera.Update(dt);
+		camera.Update(dt, !cursorActive);
 		uboViewProjection.view = camera.matrices.view;
 		// const auto& model2 = objects[1].GetModel();
 		// objects[1].SetModel(glm::rotate(model2, glm::radians(speed2 * dt), { 0.0f, 1.0f,1.0f }));
 	}
 
 
+	void DrawUI()
+	{
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+		ImGui::ShowDemoWindow();
+		ImGui::Render();
+	}
 };
 
 
@@ -838,5 +1055,6 @@ void DeferredRenderingContext::Update()
 
 void DeferredRenderingContext::DrawFrame()
 {
+	impl->DrawUI();
 	impl->Draw();
 }

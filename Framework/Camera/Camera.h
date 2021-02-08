@@ -158,7 +158,7 @@ public:
 	}
 	
 
-	void Update(float deltaTime)
+	void Update(float deltaTime, bool processCursorChange = true)
 	{
 		updated = false;
 		if (type == CameraType::FirstPerson)
@@ -173,10 +173,13 @@ public:
 
 			// pitch = glm::lerp<float>(pitch, pitch + cursorChange.y * rotSpeed, 0.95f);
 			// yaw = glm::lerp<float>(yaw, yaw + cursorChange.x * rotSpeed, 0.95f);
-			pitch += cursorChange.y * rotSpeed;
-			yaw += cursorChange.x * rotSpeed;
+			if (processCursorChange)
+			{
+				pitch += cursorChange.y * rotSpeed;
+				yaw += cursorChange.x * rotSpeed;
+			}
 			cursorChange = { 0.0f, 0.0f };
-
+			
 			if (keys.up)
 				position += camFront * moveSpeed;
 			if (keys.down)

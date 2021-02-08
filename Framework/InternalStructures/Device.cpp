@@ -162,7 +162,7 @@ void Device::CreateRenderPass()
     // Framebuffer data will be stored as an image, but images can be given different data layouts
     // to give optimal use for certain operations
     colorAttachment.initialLayout = vk::ImageLayout::eUndefined;			// Image data layout before render pass starts
-    colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;		// Image data layout after render pass (to change to)
+    colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;		// Image data layout after render pass (to change to)
 
 
     // Depth
@@ -698,12 +698,12 @@ void Device::Update(float dt)
 
 bool Device::PrepareFrame(const uint32_t frameIndex)
 {
+    auto result = acquireNextImageKHR(swapchain.Get(), std::numeric_limits<uint64_t>::max(), imageAvailable[frameIndex].Get(),
+                                      nullptr, &imageIndex);
     // Freeze until previous image is drawn
     waitForFences(1, &drawFences[frameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());
     // Close the fence for this current frame again
     resetFences(1, &drawFences[frameIndex]);
-    auto result = acquireNextImageKHR(swapchain.Get(), std::numeric_limits<uint64_t>::max(), imageAvailable[frameIndex].Get(),
-                                      nullptr, &imageIndex);
     // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
     if ((result == vk::Result::eErrorOutOfDateKHR) || (result == vk::Result::eSuboptimalKHR)) {
 
