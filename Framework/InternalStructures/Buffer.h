@@ -24,6 +24,8 @@ public:
     const VmaAllocationInfo& GetAllocationInfo() const { return allocationInfo; }
     VmaAllocator GetAllocator() { return allocator; }
 
+    void MapToBuffer(void* data);
+
     static void StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size);
 
 protected:

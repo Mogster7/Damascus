@@ -8,13 +8,18 @@
 #pragma once
 class Device;
 
-class DepthBuffer 
+class FrameBufferAttachment 
 {
 	Device* m_owner = nullptr;
 
 
 public:
-    void Create(Device& owner);
+	void FrameBufferAttachment::Create(vk::Format format,
+									   vk::Extent2D extent,
+									   vk::ImageUsageFlags usage,
+									   vk::ImageLayout destinationLayout,
+									   Device& owner);
+    void CreateDepth(Device& owner);
     void Destroy();
 
 	Image image;
@@ -24,6 +29,6 @@ public:
     vk::Format GetFormat() const { return format; }
     ImageView& GetImageView() { return imageView; }
 
-    static vk::Format DepthBuffer::GetDepthFormat();
+    static vk::Format GetDepthFormat();
 };
 

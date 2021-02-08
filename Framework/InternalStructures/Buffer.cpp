@@ -20,6 +20,19 @@ void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo,
         "Failed to allocate buffer");
 }
 
+void Buffer::MapToBuffer(void* data)
+{
+	// Copy view & projection data
+	const auto& vpAllocInfo = GetAllocationInfo();
+	vk::DeviceMemory memory = vpAllocInfo.deviceMemory;
+	vk::DeviceSize offset = vpAllocInfo.offset;
+    void* toMap;
+	auto result = m_owner->mapMemory(memory, offset, size, {}, &toMap);
+	utils::CheckVkResult(result, "Failed to map uniform buffer memory");
+	memcpy(toMap, data, size);
+	m_owner->unmapMemory(memory);
+}
+
 void Buffer::StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size)
 {
     vk::Queue transferQueue = device.graphicsQueue;

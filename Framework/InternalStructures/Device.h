@@ -33,7 +33,7 @@ public:
     PipelineLayout pipelineLayout = {};
     GraphicsPipeline graphicsPipeline = {};
 
-    std::vector<Framebuffer> framebuffers = {};
+    std::vector<FrameBuffer> framebuffers = {};
     std::vector<vk::CommandBuffer> drawCmdBuffers;
 
     CommandPool commandPool = {};
@@ -43,7 +43,7 @@ public:
     std::vector<Fence> drawFences = {};
 
 
-    DepthBuffer depthBuffer;
+    FrameBufferAttachment depthBuffer;
 
     //size_t modelUniformAlignment;
     //vk::DeviceSize minUniformBufferOffset;

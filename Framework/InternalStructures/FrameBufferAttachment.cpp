@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //
-// File Name:	DepthBuffer.cpp
+// File Name:	FrameBufferAttachment.cpp
 // Author(s):	Jonathan Bourim (j.bourim)
 // Date:		7/25/2020
 //
@@ -8,12 +8,16 @@
 #include "RenderingContext.h"
 
 
-void DepthBuffer::Create(Device& owner)
+void FrameBufferAttachment::Create(vk::Format format, 
+								   vk::Extent2D extent, 
+								   vk::ImageUsageFlags usage, 
+								   vk::ImageLayout destinationLayout,
+								   Device& owner)
 {
 	m_owner = &owner;
-	format = GetDepthFormat();
 
-	image.CreateDepthImage(owner.swapchain.GetExtentDimensions(), owner);
+	image.Create2D({extent.width, extent.height}, format, 1, vk::ImageTiling::eOptimal, 
+				   usage, destinationLayout, owner);
 
 	vk::ImageViewCreateInfo viewCreateInfo = {};
 	viewCreateInfo.image = image;											// Image to create view for
@@ -32,9 +36,19 @@ void DepthBuffer::Create(Device& owner)
 	viewCreateInfo.subresourceRange.layerCount = 1;							// Number of array levels to view
 
 	ImageView::Create(imageView, viewCreateInfo, *m_owner);
+
 }
 
-vk::Format DepthBuffer::GetDepthFormat()
+void FrameBufferAttachment::CreateDepth(Device& owner)
+{
+	format = GetDepthFormat();
+	Create(format, owner.swapchain.extent,
+		   vk::ImageUsageFlagBits::eDepthStencilAttachment,
+		   vk::ImageLayout::eDepthStencilAttachmentOptimal,
+		   owner);
+}
+
+vk::Format FrameBufferAttachment::GetDepthFormat()
 {
 	vk::FormatProperties formatProperties{ RenderingContext::GetPhysicalDevice().getFormatProperties(vk::Format::eD32Sfloat) };
 
@@ -46,7 +60,7 @@ vk::Format DepthBuffer::GetDepthFormat()
 	ASSERT(false, "32-bit signed depth stencil format not supported");
 }
 
-void DepthBuffer::Destroy()
+void FrameBufferAttachment::Destroy()
 {
 	imageView.Destroy();
 	image.Destroy();

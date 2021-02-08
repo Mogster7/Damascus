@@ -24,7 +24,7 @@ set(FRAMEWORK_SRC
     InternalStructures/Fence.cpp
     InternalStructures/Descriptors.cpp
     InternalStructures/Image.cpp
-    InternalStructures/DepthBuffer.cpp
+    InternalStructures/FrameBufferAttachment.cpp
  "InternalStructures/Texture.cpp" "Camera/Camera.cpp" "Camera/Camera.h")
 
 

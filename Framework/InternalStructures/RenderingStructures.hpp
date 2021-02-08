@@ -13,7 +13,7 @@
 #include "Mesh.h"
 #include "Image.h"
 #include "ImageView.h"
-#include "DepthBuffer.h"
+#include "FrameBufferAttachment.h"
 #include "RenderPass.h"
 #include "Swapchain.h"
 #include "ShaderModule.h"

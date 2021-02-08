@@ -100,6 +100,8 @@ public:
 
 	Camera camera;
 
+	int32_t debugDisplayTarget = 0;
+
 	struct {
 		glm::mat4 projection;
 		glm::mat4 model;
@@ -115,14 +117,14 @@ public:
 
 
 	struct Light {
-		glm::vec4 position;
-		glm::vec3 color;
-		float radius;
+		glm::vec4 position = {};
+		glm::vec3 color = {};
+		float radius = {};
 	};
 
-	struct {
-		Light lights[6];
-		glm::vec4 viewPos;
+	struct UboComposition {
+		Light lights[6] = {};
+		glm::vec4 viewPos = {};
 		int debugDisplayTarget = 0;
 	} uboComposition;
 
@@ -146,21 +148,6 @@ public:
 	vk::DescriptorSet descriptorSet;
 	// vk::DescriptorSetLayout descriptorSetLayout;
 
-	// // Framebuffer for offscreen rendering
-	// struct FrameBufferAttachment {
-	// 	vk::Image image;
-	// 	vk::DeviceMemory mem;
-	// 	vk::ImageView view;
-	// 	vk::Format format;
-	// };
-	// struct FrameBuffer {
-	// 	int32_t width, height;
-	// 	Framebuffer framebuffer;
-	// 	FrameBufferAttachment position, normal, albedo;
-	// 	FrameBufferAttachment depth;
-	// 	RenderPass renderPass;
-	// } offScreenFrameBuf;
-
 	struct
 	{
 		RenderPass forward;
@@ -168,13 +155,6 @@ public:
 
 	// One sampler for the frame buffer color attachments
 	vk::Sampler colorSampler;
-
-	vk::CommandBuffer offScreenCmdBuffer = nullptr;
-
-	// Semaphore used to synchronize between offscreen and final scene rendering
-	vk::Semaphore offscreenSemaphore = nullptr;
-
-	
 
     std::vector<Mesh<Vertex>> objects;
 
@@ -187,6 +167,20 @@ public:
 
     std::vector<Buffer> uniformBufferModel;
     std::vector<Buffer> uniformBufferViewProjection;
+    std::vector<Buffer> uniformBufferComposition;
+
+	// Deferred Data
+
+	vk::CommandBuffer offscreenDrawBuffer;
+	vk::Semaphore offscreenSemaphore;
+	struct GBuffer
+	{
+		uint32_t width, height;
+		FrameBuffer frameBuffer;
+		FrameBufferAttachment position, normal, albedo;
+		FrameBufferAttachment depth;
+		vk::RenderPass renderPass;
+	} gBuffer;
 
 	
 	// TODO: MOVE THESE OUT
@@ -194,7 +188,9 @@ public:
 	RenderPass renderPassUI;
 	CommandPool commandPoolUI;
 	std::vector<vk::CommandBuffer> commandBuffersUI;
-	std::vector<Framebuffer> framebuffersUI;
+	std::vector<FrameBuffer> framebuffersUI;
+
+	std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	bool cursorActive = false;
 
@@ -211,6 +207,8 @@ public:
 		else 
 			glfwSetCursorPosCallback(win, nullptr);
 	}
+
+
 
 	void Initialization()
 	{
@@ -231,17 +229,20 @@ public:
 		// // its down by default in Vulkan
 		uboViewProjection.projection[1][1] *= -1;
 		
+
+		
     
 		// objects.emplace_back().Create(device, cubeVerts, cubeIndices);
 		// objects.emplace_back().Create(device, meshVerts, squareIndices);
-		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		// objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
 
-		objects[0].SetModel(
-			glm::translate(objects[0].GetModel(), glm::vec3(0.0f, 0.0f, -3.0f))
-			* glm::rotate(objects[0].GetModel(), glm::radians(-90.0f), glm::vec3(1.0, 0.0f, 0.0f)));
+		// objects[0].SetModel(
+		// 	glm::translate(objects[0].GetModel(), glm::vec3(0.0f, 0.0f, -3.0f))
+		// 	* glm::rotate(objects[0].GetModel(), glm::radians(-90.0f), glm::vec3(1.0, 0.0f, 0.0f)));
 		// objects[1].SetModel(glm::translate(objects[1].GetModel(), glm::vec3(0.0f, 0.0f, -2.5f)));
 
 
+		InitializeAttachments();
 		InitializeAssets();
 		InitializeUniformBuffers();
 		InitializeDescriptorSetLayouts();
@@ -279,6 +280,8 @@ public:
 		descriptorPoolUI.Destroy();
 		// --------------
 	}
+
+	
 
 	void InitializeUI()
 	{
@@ -386,9 +389,187 @@ public:
 			
 	}
 
+	
+	void InitializeAttachments()
+	{
+		gBuffer.height = 2048;
+		gBuffer.width = 2048;
+
+		vk::Format RGBA = vk::Format::eR16G16B16A16Sfloat;
+		auto colorAttach = vk::ImageUsageFlagBits::eColorAttachment;
+		auto sampled = vk::ImageUsageFlagBits::eSampled;
+
+		gBuffer.position.Create(RGBA, { gBuffer.width, gBuffer.height },
+							  colorAttach | sampled, vk::ImageLayout::eColorAttachmentOptimal,
+							  device);
+
+		gBuffer.normal.Create(RGBA, { gBuffer.width, gBuffer.height },
+							  colorAttach | sampled, vk::ImageLayout::eColorAttachmentOptimal,
+							  device);
+
+		gBuffer.albedo.Create(vk::Format::eR8G8B8A8Unorm, { gBuffer.width, gBuffer.height },
+							  colorAttach | sampled, vk::ImageLayout::eColorAttachmentOptimal,
+							  device);
+
+		gBuffer.depth.Create(FrameBufferAttachment::GetDepthFormat(), { gBuffer.width, gBuffer.height },
+							  vk::ImageUsageFlagBits::eDepthStencilAttachment | sampled, vk::ImageLayout::eDepthStencilAttachmentOptimal,
+							  device);
+
+		// Set up separate renderpass with references to the color and depth attachments
+		std::array<vk::AttachmentDescription, 4> attachmentDescs = {};
+
+		// Init attachment properties
+		for (uint32_t i = 0; i < 4; ++i)
+		{
+			attachmentDescs[i].samples = vk::SampleCountFlagBits::e1;
+			attachmentDescs[i].loadOp = vk::AttachmentLoadOp::eClear;
+			attachmentDescs[i].storeOp = vk::AttachmentStoreOp::eStore;
+			attachmentDescs[i].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+			attachmentDescs[i].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+			if (i == 3)
+			{
+				attachmentDescs[i].initialLayout = vk::ImageLayout::eUndefined;
+				attachmentDescs[i].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			}
+			else
+			{
+				attachmentDescs[i].initialLayout = vk::ImageLayout::eUndefined;
+				attachmentDescs[i].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+			}
+		}
+
+		attachmentDescs[0].format = gBuffer.position.format;
+		attachmentDescs[1].format = gBuffer.normal.format;
+		attachmentDescs[2].format = gBuffer.albedo.format;
+		attachmentDescs[3].format = gBuffer.depth.format;
+
+		std::array<vk::AttachmentReference, 3> colorRefs =
+		{
+			vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
+			{ 1, vk::ImageLayout::eColorAttachmentOptimal },
+
+			{ 2, vk::ImageLayout::eColorAttachmentOptimal },
+		};
+
+		vk::AttachmentReference depthRef;
+		depthRef.attachment = 3;
+		depthRef.layout = vk::ImageLayout::eDepthAttachmentOptimal;
+
+		vk::SubpassDescription subpass = {};
+		subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+		subpass.pColorAttachments = colorRefs.data();
+		subpass.colorAttachmentCount = colorRefs.size();
+		subpass.pDepthStencilAttachment = &depthRef;
+
+		std::array<vk::SubpassDependency, 2> dependencies;
+
+		dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependencies[0].dstSubpass = 0;
+		dependencies[0].srcStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
+		dependencies[0].dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+		dependencies[0].srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+		dependencies[0].dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+		dependencies[0].dependencyFlags = vk::DependencyFlagBits::eByRegion;
+		
+		dependencies[1].srcSubpass = 0;
+		dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+		dependencies[1].srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+		dependencies[1].dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
+		dependencies[1].srcAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+		dependencies[1].dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+		dependencies[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;
+		
+		vk::RenderPassCreateInfo rpInfo = {};
+
+		rpInfo.pAttachments = attachmentDescs.data();
+		rpInfo.attachmentCount = attachmentDescs.size();
+		rpInfo.subpassCount = 1;
+		rpInfo.pSubpasses = &subpass;
+		rpInfo.dependencyCount = 2;
+		rpInfo.pDependencies = dependencies.data();
+
+		utils::CheckVkResult(
+			device.createRenderPass(&rpInfo, nullptr, &gBuffer.renderPass),
+			"Failed to create deferred render pass"
+			);
+		
+		std::array<ImageView, 4> attachments;
+		attachments[0] = gBuffer.position.imageView;
+		attachments[1] = gBuffer.normal.imageView;
+		attachments[2] = gBuffer.albedo.imageView;
+		attachments[3] = gBuffer.depth.imageView;
+
+		
+		vk::FramebufferCreateInfo fbInfo = {};
+		fbInfo.renderPass = gBuffer.renderPass;
+		fbInfo.attachmentCount = attachments.size();
+		fbInfo.pAttachments = attachments.data();
+		fbInfo.width = gBuffer.width;
+		fbInfo.height = gBuffer.height;
+		fbInfo.layers = 1;
+
+		FrameBuffer::Create(gBuffer.frameBuffer, fbInfo, device);
+		
+		vk::SamplerCreateInfo samplerInfo = {};
+		samplerInfo.magFilter = vk::Filter::eNearest;
+		samplerInfo.minFilter = vk::Filter::eNearest;
+		samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+		samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
+		samplerInfo.addressModeV = samplerInfo.addressModeU;
+		samplerInfo.addressModeW = samplerInfo.addressModeU;
+		samplerInfo.mipLodBias = 0.0f;
+		samplerInfo.maxAnisotropy = 1.0f;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = 1.0f;
+		samplerInfo.borderColor = vk::BorderColor::eFloatOpaqueWhite;
+		utils::CheckVkResult(device.createSampler(&samplerInfo, nullptr, &colorSampler),
+							 "Failed to create deferred sampler");
+	}
+
 	void InitializeAssets()
 	{
 		testTex.Create(std::string(ASSET_DIR) + "Textures/viking_room.png", device);
+		std::vector<std::vector<Mesh<Vertex>::MeshData>> meshData(20);
+
+
+		auto loadSection = [&meshData](const std::string& sectionPath, std::vector<Mesh<Vertex>>& objects,
+									   Device& device, int threadID)
+		{
+			std::ifstream sectionFile;
+			sectionFile.open(sectionPath);
+			std::string modelsPath = std::string(ASSET_DIR) + "Models/";
+			std::string input;
+			std::vector<Mesh<Vertex>::MeshData> section;
+			while (sectionFile >> input)
+			{
+				std::string combinedPath = modelsPath + input;
+				section.emplace_back(Mesh<Vertex>::LoadModel(combinedPath));
+				input.clear();
+			}
+			meshData[threadID] = std::move(section);
+		};
+
+		std::vector<std::thread> loadGroup = {};
+		for (int i = 1; i < 21; ++i)
+		{
+			loadGroup.emplace_back(loadSection,
+								   std::string(ASSET_DIR) + "Models/Section" + std::to_string(i) + ".txt",
+								   objects, device, i - 1);
+		}
+
+		for (auto& loader : loadGroup)
+		{
+			loader.join();
+		}
+
+		for (auto& vector : meshData)
+		{
+			for (auto& data : vector)
+			{
+				objects.emplace_back();
+				objects.back().Create(device, data.vertices, data.indices);
+			}
+		}
 	}
 
 	void InitializeUniformBuffers()
@@ -400,6 +581,7 @@ public:
 		// One uniform buffer for each image
 		//uniformBufferModel.resize(images.size());
 		uniformBufferViewProjection.resize(images.size());
+		uniformBufferComposition.resize(images.size());
 
 		//vk::BufferCreateInfo modelCreateInfo = {};
 		//modelCreateInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
@@ -414,11 +596,11 @@ public:
 
 		for (size_t i = 0; i < images.size(); ++i)
 		{
-			//uniformBufferModel[i].Create(modelCreateInfo, aCreateInfo, *this, allocator);
 			uniformBufferViewProjection[i].Create(vpCreateInfo, aCreateInfo, device);
+			uniformBufferComposition[i].Create(vpCreateInfo, aCreateInfo, device);
 		}
 
-		UpdateUniformBuffers(device.imageIndex);
+		UpdateUniformBuffers(0.0f, device.imageIndex);
 	}
 
 	void InitializeDescriptorSetLayouts()
@@ -432,22 +614,22 @@ public:
 		// Sampler becomes immutable if set
 		vpBinding.pImmutableSamplers = nullptr;
 
-		//vk::DescriptorSetLayoutBinding modelBinding = {};
-		//modelBinding.binding = 1;
-		//modelBinding.descriptorType = vk::DescriptorType::eUniformBufferDynamic;
-		//modelBinding.descriptorCount = 1;
-		//modelBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
-		//modelBinding.pImmutableSamplers = nullptr;
+		vk::DescriptorSetLayoutBinding compositionBinding = {};
+		compositionBinding.binding = 1;
+		compositionBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+		compositionBinding.descriptorCount = 1;
+		compositionBinding.stageFlags = vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eVertex;
+		compositionBinding.pImmutableSamplers = nullptr;
 
 		// Texture sampler
 		vk::DescriptorSetLayoutBinding samplerBinding = {};
-		samplerBinding.binding = 1;
+		samplerBinding.binding = 2;
 		samplerBinding.descriptorCount = 1;
 		samplerBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
 		samplerBinding.pImmutableSamplers = nullptr;
 		samplerBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
 
-		std::vector<vk::DescriptorSetLayoutBinding> bindings = { vpBinding, samplerBinding };
+		std::vector<vk::DescriptorSetLayoutBinding> bindings = { vpBinding, compositionBinding, samplerBinding };
 
 		vk::DescriptorSetLayoutCreateInfo createInfo = {};
 		createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -484,8 +666,8 @@ public:
 
 		// CONNECT DESCRIPTOR SET TO BUFFER
 		// UPDATE ALL DESCRIPTOR SET BINDINGS
-		std::array<vk::WriteDescriptorSet, 2> setWrite = {};
-		std::array<vk::DescriptorBufferInfo, 1> bufferInfo = {};
+		std::array<vk::WriteDescriptorSet, 3> setWrite = {};
+		std::array<vk::DescriptorBufferInfo, 2> bufferInfo = {};
 		std::array<vk::DescriptorImageInfo, 1> imageInfo = {};
 
 		// VP BUFFER INFO
@@ -501,16 +683,33 @@ public:
 		// Amount to update
 		setWrite[0].descriptorCount = 1;
 
+
+		// Composition Buffer
+		// COMPOSITION BUFFER INFO
+		bufferInfo[1].offset = 0;
+		bufferInfo[1].range = sizeof(UboComposition);
+
+		// SET WRITING INFO
+		// Matches with shader layout binding
+		setWrite[1].dstBinding = 1;
+		// Index of array to update
+		setWrite[1].dstArrayElement = 0;
+		setWrite[1].descriptorType = vk::DescriptorType::eUniformBuffer;
+		// Amount to update
+		setWrite[1].descriptorCount = 1;
+
+
+
 		// Sampler image Info
 		imageInfo[0].imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 		imageInfo[0].imageView = testTex.imageView.Get();
 		imageInfo[0].sampler = testTex.sampler.get();
 		
-		setWrite[1].dstBinding = 1;
-		setWrite[1].dstArrayElement = 0;
-		setWrite[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
-		setWrite[1].descriptorCount = 1;
-		setWrite[1].pImageInfo = &imageInfo[0];
+		setWrite[2].dstBinding = 2;
+		setWrite[2].dstArrayElement = 0;
+		setWrite[2].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+		setWrite[2].descriptorCount = 1;
+		setWrite[2].pImageInfo = &imageInfo[0];
 		
 
 		//// Model version
@@ -529,16 +728,16 @@ public:
 		{
 			// Buffer to get data from
 			bufferInfo[0].buffer = uniformBufferViewProjection[i];
-			//modelBufferInfo.buffer = uniformBufferModel[i];
+			bufferInfo[1].buffer = uniformBufferComposition[i];
 
 			// Current descriptor set 
 			setWrite[0].dstSet = descriptorSets[i];
-			//modelSetWrite.dstSet = descriptorSets[i];
-
 			setWrite[1].dstSet = descriptorSets[i];
+			setWrite[2].dstSet = descriptorSets[i];
 
 			// Update with new buffer info
 			setWrite[0].pBufferInfo = &bufferInfo[0];
+			setWrite[1].pBufferInfo = &bufferInfo[1];
 			//modelSetWrite.pBufferInfo = &modelBufferInfo;
 
 			device.updateDescriptorSets(
@@ -612,7 +811,7 @@ public:
 		// of the structures
 		attribDesc[0].offset = offsetof(Vertex, pos);
 
-		// Color attribute
+		// Normal attribute
 		// Binding the data is at (should be same as above)
 		attribDesc[1].binding = 0;
 		// Location in shader where data is read from
@@ -621,12 +820,25 @@ public:
 		attribDesc[1].format = vk::Format::eR32G32B32Sfloat;
 		// Where the attribute begins as an offset from the beginning
 		// of the structures
-		attribDesc[1].offset = offsetof(Vertex, color);
+		attribDesc[1].offset = offsetof(Vertex, normal);
 
+
+		// Color attribute
+		// Binding the data is at (should be same as above)
 		attribDesc[2].binding = 0;
+		// Location in shader where data is read from
 		attribDesc[2].location = 2;
-		attribDesc[2].format = vk::Format::eR32G32Sfloat;
-		attribDesc[2].offset = offsetof(Vertex, texPos);
+		// Format for the data being sent
+		attribDesc[2].format = vk::Format::eR32G32B32Sfloat;
+		// Where the attribute begins as an offset from the beginning
+		// of the structures
+		attribDesc[2].offset = offsetof(Vertex, color);
+
+		// Texture coord
+		attribDesc[3].binding = 0;
+		attribDesc[3].location = 3;
+		attribDesc[3].format = vk::Format::eR32G32Sfloat;
+		attribDesc[3].offset = offsetof(Vertex, texPos);
 
 
 		// VERTEX INPUT
@@ -811,7 +1023,7 @@ public:
 	void PrepareCommandBuffers(uint32_t imageIndex)
 	{
 		std::array<vk::ClearValue, 2> clearValues = {};
-		clearValues[0].color = vk::ClearColorValue(std::array<float, 4>{0.6f, 0.65f, 0.4f, 1.0f });
+		clearValues[0].color = vk::ClearColorValue(clearColor);
 		clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
 
 
@@ -934,7 +1146,7 @@ public:
 	
 	void Draw()
 	{
-		UpdateUniformBuffers(device.imageIndex);
+		device.waitIdle();
 		if (device.PrepareFrame(currentFrame))
 			OnSurfaceRecreate();
 
@@ -966,22 +1178,69 @@ public:
 			OnSurfaceRecreate();
 
 		currentFrame = (currentFrame + 1) % MAX_FRAME_DRAWS;
-		device.waitIdle();
 	}
 
+	
 
-	void UpdateUniformBuffers(const uint32_t imageIndex)
+	void UpdateUniformBuffers(float dt, const uint32_t imageIndex)
 	{
-		// Copy view & projection data
-		auto& vpBuffer = uniformBufferViewProjection[imageIndex];
-		void* data;
-		const auto& vpAllocInfo = vpBuffer.GetAllocationInfo();
-		vk::DeviceMemory memory = vpAllocInfo.deviceMemory;
-		vk::DeviceSize offset = vpAllocInfo.offset;
-		auto result = device.mapMemory(memory, offset, sizeof(UboViewProjection), {}, &data);
-		utils::CheckVkResult(result, "Failed to map uniform buffer memory");
-		memcpy(data, &uboViewProjection, sizeof(UboViewProjection));
-		device.unmapMemory(memory);
+		uniformBufferViewProjection[imageIndex].MapToBuffer(&uboViewProjection);
+		
+		// UPDATE LIGHTS
+		// White
+		uboComposition.lights[0].position = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+		// uboComposition.lights[0].color = glm::vec3(1.5f);
+		uboComposition.lights[0].color = glm::vec3(1.0f);
+		uboComposition.lights[0].radius = 15.0f * 0.25f;
+		// Red
+		uboComposition.lights[1].position = glm::vec4(-2.0f, 0.0f, 0.0f, 0.0f);
+		// uboComposition.lights[1].color = glm::vec3(1.0f, 0.0f, 0.0f);
+		uboComposition.lights[1].color = glm::vec3(1.0f, 1.0f, 1.0f);
+		uboComposition.lights[1].radius = 15.0f;
+		// Blue
+		uboComposition.lights[2].position = glm::vec4(2.0f, -1.0f, 0.0f, 0.0f);
+		// uboComposition.lights[2].color = glm::vec3(0.0f, 0.0f, 2.5f);
+		uboComposition.lights[2].color = glm::vec3(1.0f, 1.0f, 1.0f);
+		uboComposition.lights[2].radius = 5.0f;
+		// Yellow
+		uboComposition.lights[3].position = glm::vec4(0.0f, -0.9f, 0.5f, 0.0f);
+		// uboComposition.lights[3].color = glm::vec3(1.0f, 1.0f, 0.0f);
+		uboComposition.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
+		uboComposition.lights[3].radius = 2.0f;
+		// Green
+		uboComposition.lights[4].position = glm::vec4(0.0f, -0.5f, 0.0f, 0.0f);
+		// uboComposition.lights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
+		uboComposition.lights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
+		uboComposition.lights[4].radius = 5.0f;
+		// Yellow
+		uboComposition.lights[5].position = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
+		// uboComposition.lights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
+		uboComposition.lights[5].color = glm::vec3(1.0f, 1.0f, 1.0f);
+		uboComposition.lights[5].radius = 25.0f;
+
+		static float timer = 0.0f;
+		uboComposition.lights[0].position.x = sin(glm::radians(360.0f * timer)) * 5.0f;
+		uboComposition.lights[0].position.z = cos(glm::radians(360.0f * timer)) * 5.0f;
+
+		uboComposition.lights[1].position.x = -4.0f + sin(glm::radians(360.0f * timer) + 45.0f) * 2.0f;
+		uboComposition.lights[1].position.z = 0.0f + cos(glm::radians(360.0f * timer) + 45.0f) * 2.0f;
+
+		uboComposition.lights[2].position.x = 4.0f + sin(glm::radians(360.0f * timer)) * 2.0f;
+		uboComposition.lights[2].position.z = 0.0f + cos(glm::radians(360.0f * timer)) * 2.0f;
+
+		uboComposition.lights[4].position.x = 0.0f + sin(glm::radians(360.0f * timer + 90.0f)) * 5.0f;
+		uboComposition.lights[4].position.z = 0.0f - cos(glm::radians(360.0f * timer + 45.0f)) * 5.0f;
+
+		uboComposition.lights[5].position.x = 0.0f + sin(glm::radians(-360.0f * timer + 135.0f)) * 10.0f;
+		uboComposition.lights[5].position.z = 0.0f - cos(glm::radians(-360.0f * timer - 45.0f)) * 10.0f;
+
+		// Current view position
+		uboComposition.viewPos = glm::vec4(camera.position, 0.0f) * glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f);
+
+		uboComposition.debugDisplayTarget = 0;
+		timer += dt;
+
+		uniformBufferComposition[imageIndex].MapToBuffer(&uboComposition);
 	}
 
 
@@ -1011,24 +1270,36 @@ public:
 
 	void Update(float dt)
 	{
+		// TODO: MOVE THIS OUT
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
 		static float speed = 90.0f;
 		UpdateInput(dt);
 
-		const auto& model = objects[0].GetModel();
-		objects[0].SetModel(glm::rotate(model, glm::radians(speed * dt), { 0.0f, 0.0f,1.0f }));
+		// const auto& model = objects[0].GetModel();
+		// objects[0].SetModel(glm::rotate(model, glm::radians(speed * dt), { 0.0f, 0.0f,1.0f }));
 
 		camera.Update(dt, !cursorActive);
 		uboViewProjection.view = camera.matrices.view;
 		// const auto& model2 = objects[1].GetModel();
 		// objects[1].SetModel(glm::rotate(model2, glm::radians(speed2 * dt), { 0.0f, 1.0f,1.0f }));
+
+		static glm::vec3 ppScale = {.0001f, .0001f, .0001f};
+		ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
+		ImGui::InputFloat3("Power Plant Scale", &ppScale[0], "%.9f");
+		ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
+
+		for(auto& object : objects)
+			object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));
+
+		UpdateUniformBuffers(dt, device.imageIndex);
 	}
 
 
 	void DrawUI()
 	{
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
 		ImGui::ShowDemoWindow();
 		ImGui::Render();
 	}

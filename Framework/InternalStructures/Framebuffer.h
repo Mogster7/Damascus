@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-CUSTOM_VK_DECLARE_DERIVE(Framebuffer, Framebuffer, Device)
+CUSTOM_VK_DECLARE_DERIVE(FrameBuffer, Framebuffer, Device)
 
 };
 

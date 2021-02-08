@@ -435,7 +435,7 @@ void Device::CreateDepthBuffer(bool recreate)
 {
     if (recreate) depthBuffer.Destroy();
 
-    depthBuffer.Create(*this);
+    depthBuffer.CreateDepth(*this);
 }
 
 void Device::CreateFramebuffers(bool recreate)

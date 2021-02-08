@@ -62,7 +62,7 @@ void Image::Create2D(glm::uvec2 size,
 void Image::CreateDepthImage(glm::vec2 size, Device& owner)
 {
 	Create2D(size,
-		   DepthBuffer::GetDepthFormat(),
+		   FrameBufferAttachment::GetDepthFormat(),
 		   1,
 		   vk::ImageTiling::eOptimal,
 		   vk::ImageUsageFlagBits::eDepthStencilAttachment,

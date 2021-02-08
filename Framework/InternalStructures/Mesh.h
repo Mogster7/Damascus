@@ -22,6 +22,12 @@ template <class VertexType>
 class Mesh
 {
 public:
+	struct MeshData
+    {
+		std::vector<Vertex> vertices;
+		std::vector<uint32_t> indices;
+    };
+
     void Create(Device& device, const std::vector<VertexType>& vertices, 
         const std::vector<uint32_t>& indices)
     {
@@ -31,7 +37,11 @@ public:
 			m_indexBuffer.Create(indices, device);
     }
 
-    void CreateModel(std::string path, Device& owner)
+	static MeshData LoadModel(const std::string& path)
+    {
+        ASSERT(false, "There is no template specialization for this model creation.");
+    }
+    void CreateModel(const std::string& path, Device& owner)
     {
         ASSERT(false, "There is no template specialization for this model creation.");
     }
@@ -55,6 +65,7 @@ public:
     const Buffer& GetVertexBuffer() const { return m_vertexBuffer; }
     void DestroyVertexBuffer() { m_vertexBuffer.Destroy(); }
 
+
 private:
     glm::mat4 m_model = glm::mat4(1.0f);
 
@@ -63,8 +74,7 @@ private:
 
 };
 
-template <>
-void Mesh<Vertex>::CreateModel(std::string path, Device& owner)
+Mesh<Vertex>::MeshData Mesh<Vertex>::LoadModel(const std::string& path)
 {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -79,6 +89,9 @@ void Mesh<Vertex>::CreateModel(std::string path, Device& owner)
 	std::unordered_map<Vertex, uint32_t> uniqueVerts;
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
+	bool hasTextureCoords = !attrib.texcoords.empty();
+	bool hasNormals = !attrib.normals.empty();
+	bool hasColors = !attrib.colors.empty();
 	for (const auto& shape : shapes)
 	{
 		for (const auto& index : shape.mesh.indices)
@@ -91,12 +104,33 @@ void Mesh<Vertex>::CreateModel(std::string path, Device& owner)
 	attrib.vertices[3 * index.vertex_index + 2]
 			};
 
-			vertex.texPos = {
+			if (hasTextureCoords)
+			{
+				vertex.texPos = {
 				attrib.texcoords[2 * index.texcoord_index + 0],
 				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-			};
+				};
+			}
 
-			vertex.color = { 1.0f, 1.0f, 1.0f };
+			if (hasColors)
+			{
+				vertex.color =
+				{
+					attrib.colors[3 * index.vertex_index + 0],
+					attrib.colors[3 * index.vertex_index + 1],
+					attrib.colors[3 * index.vertex_index + 2]
+				};
+			}
+
+			if (hasNormals)
+			{
+				vertex.normal =
+				{
+					attrib.normals[3 * index.normal_index + 0],
+					attrib.normals[3 * index.normal_index + 1],
+					attrib.normals[3 * index.normal_index + 2]
+				};
+			}
 
 			if (uniqueVerts.count(vertex) == 0) {
 				uniqueVerts[vertex] = static_cast<uint32_t>(vertices.size());
@@ -107,7 +141,14 @@ void Mesh<Vertex>::CreateModel(std::string path, Device& owner)
 		}
 	}
 
-	Create(owner, vertices, indices);
+	return { std::move(vertices), std::move(indices) };
+}
+
+template <>
+void Mesh<Vertex>::CreateModel(const std::string& path, Device& owner)
+{
+	const auto data = LoadModel(path);
+	Create(owner, data.vertices, data.indices);
 }
 
 

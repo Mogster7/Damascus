@@ -40,4 +40,6 @@ target_precompile_headers(Framework REUSE_FROM Utilities)
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                    COMMAND cmd /c ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile.bat
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       ${CMAKE_SOURCE_DIR}/Assets $<TARGET_FILE_DIR:${PROJECT_NAME}>/Assets)
+                       ${CMAKE_SOURCE_DIR}/Assets/Textures $<TARGET_FILE_DIR:${PROJECT_NAME}>/Assets/Textures
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       ${CMAKE_SOURCE_DIR}/Assets/Shaders $<TARGET_FILE_DIR:${PROJECT_NAME}>/Assets/Shaders)

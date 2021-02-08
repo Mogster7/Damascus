@@ -6,4 +6,4 @@
 //
 //------------------------------------------------------------------------------
 
-CUSTOM_VK_DEFINE(Framebuffer, Framebuffer, Device)
+CUSTOM_VK_DEFINE(FrameBuffer, Framebuffer, Device)
