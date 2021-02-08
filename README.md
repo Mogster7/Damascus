@@ -1,4 +1,3 @@
-Basic vulkan framework demo.  
-Can render basic objects with a basic shader, pipeline for data structures / buffers is functional.
+Currently being used for CS350: Advanced Graphics II
 
-Utilizes EASTL for data structures, and VMA for buffer allocation.
+
