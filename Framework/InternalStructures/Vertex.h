@@ -35,7 +35,7 @@ struct Vertex
         return pos == other.pos && color == other.color && texPos == other.texPos;
     }
 
-    inline static const uint32_t NUM_ATTRIBS = 3;
+    inline static const uint32_t NUM_ATTRIBS = 4;
 };
 
 

@@ -25,7 +25,9 @@ set(FRAMEWORK_SRC
     InternalStructures/Descriptors.cpp
     InternalStructures/Image.cpp
     InternalStructures/FrameBufferAttachment.cpp
- "InternalStructures/Texture.cpp" "Camera/Camera.cpp" "Camera/Camera.h")
+    InternalStructures/Texture.cpp
+    InternalStructures/Shader.cpp
+    Camera/Camera.cpp )
 
 
 add_library(Framework

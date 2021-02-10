@@ -17,6 +17,7 @@
 #include "RenderPass.h"
 #include "Swapchain.h"
 #include "ShaderModule.h"
+#include "Shader.h"
 #include "Pipeline.h"
 #include "Framebuffer.h"
 #include "CommandPool.h"

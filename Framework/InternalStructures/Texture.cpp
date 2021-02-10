@@ -41,9 +41,9 @@ void Texture::Create(const std::string& filepath, Device& owner)
 	void* mapped;
 	auto allocator = owner.allocator;
 	// Map and copy data to the memory, then unmap
-    vmaMapMemory(allocator, stagingBuffer.GetAllocation(), &mapped);
+    vmaMapMemory(allocator, stagingBuffer.allocation, &mapped);
     std::memcpy(mapped, pixels, (size_t)imageSize);
-    vmaUnmapMemory(allocator, stagingBuffer.GetAllocation());
+    vmaUnmapMemory(allocator, stagingBuffer.allocation);
 	
 	VmaAllocationCreateInfo allocInfo{};
 	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;

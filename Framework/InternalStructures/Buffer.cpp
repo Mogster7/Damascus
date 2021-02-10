@@ -18,14 +18,17 @@ void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo,
     utils::CheckVkResult((vk::Result)vmaCreateBuffer(owner.allocator, (VkBufferCreateInfo*)&bufferCreateInfo, &allocCreateInfo,
         (VkBuffer*)&m_object, &allocation, &allocationInfo), 
         "Failed to allocate buffer");
+
+	descriptorInfo.offset = 0;
+    descriptorInfo.range = size;
+    descriptorInfo.buffer = Get();
 }
 
-void Buffer::MapToBuffer(void* data)
+void Buffer::MapToBuffer(void* data) const
 {
 	// Copy view & projection data
-	const auto& vpAllocInfo = GetAllocationInfo();
-	vk::DeviceMemory memory = vpAllocInfo.deviceMemory;
-	vk::DeviceSize offset = vpAllocInfo.offset;
+	vk::DeviceMemory memory = allocationInfo.deviceMemory;
+	vk::DeviceSize offset = allocationInfo.offset;
     void* toMap;
 	auto result = m_owner->mapMemory(memory, offset, size, {}, &toMap);
 	utils::CheckVkResult(result, "Failed to map uniform buffer memory");
@@ -121,9 +124,9 @@ void Buffer::CreateStaged(void* data, const vk::DeviceSize size,
     void* mapped; 
 
     //// Map and copy data to the memory, then unmap
-    vmaMapMemory(allocator, stagingBuffer.GetAllocation(), &mapped);
+    vmaMapMemory(allocator, stagingBuffer.allocation, &mapped);
     std::memcpy(mapped, data, (size_t)size);
-    vmaUnmapMemory(allocator, stagingBuffer.GetAllocation());
+    vmaUnmapMemory(allocator, stagingBuffer.allocation);
 
     // Copy staging buffer to GPU-side vertex buffer
     StageTransfer(stagingBuffer, *this, *m_owner, size);

@@ -11,6 +11,7 @@
 void FrameBufferAttachment::Create(vk::Format format, 
 								   vk::Extent2D extent, 
 								   vk::ImageUsageFlags usage, 
+								   vk::ImageAspectFlags aspectMask,
 								   vk::ImageLayout destinationLayout,
 								   Device& owner)
 {
@@ -19,33 +20,52 @@ void FrameBufferAttachment::Create(vk::Format format,
 	image.Create2D({extent.width, extent.height}, format, 1, vk::ImageTiling::eOptimal, 
 				   usage, destinationLayout, owner);
 
+
+	this->format = format;
 	vk::ImageViewCreateInfo viewCreateInfo = {};
 	viewCreateInfo.image = image;											// Image to create view for
 	viewCreateInfo.viewType = vk::ImageViewType::e2D;						// Type of image (1D, 2D, 3D, Cube, etc)
 	viewCreateInfo.format = format;											// Format of image data
-	viewCreateInfo.components.r = vk::ComponentSwizzle::eIdentity;			// Allows remapping of rgba components to other rgba values
-	viewCreateInfo.components.g = vk::ComponentSwizzle::eIdentity;
-	viewCreateInfo.components.b = vk::ComponentSwizzle::eIdentity;
-	viewCreateInfo.components.a = vk::ComponentSwizzle::eIdentity;
-
 	// Subresources allow the view to view only a part of an image
-	viewCreateInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;  // Which aspect of image to view (e.g. COLOR_BIT for viewing colour)
+	viewCreateInfo.subresourceRange.aspectMask = aspectMask;  // Which aspect of image to view (e.g. COLOR_BIT for viewing colour)
 	viewCreateInfo.subresourceRange.baseMipLevel = 0;						// Start mipmap level to view from
 	viewCreateInfo.subresourceRange.levelCount = 1;							// Number of mipmap levels to view
 	viewCreateInfo.subresourceRange.baseArrayLayer = 0;						// Start array level to view from
-	viewCreateInfo.subresourceRange.layerCount = 1;							// Number of array levels to view
+	viewCreateInfo.subresourceRange.layerCount = 1;					// Number of array levels to view
 
-	ImageView::Create(imageView, viewCreateInfo, *m_owner);
+	ImageView::Create(imageView, viewCreateInfo, owner);
 
+	descriptorInfo.imageLayout = destinationLayout;
+	descriptorInfo.imageView = imageView.Get();
 }
+
+void FrameBufferAttachment::Create(
+	vk::Format format,
+	vk::Extent2D extent,
+	vk::ImageUsageFlags usage,
+	vk::ImageAspectFlags aspectMask,
+	vk::ImageLayout destinationLayout,
+	vk::SamplerCreateInfo samplerCreateInfo,
+	Device& owner
+)
+{
+	Create(format, extent, usage, aspectMask, destinationLayout, owner);
+	utils::CheckVkResult(
+		owner.createSampler(&samplerCreateInfo, nullptr, &sampler),
+		"Failed to create frame buffer attachment sampler");
+	descriptorInfo.sampler = sampler;
+}
+
 
 void FrameBufferAttachment::CreateDepth(Device& owner)
 {
 	format = GetDepthFormat();
 	Create(format, owner.swapchain.extent,
 		   vk::ImageUsageFlagBits::eDepthStencilAttachment,
+		   vk::ImageAspectFlagBits::eDepth,
 		   vk::ImageLayout::eDepthStencilAttachmentOptimal,
 		   owner);
+
 }
 
 vk::Format FrameBufferAttachment::GetDepthFormat()
@@ -62,6 +82,7 @@ vk::Format FrameBufferAttachment::GetDepthFormat()
 
 void FrameBufferAttachment::Destroy()
 {
+	m_owner->destroySampler(sampler);
 	imageView.Destroy();
 	image.Destroy();
 }

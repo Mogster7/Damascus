@@ -11,6 +11,7 @@
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
 
+constexpr glm::uvec2 FB_SIZE = { 2048, 2048 }; 
 
 
 class DeferredRenderingContext_Impl : public RenderingContext_Impl
@@ -82,22 +83,6 @@ public:
 
 	Texture testTex;
 
-	// struct {
-	// 	struct {
-	// 		vks::Texture2D colorMap;
-	// 		vks::Texture2D normalMap;
-	// 	} model;
-	// 	struct {
-	// 		vks::Texture2D colorMap;
-	// 		vks::Texture2D normalMap;
-	// 	} floor;
-	// } textures;
-
-	// struct {
-	// 	vkglTF::Model model;
-	// 	vkglTF::Model floor;
-	// } models;
-
 	Camera camera;
 
 	int32_t debugDisplayTarget = 0;
@@ -140,14 +125,6 @@ public:
 	} pipelines;
 	PipelineLayout pipelineLayout;
 
-	// struct {
-	// 	vk::DescriptorSet model;
-	// 	vk::DescriptorSet floor;
-	// } descriptorSets;
-
-	vk::DescriptorSet descriptorSet;
-	// vk::DescriptorSetLayout descriptorSetLayout;
-
 	struct
 	{
 		RenderPass forward;
@@ -171,15 +148,16 @@ public:
 
 	// Deferred Data
 
-	vk::CommandBuffer offscreenDrawBuffer;
-	vk::Semaphore offscreenSemaphore;
 	struct GBuffer
 	{
 		uint32_t width, height;
-		FrameBuffer frameBuffer;
 		FrameBufferAttachment position, normal, albedo;
 		FrameBufferAttachment depth;
 		vk::RenderPass renderPass;
+
+		std::vector<FrameBuffer> frameBuffers;
+		std::vector<vk::CommandBuffer> drawBuffers;
+		std::vector<Semaphore> semaphores;
 	} gBuffer;
 
 	
@@ -232,9 +210,9 @@ public:
 
 		
     
-		// objects.emplace_back().Create(device, cubeVerts, cubeIndices);
-		// objects.emplace_back().Create(device, meshVerts, squareIndices);
-		// objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		 //objects.emplace_back().Create(device, cubeVerts, cubeIndices);
+		 //objects.emplace_back().Create(device, meshVerts, squareIndices);
+		 objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
 
 		// objects[0].SetModel(
 		// 	glm::translate(objects[0].GetModel(), glm::vec3(0.0f, 0.0f, -3.0f))
@@ -243,7 +221,7 @@ public:
 
 
 		InitializeAttachments();
-		InitializeAssets();
+		//InitializeAssets();
 		InitializeUniformBuffers();
 		InitializeDescriptorSetLayouts();
 		InitializeDescriptorPool();
@@ -392,27 +370,53 @@ public:
 	
 	void InitializeAttachments()
 	{
-		gBuffer.height = 2048;
-		gBuffer.width = 2048;
+		gBuffer.height = FB_SIZE.x;
+		gBuffer.width = FB_SIZE.y;
 
 		vk::Format RGBA = vk::Format::eR16G16B16A16Sfloat;
 		auto colorAttach = vk::ImageUsageFlagBits::eColorAttachment;
 		auto sampled = vk::ImageUsageFlagBits::eSampled;
 
+		// COLOR SAMPLER FOR DEFERRED ATTACHMENTS
+		vk::SamplerCreateInfo samplerInfo = {};
+		samplerInfo.magFilter = vk::Filter::eNearest;
+		samplerInfo.minFilter = vk::Filter::eNearest;
+		samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+		samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
+		samplerInfo.addressModeV = samplerInfo.addressModeU;
+		samplerInfo.addressModeW = samplerInfo.addressModeU;
+		samplerInfo.mipLodBias = 0.0f;
+		samplerInfo.maxAnisotropy = 1.0f;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = 1.0f;
+		samplerInfo.borderColor = vk::BorderColor::eFloatOpaqueWhite;
+
 		gBuffer.position.Create(RGBA, { gBuffer.width, gBuffer.height },
-							  colorAttach | sampled, vk::ImageLayout::eColorAttachmentOptimal,
+							  colorAttach | sampled, 
+								vk::ImageAspectFlagBits::eColor,
+								vk::ImageLayout::eColorAttachmentOptimal,
+								samplerInfo,
 							  device);
 
 		gBuffer.normal.Create(RGBA, { gBuffer.width, gBuffer.height },
-							  colorAttach | sampled, vk::ImageLayout::eColorAttachmentOptimal,
+							  colorAttach | sampled, 
+							  vk::ImageAspectFlagBits::eColor,
+							  vk::ImageLayout::eColorAttachmentOptimal,
+							  samplerInfo,
 							  device);
 
 		gBuffer.albedo.Create(vk::Format::eR8G8B8A8Unorm, { gBuffer.width, gBuffer.height },
-							  colorAttach | sampled, vk::ImageLayout::eColorAttachmentOptimal,
+							  colorAttach | sampled, 
+							  vk::ImageAspectFlagBits::eColor,
+							  vk::ImageLayout::eColorAttachmentOptimal,
+							  samplerInfo,
 							  device);
 
 		gBuffer.depth.Create(FrameBufferAttachment::GetDepthFormat(), { gBuffer.width, gBuffer.height },
-							  vk::ImageUsageFlagBits::eDepthStencilAttachment | sampled, vk::ImageLayout::eDepthStencilAttachmentOptimal,
+							  vk::ImageUsageFlagBits::eDepthStencilAttachment | sampled, 
+							  vk::ImageAspectFlagBits::eDepth,
+							 vk::ImageLayout::eDepthStencilAttachmentOptimal,
+							 // No sampler
 							  device);
 
 		// Set up separate renderpass with references to the color and depth attachments
@@ -446,20 +450,20 @@ public:
 		std::array<vk::AttachmentReference, 3> colorRefs =
 		{
 			vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
-			{ 1, vk::ImageLayout::eColorAttachmentOptimal },
-
+			vk::AttachmentReference(1, vk::ImageLayout::eColorAttachmentOptimal),
+			
 			{ 2, vk::ImageLayout::eColorAttachmentOptimal },
 		};
 
 		vk::AttachmentReference depthRef;
 		depthRef.attachment = 3;
-		depthRef.layout = vk::ImageLayout::eDepthAttachmentOptimal;
+		depthRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
 		vk::SubpassDescription subpass = {};
 		subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
 		subpass.pColorAttachments = colorRefs.data();
 		subpass.colorAttachmentCount = colorRefs.size();
-		subpass.pDepthStencilAttachment = &depthRef;
+		// subpass.pDepthStencilAttachment = &depthRef;
 
 		std::array<vk::SubpassDependency, 2> dependencies;
 
@@ -493,11 +497,11 @@ public:
 			"Failed to create deferred render pass"
 			);
 		
-		std::array<ImageView, 4> attachments;
-		attachments[0] = gBuffer.position.imageView;
-		attachments[1] = gBuffer.normal.imageView;
-		attachments[2] = gBuffer.albedo.imageView;
-		attachments[3] = gBuffer.depth.imageView;
+		std::array<vk::ImageView, 4> attachments;
+		attachments[0] = gBuffer.position.imageView.Get();
+		attachments[1] = gBuffer.normal.imageView.Get();
+		attachments[2] = gBuffer.albedo.imageView.Get();
+		attachments[3] = gBuffer.depth.imageView.Get();
 
 		
 		vk::FramebufferCreateInfo fbInfo = {};
@@ -508,22 +512,44 @@ public:
 		fbInfo.height = gBuffer.height;
 		fbInfo.layers = 1;
 
-		FrameBuffer::Create(gBuffer.frameBuffer, fbInfo, device);
+		const size_t imageViewCount = device.swapchain.imageViews.size();
+		gBuffer.frameBuffers.resize(imageViewCount);
+
+		for(size_t i = 0; i < imageViewCount; ++i)
+		{
+			// // List of attachments 1 to 1 with render pass
+			// fbInfo.pAttachments = attachments.data();
+			
+			FrameBuffer::Create(gBuffer.frameBuffers[i], fbInfo, device);
+		}
 		
-		vk::SamplerCreateInfo samplerInfo = {};
-		samplerInfo.magFilter = vk::Filter::eNearest;
-		samplerInfo.minFilter = vk::Filter::eNearest;
-		samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-		samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
-		samplerInfo.addressModeV = samplerInfo.addressModeU;
-		samplerInfo.addressModeW = samplerInfo.addressModeU;
-		samplerInfo.mipLodBias = 0.0f;
-		samplerInfo.maxAnisotropy = 1.0f;
-		samplerInfo.minLod = 0.0f;
-		samplerInfo.maxLod = 1.0f;
-		samplerInfo.borderColor = vk::BorderColor::eFloatOpaqueWhite;
-		utils::CheckVkResult(device.createSampler(&samplerInfo, nullptr, &colorSampler),
-							 "Failed to create deferred sampler");
+
+		gBuffer.drawBuffers.resize(imageViewCount);
+
+		vk::CommandBufferAllocateInfo cmdInfo = {};
+		cmdInfo.commandPool = device.commandPool.Get();
+		cmdInfo.level = vk::CommandBufferLevel::ePrimary;
+		cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
+
+		utils::CheckVkResult(
+			device.allocateCommandBuffers(&cmdInfo, gBuffer.drawBuffers.data()),
+			"Failed to allocate deferred command buffers"
+		);
+
+		gBuffer.semaphores.resize(MAX_FRAME_DRAWS);
+		vk::SemaphoreCreateInfo semInfo = {};
+		for(size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
+		{
+			utils::CheckVkResult(
+				device.createSemaphore(&semInfo, nullptr, &gBuffer.semaphores[i]),
+				"Failed to allocate deferred semaphore"
+			);
+		}
+	}
+
+	void InitializeDeferredCommandBuffer()
+	{
+		
 	}
 
 	void InitializeAssets()
@@ -540,7 +566,8 @@ public:
 			std::string modelsPath = std::string(ASSET_DIR) + "Models/";
 			std::string input;
 			std::vector<Mesh<Vertex>::MeshData> section;
-			while (sectionFile >> input)
+			int i = 0;
+			while (sectionFile >> input && i++ < 4)
 			{
 				std::string combinedPath = modelsPath + input;
 				section.emplace_back(Mesh<Vertex>::LoadModel(combinedPath));
@@ -583,10 +610,6 @@ public:
 		uniformBufferViewProjection.resize(images.size());
 		uniformBufferComposition.resize(images.size());
 
-		//vk::BufferCreateInfo modelCreateInfo = {};
-		//modelCreateInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
-		//modelCreateInfo.size = modelBufferSize;
-
 		vk::BufferCreateInfo vpCreateInfo = {};
 		vpCreateInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
 		vpCreateInfo.size = vpBufferSize;
@@ -605,31 +628,16 @@ public:
 
 	void InitializeDescriptorSetLayouts()
 	{
-		// UboViewProjection binding info
-		vk::DescriptorSetLayoutBinding vpBinding = {};
-		vpBinding.binding = 0;
-		vpBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
-		vpBinding.descriptorCount = 1;
-		vpBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
-		// Sampler becomes immutable if set
-		vpBinding.pImmutableSamplers = nullptr;
-
-		vk::DescriptorSetLayoutBinding compositionBinding = {};
-		compositionBinding.binding = 1;
-		compositionBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
-		compositionBinding.descriptorCount = 1;
-		compositionBinding.stageFlags = vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eVertex;
-		compositionBinding.pImmutableSamplers = nullptr;
-
-		// Texture sampler
-		vk::DescriptorSetLayoutBinding samplerBinding = {};
-		samplerBinding.binding = 2;
-		samplerBinding.descriptorCount = 1;
-		samplerBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-		samplerBinding.pImmutableSamplers = nullptr;
-		samplerBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
-
-		std::vector<vk::DescriptorSetLayoutBinding> bindings = { vpBinding, compositionBinding, samplerBinding };
+		std::vector<vk::DescriptorSetLayoutBinding> bindings = {
+			// Binding 0: ViewProjection
+			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex, 0),
+			// Binding 1-3: G-Buffer
+			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 1),
+			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 2),
+			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 3),
+			// Binding 4: Composition / Lights
+			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 4),
+		};
 
 		vk::DescriptorSetLayoutCreateInfo createInfo = {};
 		createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -666,80 +674,19 @@ public:
 
 		// CONNECT DESCRIPTOR SET TO BUFFER
 		// UPDATE ALL DESCRIPTOR SET BINDINGS
-		std::array<vk::WriteDescriptorSet, 3> setWrite = {};
-		std::array<vk::DescriptorBufferInfo, 2> bufferInfo = {};
-		std::array<vk::DescriptorImageInfo, 1> imageInfo = {};
-
-		// VP BUFFER INFO
-		bufferInfo[0].offset = 0;
-		bufferInfo[0].range = sizeof(UboViewProjection);
-
-		// SET WRITING INFO
-		// Matches with shader layout binding
-		setWrite[0].dstBinding = 0;
-		// Index of array to update
-		setWrite[0].dstArrayElement = 0;
-		setWrite[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-		// Amount to update
-		setWrite[0].descriptorCount = 1;
-
-
-		// Composition Buffer
-		// COMPOSITION BUFFER INFO
-		bufferInfo[1].offset = 0;
-		bufferInfo[1].range = sizeof(UboComposition);
-
-		// SET WRITING INFO
-		// Matches with shader layout binding
-		setWrite[1].dstBinding = 1;
-		// Index of array to update
-		setWrite[1].dstArrayElement = 0;
-		setWrite[1].descriptorType = vk::DescriptorType::eUniformBuffer;
-		// Amount to update
-		setWrite[1].descriptorCount = 1;
-
-
-
-		// Sampler image Info
-		imageInfo[0].imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-		imageInfo[0].imageView = testTex.imageView.Get();
-		imageInfo[0].sampler = testTex.sampler.get();
-		
-		setWrite[2].dstBinding = 2;
-		setWrite[2].dstArrayElement = 0;
-		setWrite[2].descriptorType = vk::DescriptorType::eCombinedImageSampler;
-		setWrite[2].descriptorCount = 1;
-		setWrite[2].pImageInfo = &imageInfo[0];
-		
-
-		//// Model version
-		//vk::DescriptorBufferInfo modelBufferInfo = {};
-		//modelBufferInfo.offset = 0;
-		//modelBufferInfo.range = modelUniformAlignment;
-
-		//vk::WriteDescriptorSet modelSetWrite = {};
-		//modelSetWrite.dstBinding = 1;
-		//modelSetWrite.dstArrayElement = 0;
-		//modelSetWrite.descriptorType = vk::DescriptorType::eUniformBufferDynamic;
-		//modelSetWrite.descriptorCount = 1;
+		std::array<vk::WriteDescriptorSet, 1> setWrite = {};
 
 		// Update all descriptor set buffer bindings
 		for (size_t i = 0; i < descriptorCount; ++i)
 		{
-			// Buffer to get data from
-			bufferInfo[0].buffer = uniformBufferViewProjection[i];
-			bufferInfo[1].buffer = uniformBufferComposition[i];
-
-			// Current descriptor set 
-			setWrite[0].dstSet = descriptorSets[i];
-			setWrite[1].dstSet = descriptorSets[i];
-			setWrite[2].dstSet = descriptorSets[i];
-
-			// Update with new buffer info
-			setWrite[0].pBufferInfo = &bufferInfo[0];
-			setWrite[1].pBufferInfo = &bufferInfo[1];
-			//modelSetWrite.pBufferInfo = &modelBufferInfo;
-
+			setWrite = {
+	WriteDescriptorSet::Create(
+				descriptorSets[i],
+				vk::DescriptorType::eUniformBuffer,
+				0,
+				uniformBufferViewProjection[i].descriptorInfo)
+			};
+		
 			device.updateDescriptorSets(
 				static_cast<uint32_t>(setWrite.size()),
 				setWrite.data(),
@@ -757,34 +704,19 @@ public:
 
 	void InitializePipelines()
 	{
-		auto vertSrc = utils::ReadFile(std::string(ASSET_DIR) + "Shaders/vert.spv");
-		auto fragSrc = utils::ReadFile(std::string(ASSET_DIR) + "Shaders/frag.spv");
-
-		vk::ShaderModuleCreateInfo shaderInfo;
-		shaderInfo.codeSize = vertSrc.size();
-		shaderInfo.pCode = reinterpret_cast<const uint32_t*>(vertSrc.data());
-		ShaderModule vertModule;
-		vertModule.Create(vertModule, shaderInfo, device);
-
-		shaderInfo.codeSize = fragSrc.size();
-		shaderInfo.pCode = reinterpret_cast<const uint32_t*>(fragSrc.data());
-		ShaderModule fragModule;
-		fragModule.Create(fragModule, shaderInfo, device);
-
-		static const char* entryName = "main";
-
-		vk::PipelineShaderStageCreateInfo vertInfo(
-			{},
+		ShaderModule vertModule; 
+		auto vertInfo = ShaderModule::Load(
+			vertModule,
+			"fillBuffersVert.spv",
 			vk::ShaderStageFlagBits::eVertex,
-			vertModule.Get(),
-			entryName
+			device
 		);
-
-		vk::PipelineShaderStageCreateInfo fragInfo(
-			{},
+		ShaderModule fragModule;
+		auto fragInfo = ShaderModule::Load(
+			fragModule,
+			"fillBuffersFrag.spv",
 			vk::ShaderStageFlagBits::eFragment,
-			fragModule.Get(),
-			entryName
+			device
 		);
 
 		vk::PipelineShaderStageCreateInfo shaderStages[] = { vertInfo, fragInfo };
@@ -799,7 +731,6 @@ public:
 
 		// VERTEX ATTRIB DATA
 		std::array<vk::VertexInputAttributeDescription, Vertex::NUM_ATTRIBS> attribDesc;
-
 		// Position attribute
 		// Binding the data is at (should be same as above)
 		attribDesc[0].binding = 0;
@@ -810,30 +741,16 @@ public:
 		// Where the attribute begins as an offset from the beginning
 		// of the structures
 		attribDesc[0].offset = offsetof(Vertex, pos);
-
 		// Normal attribute
-		// Binding the data is at (should be same as above)
 		attribDesc[1].binding = 0;
-		// Location in shader where data is read from
 		attribDesc[1].location = 1;
-		// Format for the data being sent
 		attribDesc[1].format = vk::Format::eR32G32B32Sfloat;
-		// Where the attribute begins as an offset from the beginning
-		// of the structures
 		attribDesc[1].offset = offsetof(Vertex, normal);
-
-
 		// Color attribute
-		// Binding the data is at (should be same as above)
 		attribDesc[2].binding = 0;
-		// Location in shader where data is read from
 		attribDesc[2].location = 2;
-		// Format for the data being sent
 		attribDesc[2].format = vk::Format::eR32G32B32Sfloat;
-		// Where the attribute begins as an offset from the beginning
-		// of the structures
 		attribDesc[2].offset = offsetof(Vertex, color);
-
 		// Texture coord
 		attribDesc[3].binding = 0;
 		attribDesc[3].location = 3;
@@ -871,25 +788,13 @@ public:
 		scissor.extent = extent;
 		scissor.offset = vk::Offset2D(0, 0);
 
-		vk::PipelineViewportStateCreateInfo viewportState;
+		vk::PipelineViewportStateCreateInfo viewportState = {};
 		viewportState.viewportCount = 1;
 		viewportState.pViewports = &viewport;
 		viewportState.scissorCount = 1;
 		viewportState.pScissors = &scissor;
 
-		// -- DYNAMIC STATES --
-		// Dynamic states to enable
-		//std::vector<VkDynamicState> dynamicStateEnables;
-		//dynamicStateEnables.push_back(VK_DYNAMIC_STATE_VIEWPORT);	// Dynamic Viewport : Can resize in command buffer with vkCmdSetViewport(commandbuffer, 0, 1, &viewport);
-		//dynamicStateEnables.push_back(VK_DYNAMIC_STATE_SCISSOR);	// Dynamic Scissor	: Can resize in command buffer with vkCmdSetScissor(commandbuffer, 0, 1, &scissor);
-
-		//// Dynamic State creation info
-		//VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
-		//dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-		//dynamicStateCreateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
-		//dynamicStateCreateInfo.pDynamicStates = dynamicStateEnables.data();
-
-		vk::PipelineRasterizationStateCreateInfo rasterizeState;
+		vk::PipelineRasterizationStateCreateInfo rasterizeState = {};
 		rasterizeState.depthClampEnable = VK_FALSE;			// Change if fragments beyond near/far planes are clipped (default) or clamped to plane
 		rasterizeState.rasterizerDiscardEnable = VK_FALSE;	// Whether to discard data and skip rasterizer. Never creates fragments, only suitable for pipeline without framebuffer output
 		rasterizeState.polygonMode = vk::PolygonMode::eFill;	// How to handle filling points between vertices
@@ -898,34 +803,22 @@ public:
 		rasterizeState.frontFace = vk::FrontFace::eCounterClockwise;	// Winding to determine which side is front
 		rasterizeState.depthBiasEnable = VK_FALSE;			// Whether to add depth bias to fragments (good for stopping "shadow acne" in shadow mapping)
 
-		vk::PipelineMultisampleStateCreateInfo multisampleState;
+		vk::PipelineMultisampleStateCreateInfo multisampleState = {};
 		// Whether or not to multi-sample
 		multisampleState.sampleShadingEnable = VK_FALSE;
 		// Number of samples per fragment
 		multisampleState.rasterizationSamples = vk::SampleCountFlagBits::e1;
 
-
-		// Blending
-		vk::PipelineColorBlendAttachmentState colorBlendAttachments;
-		colorBlendAttachments.colorWriteMask = vk::ColorComponentFlags(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
-		colorBlendAttachments.blendEnable = VK_TRUE;
-
-		// Blending uses equation: (srcColorBlendFactor * new colour) colorBlendOp (dstColorBlendFactor * old colour)
-		colorBlendAttachments.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
-		colorBlendAttachments.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
-		colorBlendAttachments.colorBlendOp = vk::BlendOp::eAdd;
-
-		// Summarised: (VK_BLEND_FACTOR_SRC_ALPHA * new colour) + (VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA * old colour)
-		//			   (new colour alpha * new colour) + ((1 - new colour alpha) * old colour)
-		colorBlendAttachments.srcAlphaBlendFactor = vk::BlendFactor::eOne;
-		colorBlendAttachments.dstAlphaBlendFactor = vk::BlendFactor::eZero;
-		colorBlendAttachments.alphaBlendOp = vk::BlendOp::eAdd;
-
-
-		vk::PipelineColorBlendStateCreateInfo colorBlendState;
+		vk::PipelineColorBlendAttachmentState blendState = {};
+		blendState.colorWriteMask = vk::ColorComponentFlags(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
+		blendState.blendEnable = VK_FALSE;
+		std::array<vk::PipelineColorBlendAttachmentState, 3> blendAttachmentStates = {
+			blendState, blendState, blendState
+		};
+		vk::PipelineColorBlendStateCreateInfo colorBlendState = {};
 		colorBlendState.logicOpEnable = VK_FALSE;
-		colorBlendState.attachmentCount = 1;
-		colorBlendState.pAttachments = &colorBlendAttachments;
+		colorBlendState.attachmentCount = static_cast<uint32_t>(blendAttachmentStates.size());
+		colorBlendState.pAttachments = blendAttachmentStates.data();
 
 		vk::PipelineLayoutCreateInfo layout = {};
 		layout.setLayoutCount = 1;
@@ -933,7 +826,7 @@ public:
 		layout.pushConstantRangeCount = 1;
 		layout.pPushConstantRanges = &pushRange;
 
-		pipelineLayout.Create(pipelineLayout, layout, device);
+		PipelineLayout::Create(pipelineLayout, layout, device);
 
 		// Depth testing
 		vk::PipelineDepthStencilStateCreateInfo depthStencilState = {};
@@ -957,10 +850,92 @@ public:
 		pipelineInfo.pColorBlendState = &colorBlendState;
 		pipelineInfo.pDepthStencilState = &depthStencilState;
 		pipelineInfo.layout = (pipelineLayout).Get();							// Pipeline Layout pipeline should use
-		pipelineInfo.renderPass = device.renderPass;							// Render pass description the pipeline is compatible with
+		pipelineInfo.renderPass = gBuffer.renderPass;							// Render pass description the pipeline is compatible with
 		pipelineInfo.subpass = 0;										// Subpass of render pass to use with pipeline
 
-		pipelines.forward.Create(pipelines.forward, pipelineInfo, device, vk::PipelineCache(), 1);
+		GraphicsPipeline::Create(pipelines.offscreen, pipelineInfo, device, vk::PipelineCache(), 1);
+		vertModule.Destroy();
+		fragModule.Destroy();
+
+
+		vertInfo = ShaderModule::Load(
+			vertModule,
+			"basicVert.spv",
+			vk::ShaderStageFlagBits::eVertex,
+			device
+		);
+		fragInfo = ShaderModule::Load(
+			fragModule,
+			"basicFrag.spv",
+			vk::ShaderStageFlagBits::eFragment,
+			device
+		);
+
+		shaderStages[0] = vertInfo;
+		shaderStages[1] = fragInfo;
+
+
+		pipelineInfo.pStages = shaderStages;
+		pipelineInfo.renderPass = device.renderPass;
+
+		vk::PipelineLayoutCreateInfo pipelineLayoutFSQ = {};
+		pipelineLayoutFSQ.pSetLayouts = &descriptorSetLayout;
+		pipelineLayoutFSQ.setLayoutCount = 1;
+		pipelineLayoutFSQ.pPushConstantRanges = nullptr;
+		pipelineLayoutFSQ.pushConstantRangeCount = 0;
+
+		PipelineLayout::Create(device.pipelineLayout, layout, device);
+		pipelineInfo.layout = device.pipelineLayout.Get();
+
+		// VERTEX BINDING DATA
+		vk::VertexInputBindingDescription bindDescFSQ = vk::VertexInputBindingDescription();
+		// Binding position (can bind multiple streams)
+		bindDescFSQ.binding = 0;
+		bindDescFSQ.stride = sizeof(TexVertex);
+		// Instancing option, draw one object at a time in this case
+		bindDescFSQ.inputRate = vk::VertexInputRate::eVertex;
+
+		// VERTEX ATTRIB DATA
+		std::array<vk::VertexInputAttributeDescription, TexVertex::NUM_ATTRIBS> attribDescFSQ;
+		// Position attribute
+		// Binding the data is at (should be same as above)
+		attribDescFSQ[0].binding = 0;
+		// Location in shader where data is read from
+		attribDescFSQ[0].location = 0;
+		// Format for the data being sent
+		attribDescFSQ[0].format = vk::Format::eR32G32B32Sfloat;
+		// Where the attribute begins as an offset from the beginning
+		// of the structures
+		attribDescFSQ[0].offset = offsetof(Vertex, pos);
+		// Normal attribute
+		attribDescFSQ[1].binding = 0;
+		attribDescFSQ[1].location = 1;
+		attribDescFSQ[1].format = vk::Format::eR32G32B32Sfloat;
+		attribDescFSQ[1].offset = offsetof(Vertex, texPos);
+
+		// VERTEX INPUT
+		vertexInputInfo = vk::PipelineVertexInputStateCreateInfo();
+		vertexInputInfo.vertexBindingDescriptionCount = 1;
+		vertexInputInfo.pVertexBindingDescriptions = &bindDescFSQ;
+		// Data spacing / stride info
+		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribDescFSQ.size());
+		vertexInputInfo.pVertexAttributeDescriptions = attribDescFSQ.data();
+
+		vk::PipelineColorBlendAttachmentState blendStateFSQ = {};
+		blendState.colorWriteMask = vk::ColorComponentFlags(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
+		blendState.blendEnable = VK_FALSE;
+		std::array<vk::PipelineColorBlendAttachmentState, 1> blendAttachmentStatesFSQ = {
+			blendStateFSQ
+		};
+		vk::PipelineColorBlendStateCreateInfo colorBlendStateFSQ = {};
+		colorBlendStateFSQ.logicOpEnable = VK_FALSE;
+		colorBlendStateFSQ.attachmentCount = static_cast<uint32_t>(blendAttachmentStatesFSQ.size());
+		colorBlendStateFSQ.pAttachments = blendAttachmentStatesFSQ.data();
+
+		pipelineInfo.pVertexInputState = &vertexInputInfo;
+		pipelineInfo.pColorBlendState = &colorBlendStateFSQ;
+
+		GraphicsPipeline::Create(device.graphicsPipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 
 		vertModule.Destroy();
 		fragModule.Destroy();
@@ -1002,10 +977,6 @@ public:
 		poolSizes[1].type = vk::DescriptorType::eCombinedImageSampler;
 		poolSizes[1].descriptorCount = imageCount;
 
-		//vk::DescriptorPoolSize modelPoolSize = {};
-		//modelPoolSize.type = vk::DescriptorType::eUniformBufferDynamic;
-		//modelPoolSize.descriptorCount = static_cast<uint32_t>(uniformBufferModel.size());
-
 		// Pool creation
 		vk::DescriptorPoolCreateInfo poolCreateInfo = {};
 		// Maximum number of descriptor sets that can be created from the pool
@@ -1015,17 +986,92 @@ public:
 		poolCreateInfo.pPoolSizes = poolSizes.data();
 
 		// Create descriptor pool
-		descriptorPool.Create(descriptorPool, poolCreateInfo, device);
-		descriptorPoolUI.Create(descriptorPoolUI, poolCreateInfo, device);
-
+		DescriptorPool::Create(descriptorPool, poolCreateInfo, device);
+		DescriptorPool::Create(descriptorPoolUI, poolCreateInfo, device);
 	}
 
-	void PrepareCommandBuffers(uint32_t imageIndex)
+	void PrepareCommandBuffersDeferred(uint32_t imageIndex)
+	{
+		std::array<vk::ClearValue, 4> clearValues = {};
+		clearValues[0].color = vk::ClearColorValue(clearColor);
+		clearValues[1].color = vk::ClearColorValue(clearColor);
+		clearValues[2].color = vk::ClearColorValue(clearColor);
+		clearValues[3].depthStencil = vk::ClearDepthStencilValue(1.0f);
+
+		vk::RenderPassBeginInfo renderPassInfo;
+		renderPassInfo.renderPass = gBuffer.renderPass;
+		renderPassInfo.renderArea.extent = vk::Extent2D(FB_SIZE.x, FB_SIZE.y);
+		renderPassInfo.renderArea.offset = vk::Offset2D(0, 0);
+		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+		renderPassInfo.pClearValues = clearValues.data();
+
+		// Record command buffers
+		vk::CommandBufferBeginInfo info(
+			{},
+			nullptr
+		);
+
+		auto& cmdBuf = gBuffer.drawBuffers[imageIndex];
+
+		utils::CheckVkResult(cmdBuf.begin(&info), "Failed to begin recording command buffer");
+		renderPassInfo.framebuffer = gBuffer.frameBuffers[imageIndex].Get();
+
+		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
+		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines.offscreen.Get());
+
+		for (size_t j = 0; j < objects.size(); ++j)
+		{
+			const auto& mesh = objects[j];
+			// Buffers to bind
+			vk::Buffer vertexBuffers[] = { mesh.GetVertexBuffer() };
+			// Offsets
+			vk::DeviceSize offsets[] = { 0 };
+
+			cmdBuf.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+			bool hasIndex = mesh.GetIndexCount() > 0;
+			if (hasIndex)
+				cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
+
+			cmdBuf.pushConstants(
+				pipelineLayout.Get(),
+				// Stage
+				vk::ShaderStageFlagBits::eVertex,
+				// Offset
+				0,
+				// Size of data being pushed
+				sizeof(glm::mat4),
+				// Actual data being pushed
+				&objects[j].GetModel()
+			);
+
+			//// Bind descriptor sets
+			cmdBuf.bindDescriptorSets(
+				// Point of pipeline and layout
+				vk::PipelineBindPoint::eGraphics,
+				pipelineLayout,
+				0,
+				1,
+				&descriptorSets[imageIndex], // 1 to 1 with command buffers
+				0,
+				nullptr
+			);
+
+			// Execute pipeline
+			hasIndex ? 
+				cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
+				:
+				cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
+		}
+
+		cmdBuf.endRenderPass();
+		cmdBuf.end();
+	}
+
+	void PrepareCommandBuffersFSQ(uint32_t imageIndex)
 	{
 		std::array<vk::ClearValue, 2> clearValues = {};
 		clearValues[0].color = vk::ClearColorValue(clearColor);
 		clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
-
 
 		vk::RenderPassBeginInfo renderPassInfo;
 		renderPassInfo.renderPass = device.renderPass;
@@ -1046,9 +1092,9 @@ public:
 		renderPassInfo.framebuffer = device.framebuffers[imageIndex].Get();
 
 		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines.forward.Get());
+		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, device.graphicsPipeline.Get());
 
-		for (int j = 0; j < objects.size(); ++j)
+		for (size_t j = 0; j < objects.size(); ++j)
 		{
 			const auto& mesh = objects[j];
 			// Buffers to bind
@@ -1061,35 +1107,15 @@ public:
 			if (hasIndex)
 				cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
 
-			// Dynamic offset amount
-			//uint32_t dynamicOffset = static_cast<uint32_t>(modelUniformAlignment) * j;
-
-			cmdBuf.pushConstants(
-				pipelineLayout,
-				// Stage
-				vk::ShaderStageFlagBits::eVertex,
-				// Offset
-				0,
-				// Size of data being pushed
-				sizeof(glm::mat4),
-				// Actual data being pushed
-				&objects[j].GetModel()
-			);
 
 			//// Bind descriptor sets
 			cmdBuf.bindDescriptorSets(
 				// Point of pipeline and layout
 				vk::PipelineBindPoint::eGraphics,
 				pipelineLayout,
-
-				// First set, num sets, pointer to set
 				0,
 				1,
 				&descriptorSets[imageIndex], // 1 to 1 with command buffers
-
-				// Dynamic offsets
-				//1,
-				//&dynamicOffset
 				0,
 				nullptr
 			);
@@ -1150,29 +1176,50 @@ public:
 		if (device.PrepareFrame(currentFrame))
 			OnSurfaceRecreate();
 
-		PrepareCommandBuffers(device.imageIndex);
+		PrepareCommandBuffersDeferred(device.imageIndex);
+		PrepareCommandBuffersFSQ(device.imageIndex);
 		PrepareCommandBuffersUI(device.imageIndex);
 
-		vk::CommandBuffer commandBuffers[2] = {
+		// DEFERRED PASS
+		vk::CommandBuffer commandBuffersDeferred[1] = {
+			gBuffer.drawBuffers[device.imageIndex]
+		};
+		vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+
+		vk::SubmitInfo submitInfo = {};
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = &device.imageAvailable[currentFrame];
+		submitInfo.pWaitDstStageMask = waitStages;
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = &gBuffer.semaphores[currentFrame];
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = commandBuffersDeferred;
+
+		utils::CheckVkResult(
+			device.graphicsQueue.submit(1,
+										&submitInfo,
+										nullptr),
+			"Failed to submit draw queue"
+		);
+
+		// FSQ PASS
+		vk::CommandBuffer commandBuffersFSQ[2] = {
 			device.drawCmdBuffers[device.imageIndex],
 			commandBuffersUI[device.imageIndex]
 		};
 
-		vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-		vk::SubmitInfo submitInfo;
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = &device.imageAvailable[currentFrame];
-		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = &gBuffer.semaphores[currentFrame];
 		submitInfo.pSignalSemaphores = &device.renderFinished[currentFrame];
 		submitInfo.commandBufferCount = 2;
-		submitInfo.pCommandBuffers = commandBuffers;
-		submitInfo.pWaitDstStageMask = waitStages;
+		submitInfo.pCommandBuffers = commandBuffersFSQ;
 		utils::CheckVkResult(
 			device.graphicsQueue.submit(1,
 										&submitInfo,
 										device.drawFences[currentFrame].Get()),
 			"Failed to submit draw queue"
 		);
+
+		
 
 		if (device.SubmitFrame(currentFrame))
 			OnSurfaceRecreate();

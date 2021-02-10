@@ -19,16 +19,10 @@ public:
         VmaMemoryUsage memoryUsage,
         Device& owner);
 
-    vk::DeviceMemory GetMemory() const { return allocationInfo.deviceMemory; }
-    const VmaAllocation& GetAllocation() const { return allocation; }
-    const VmaAllocationInfo& GetAllocationInfo() const { return allocationInfo; }
-    VmaAllocator GetAllocator() { return allocator; }
-
-    void MapToBuffer(void* data);
+    void MapToBuffer(void* data) const;
 
     static void StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size);
 
-protected:
 
     VmaAllocator allocator = {};
     VmaAllocation allocation = {};
@@ -36,6 +30,7 @@ protected:
     vk::BufferUsageFlags bufferUsage = {};
     VmaMemoryUsage memoryUsage = {};
     vk::DeviceSize size = {};
+    vk::DescriptorBufferInfo descriptorInfo = {};
 };
 
 

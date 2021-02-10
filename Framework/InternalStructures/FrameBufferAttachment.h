@@ -17,17 +17,27 @@ public:
 	void FrameBufferAttachment::Create(vk::Format format,
 									   vk::Extent2D extent,
 									   vk::ImageUsageFlags usage,
+									   vk::ImageAspectFlags aspectMask,
 									   vk::ImageLayout destinationLayout,
 									   Device& owner);
+
+	void FrameBufferAttachment::Create(
+		vk::Format format,
+		vk::Extent2D extent,
+		vk::ImageUsageFlags usage,
+		vk::ImageAspectFlags aspectMask,
+		vk::ImageLayout destinationLayout,
+		vk::SamplerCreateInfo samplerCreateInfo,
+		Device& owner
+	);
     void CreateDepth(Device& owner);
     void Destroy();
 
-	Image image;
-    ImageView imageView;
-    vk::Format format;
-
-    vk::Format GetFormat() const { return format; }
-    ImageView& GetImageView() { return imageView; }
+	Image image = {};
+    ImageView imageView = {};
+    vk::Format format = {};
+	vk::DescriptorImageInfo descriptorInfo = {};
+	vk::Sampler sampler = {};
 
     static vk::Format GetDepthFormat();
 };

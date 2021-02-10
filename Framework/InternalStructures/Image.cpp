@@ -11,7 +11,7 @@ void Image::Create(vk::ImageCreateInfo& imageCreateInfo,
 {
 	m_owner = &owner;
 	this->allocator = m_owner->allocator;
-
+	
 	utils::CheckVkResult((vk::Result)vmaCreateImage(allocator, (VkImageCreateInfo*)&imageCreateInfo, &allocCreateInfo,
 													(VkImage*)&m_object, &allocation, &allocationInfo),
 						 "Failed to allocate image");
@@ -72,7 +72,7 @@ void Image::CreateDepthImage(glm::vec2 size, Device& owner)
 
 void Image::TransitionLayout(vk::ImageLayout oldLayout,
                              vk::ImageLayout newLayout,
-                             uint32_t mipLevels = 1) const
+                             uint32_t mipLevels = 1) 
 {
 	// Create a barrier with sensible defaults - some properties will change
 		// depending on the old -> new layout combinations.
@@ -137,6 +137,7 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 		1, &barrier);
 
 	m_owner->commandPool.EndCommandBuffer(cmdBuf.get());
+
 }
 
 

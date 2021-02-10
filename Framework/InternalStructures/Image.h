@@ -26,7 +26,7 @@ public:
 
 	void TransitionLayout(vk::ImageLayout oldLayout,
 						  vk::ImageLayout newLayout,
-						  uint32_t mipLevels) const;
+						  uint32_t mipLevels);
 
 protected:
 
