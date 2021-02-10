@@ -96,6 +96,8 @@ void Buffer::CreateStaged(void* data, const vk::DeviceSize size,
     VmaMemoryUsage memoryUsage, 
     Device& owner)
 {
+    assert(size > 0);
+    assert(data != nullptr);
     m_owner = &owner;
     this->allocator = m_owner->allocator;
 

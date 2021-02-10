@@ -54,8 +54,7 @@ public:
 		m_vertexBuffer.Destroy();
     }
 
-    void SetModel(const glm::mat4& model) { m_model = model; }
-    const glm::mat4& GetModel() const { return m_model; }
+    void SetModel(const glm::mat4& model) { this->model = model; }
 
     uint32_t GetIndexCount() const { return m_indexBuffer.GetIndexCount(); }
     const Buffer& GetIndexBuffer() const { return m_indexBuffer; }
@@ -65,9 +64,9 @@ public:
     const Buffer& GetVertexBuffer() const { return m_vertexBuffer; }
     void DestroyVertexBuffer() { m_vertexBuffer.Destroy(); }
 
+    glm::mat4 model = glm::mat4(1.0f);
 
 private:
-    glm::mat4 m_model = glm::mat4(1.0f);
 
     VertexBuffer<VertexType> m_vertexBuffer = {};
     IndexBuffer m_indexBuffer = {};

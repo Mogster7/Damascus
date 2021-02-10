@@ -85,7 +85,8 @@ vk::Format FrameBufferAttachment::GetDepthFormat()
 		return vk::Format::eD32Sfloat;
 	}
 
-	ASSERT(false, "32-bit signed depth stencil format not supported");
+	assert(false);
+	return vk::Format::eUndefined;
 }
 
 void FrameBufferAttachment::Destroy()

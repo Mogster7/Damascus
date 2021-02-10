@@ -39,18 +39,18 @@ public:
 	};
 
 
-	const std::vector<ColorVertex> cubeVerts = {
-		{ { -1.0, -1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
-		{ { 1.0f, -1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } },
-
-		{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 1.0f } },
-		{ { -1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } },
-
-		{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f } },
-		{ { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f } },
-
-		{ { 1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, 0.0f } },
-		{ { -1.0f, 1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f } },
+	const std::vector<Vertex> cubeVerts = {
+		{ { -1.0, -1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
+		{ { 1.0f, -1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } , { 0.0f, 0.0f, 1.0f }},
+                                                
+		{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 1.0f } , { 0.0f, 1.0f, 1.0f } },
+		{ { -1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
+                                                
+		{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f  }, { 0.0f, 0.0f, 0.0f}},
+		{ { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f  }},
+                                                
+		{ { 1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, 0.0f } , { 1.0f, 1.0f, 0.0f }},
+		{ { -1.0f, 1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f  }},
 	};
 
 
@@ -114,8 +114,6 @@ public:
 		float globalLightStrength = 1.0f;
 		int debugDisplayTarget = 0;
 	} uboComposition;
-
-
 
 
 	// One sampler for the frame buffer color attachments
@@ -201,34 +199,44 @@ public:
 		
 		camera.flipY = false;
 		camera.SetPerspective(45.0f, (float)FB_SIZE.x / FB_SIZE.y, 0.1f, 100.0f);
+		camera.SetPosition({ 12, -6.0f, -2.0f });
+		camera.pitch = -6.0f;
+		camera.yaw = -4.0f;
 		// uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
 		uboViewProjection.projection = camera.matrices.perspective;
-		uboViewProjection.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     
 		// // Invert up direction so that pos y is up 
 		// // its down by default in Vulkan
 		uboViewProjection.projection[1][1] *= -1;
 		
-
-		
     
-		 //objects.emplace_back().Create(device, cubeVerts, cubeIndices);
+		for (int i = 0; i < 20; ++i)
+		{
+			forwardObjects.emplace_back().Create(device, cubeVerts, cubeIndices);
+			auto& obj = forwardObjects.back();
+
+			obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
+			obj.model = glm::rotate(obj.model, utils::Random() * 2.0f * glm::pi<float>(),
+									glm::vec3(utils::Random(), utils::Random(), utils::Random()));
+			obj.model = glm::translate(obj.model, glm::vec3(
+				utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
+		}
 		 //objects.emplace_back().Create(device, meshVerts, squareIndices);
 		 fsq.mesh.Create(device, meshVerts, meshIndices);
 		// objects[0].SetModel(
-		// 	glm::translate(objects[0].GetModel(), glm::vec3(0.0f, 0.0f, -3.0f))
-		// 	* glm::rotate(objects[0].GetModel(), glm::radians(-90.0f), glm::vec3(1.0, 0.0f, 0.0f)));
-		// objects[1].SetModel(glm::translate(objects[1].GetModel(), glm::vec3(0.0f, 0.0f, -2.5f)));
+		// 	glm::translate(objects[0].model, glm::vec3(0.0f, 0.0f, -3.0f))
+		// 	* glm::rotate(objects[0].model, glm::radians(-90.0f), glm::vec3(1.0, 0.0f, 0.0f)));
+		// objects[1].SetModel(glm::translate(objects[1].model, glm::vec3(0.0f, 0.0f, -2.5f)));
 
 
 		InitializeAttachments();
-		//InitializeAssets();
-		forwardObjects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
-		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
-		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
-		objects[0].SetModel(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 2.0f, 2.0f)));
-		objects[1].SetModel(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 3.0f, 3.0f)));
-		testTex.Create(std::string(ASSET_DIR) + "Textures/viking_room.png", device);
+		InitializeAssets();
+		//forwardObjects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		//objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		//objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		//objects[0].SetModel(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 2.0f, 2.0f)));
+		//objects[1].SetModel(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 3.0f, 3.0f)));
+		//testTex.Create(std::string(ASSET_DIR) + "Textures/viking_room.png", device);
 		InitializeUniformBuffers();
 		InitializeDescriptorSetLayouts();
 		InitializeDescriptorPool();
@@ -465,6 +473,7 @@ public:
 				vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
 				vk::AttachmentReference(1, vk::ImageLayout::eColorAttachmentOptimal),
 				{ 2, vk::ImageLayout::eColorAttachmentOptimal },
+
 			};
 
 			vk::AttachmentReference depthRef;
@@ -774,8 +783,8 @@ public:
 			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 3),
 			// Binding 4: Composition / Lights
 			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 4),
-			// Binding 5: Texture Sampler
-			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 5)
+			//// Binding 5: Texture Sampler
+			//DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 5)
 		};
 
 		vk::DescriptorSetLayoutCreateInfo createInfo = {};
@@ -813,7 +822,7 @@ public:
 
 		// CONNECT DESCRIPTOR SET TO BUFFER
 		// UPDATE ALL DESCRIPTOR SET BINDINGS
-		std::array<vk::WriteDescriptorSet, 6> setWrite = {};
+		std::array<vk::WriteDescriptorSet, 5> setWrite = {};
 
 		// Update all descriptor set buffer bindings
 		for (size_t i = 0; i < descriptorCount; ++i)
@@ -849,11 +858,11 @@ public:
 				4,
 				uniformBufferComposition[i].descriptorInfo),
 
-			WriteDescriptorSet::Create(
-				descriptorSets[i],
-				vk::DescriptorType::eCombinedImageSampler,
-				5,
-				testTex.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal))
+			//WriteDescriptorSet::Create(
+			//	descriptorSets[i],
+			//	vk::DescriptorType::eCombinedImageSampler,
+			//	5,
+			//	testTex.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal))
 			};
 
 
@@ -1276,7 +1285,7 @@ public:
 				// Size of data being pushed
 				sizeof(glm::mat4),
 				// Actual data being pushed
-				&objects[j].GetModel()
+				&objects[j].model
 			);
 
 			//// Bind descriptor sets
@@ -1472,7 +1481,7 @@ public:
 				// Size of data being pushed
 				sizeof(glm::mat4),
 				// Actual data being pushed
-				&mesh.GetModel()
+				&mesh.model
 			);
 
 			//// Bind descriptor sets
@@ -1718,26 +1727,28 @@ public:
 		static float speed = 90.0f;
 		UpdateInput(dt);
 
-		// const auto& model = objects[0].GetModel();
+		// const auto& model = objects[0].model;
 		// objects[0].SetModel(glm::rotate(model, glm::radians(speed * dt), { 0.0f, 0.0f,1.0f }));
 
 		camera.Update(dt, !cursorActive);
 		uboViewProjection.view = camera.matrices.view;
-		// const auto& model2 = objects[1].GetModel();
+		// const auto& model2 = objects[1].model;
 		// objects[1].SetModel(glm::rotate(model2, glm::radians(speed2 * dt), { 0.0f, 1.0f,1.0f }));
 
 		static glm::vec3 ppScale = { .0001f, .0001f, .0001f };
 		ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
-		ImGui::InputFloat3("Power Plant Scale", &ppScale[0], "%.9f");
+		//ImGui::InputFloat3("Camera Position", &camera.position[0]);
+		//ImGui::InputFloat("Pitch", &camera.pitch);
+		//ImGui::InputFloat("Yaw", &camera.yaw);
 		ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
 		ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
 		ImGui::Checkbox("Copy Depth", &copyDepth);
 
-		/*for (auto& object : objects)
-			object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));*/
+		for (auto& object : objects)
+			object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));
 
 		ImGui::Text("Debug Target: ");
-		for (int i = 0; i < 5; ++i)
+		for (int i = 0; i < 3; ++i)
 		{
 			ImGui::RadioButton(std::to_string(i).c_str(), &debugDisplayTarget, i);
 			if (i != 4) ImGui::SameLine();

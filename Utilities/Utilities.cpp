@@ -12,6 +12,11 @@
 
 namespace utils
 {
+    float Random(float min /* = 0.0f */, float max /* = 1.0f */)
+    {
+        return min + ((float)rand() / (RAND_MAX)) * (max - min);
+    }
+
     std::vector<char> ReadFile(const std::string& filename)
     {
         std::string convertedName = filename.c_str();

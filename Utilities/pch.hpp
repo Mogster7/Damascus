@@ -14,7 +14,7 @@
 #include <string>
 #include <string_view>
 
-// #ifndef NDEBUG
+#ifndef NDEBUG
 #   define ASSERT(condition, message) \
     do { \
         if (! (condition)) { \
@@ -23,9 +23,13 @@
             std::terminate(); \
         } \
     } while (false)
-// #else
-// #   define ASSERT(condition, message) do { } while (false)
-// #endif
+#else
+#   define ASSERT(condition, message) do {\
+        if(! (condition))\
+            std::cout << "Assertion `" #condition "` failed in " << __FILE__ \
+                      << " line " << __LINE__ << ": " << message << std::endl; \
+ } while (false)
+#endif
 
 
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1

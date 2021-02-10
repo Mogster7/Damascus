@@ -4,13 +4,10 @@ add_library(Utilities
     )
 
 set(GLM_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/ThirdParty/)
-set(VULKAN_DIR C:\\VulkanSDK\\1.2.162.0)
 set(VULKAN_INCLUDE_DIR ${VULKAN_DIR}\\Include)
 
 
     
-#set(EASTL_LIBRARY ${EASTL_ROOT_DIR}/build/Debug/EASTL.lib optimized)
-#add_custom_target(NatVis SOURCES ${EASTL_ROOT_DIR}/doc/EASTL.natvis)
 target_include_directories(Utilities PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${GLM_INCLUDE_DIR}

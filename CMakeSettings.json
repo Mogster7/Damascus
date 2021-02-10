@@ -49,7 +49,19 @@
 			"intelliSenseMode": "windows-msvc-x64"
 		},
 		{
-			"name": "x64-Release",
+			"name": "x64-Release-Minimal",
+			"generator": "Ninja",
+			"configurationType": "MinSizeRel",
+			"buildRoot": "${projectDir}\\out\\build\\${name}",
+			"installRoot": "${projectDir}\\out\\install\\${name}",
+			"cmakeCommandArgs": "",
+			"buildCommandArgs": "",
+			"ctestCommandArgs": "",
+			"inheritEnvironments": [ "msvc_x64_x64" ],
+			"variables": []
+		},
+		{
+			"name": "x64-Release-With-Debug",
 			"generator": "Ninja",
 			"configurationType": "RelWithDebInfo",
 			"buildRoot": "${projectDir}\\out\\build\\${name}",
