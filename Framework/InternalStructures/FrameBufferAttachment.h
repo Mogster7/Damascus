@@ -33,10 +33,13 @@ public:
     void CreateDepth(Device& owner);
     void Destroy();
 
+	vk::DescriptorImageInfo GetDescriptor(
+		vk::ImageLayout imageLayout
+	);
+
 	Image image = {};
     ImageView imageView = {};
     vk::Format format = {};
-	vk::DescriptorImageInfo descriptorInfo = {};
 	vk::Sampler sampler = {};
 
     static vk::Format GetDepthFormat();

@@ -18,10 +18,10 @@ class DeferredRenderingContext_Impl : public RenderingContext_Impl
 {
 public:
 	const std::vector<TexVertex> meshVerts = {
-		{ { -1.0, 1.0, 0.0 },{ 0.0f, 1.0f } },	// 0
-		{ { -1.0, -1.0, 0.0 },{ 0.0f, 0.0f } },	    // 1
-		{ { 1.0, -1.0, 0.0 },{ 1.0f, 0.0f } },    // 2
-		{ { 1.0, 1.0, 0.0 },{ 1.0f, 1.0f } },   // 3
+		{ { -1.0, 1.0, 0.5 },{ 0.0f, 1.0f } },	// 0
+		{ { -1.0, -1.0, 0.5 },{ 0.0f, 0.0f } },	    // 1
+		{ { 1.0, -1.0, 0.5 },{ 1.0f, 0.0f } },    // 2
+		{ { 1.0, 1.0, 0.5 },{ 1.0f, 1.0f } },   // 3
 
 	};
 
@@ -110,13 +110,10 @@ public:
 	struct UboComposition {
 		Light lights[6] = {};
 		glm::vec4 viewPos = {};
+		float globalLightStrength = 1.0f;
 		int debugDisplayTarget = 0;
 	} uboComposition;
 
-	struct {
-		// vks::Buffer offscreen;
-		// vks::Buffer composition;
-	} uniformBuffers;
 
 	struct {
 		GraphicsPipeline offscreen;
@@ -134,6 +131,7 @@ public:
 	vk::Sampler colorSampler;
 
     std::vector<Mesh<Vertex>> objects;
+	Mesh<TexVertex> fsq;
 
     // Descriptors
     DescriptorSetLayout descriptorSetLayout;
@@ -197,8 +195,7 @@ public:
 		SetCursorCallback(true);
 		
 		camera.flipY = false;
-		const auto& extent = device.swapchain.extent;
-		camera.SetPerspective(45.0f, (float)extent.width / extent.height, 0.1f, 100.0f);
+		camera.SetPerspective(45.0f, (float)FB_SIZE.x / FB_SIZE.y, 0.1f, 100.0f);
 		// uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
 		uboViewProjection.projection = camera.matrices.perspective;
 		uboViewProjection.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -212,8 +209,8 @@ public:
     
 		 //objects.emplace_back().Create(device, cubeVerts, cubeIndices);
 		 //objects.emplace_back().Create(device, meshVerts, squareIndices);
-		 objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
-
+		 //objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		 fsq.Create(device, meshVerts, meshIndices);
 		// objects[0].SetModel(
 		// 	glm::translate(objects[0].GetModel(), glm::vec3(0.0f, 0.0f, -3.0f))
 		// 	* glm::rotate(objects[0].GetModel(), glm::radians(-90.0f), glm::vec3(1.0, 0.0f, 0.0f)));
@@ -221,7 +218,7 @@ public:
 
 
 		InitializeAttachments();
-		//InitializeAssets();
+		InitializeAssets();
 		InitializeUniformBuffers();
 		InitializeDescriptorSetLayouts();
 		InitializeDescriptorPool();
@@ -451,7 +448,6 @@ public:
 		{
 			vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
 			vk::AttachmentReference(1, vk::ImageLayout::eColorAttachmentOptimal),
-			
 			{ 2, vk::ImageLayout::eColorAttachmentOptimal },
 		};
 
@@ -463,7 +459,7 @@ public:
 		subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
 		subpass.pColorAttachments = colorRefs.data();
 		subpass.colorAttachmentCount = colorRefs.size();
-		// subpass.pDepthStencilAttachment = &depthRef;
+		subpass.pDepthStencilAttachment = &depthRef;
 
 		std::array<vk::SubpassDependency, 2> dependencies;
 
@@ -567,7 +563,7 @@ public:
 			std::string input;
 			std::vector<Mesh<Vertex>::MeshData> section;
 			int i = 0;
-			while (sectionFile >> input && i++ < 4)
+			while (sectionFile >> input)
 			{
 				std::string combinedPath = modelsPath + input;
 				section.emplace_back(Mesh<Vertex>::LoadModel(combinedPath));
@@ -602,11 +598,9 @@ public:
 	void InitializeUniformBuffers()
 	{
 		vk::DeviceSize vpBufferSize = sizeof(UboViewProjection);
-		//vk::DeviceSize modelBufferSize = modelUniformAlignment * MAX_OBJECTS;
 
 		const auto& images = device.swapchain.images;
 		// One uniform buffer for each image
-		//uniformBufferModel.resize(images.size());
 		uniformBufferViewProjection.resize(images.size());
 		uniformBufferComposition.resize(images.size());
 
@@ -614,13 +608,19 @@ public:
 		vpCreateInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
 		vpCreateInfo.size = vpBufferSize;
 
+
+		vk::BufferCreateInfo compCreateInfo = {};
+		compCreateInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+		compCreateInfo.size = sizeof(UboComposition);
+
+
 		VmaAllocationCreateInfo aCreateInfo = {};
 		aCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 
 		for (size_t i = 0; i < images.size(); ++i)
 		{
 			uniformBufferViewProjection[i].Create(vpCreateInfo, aCreateInfo, device);
-			uniformBufferComposition[i].Create(vpCreateInfo, aCreateInfo, device);
+			uniformBufferComposition[i].Create(compCreateInfo, aCreateInfo, device);
 		}
 
 		UpdateUniformBuffers(0.0f, device.imageIndex);
@@ -674,19 +674,43 @@ public:
 
 		// CONNECT DESCRIPTOR SET TO BUFFER
 		// UPDATE ALL DESCRIPTOR SET BINDINGS
-		std::array<vk::WriteDescriptorSet, 1> setWrite = {};
+		std::array<vk::WriteDescriptorSet, 5> setWrite = {};
 
 		// Update all descriptor set buffer bindings
 		for (size_t i = 0; i < descriptorCount; ++i)
 		{
 			setWrite = {
-	WriteDescriptorSet::Create(
+			WriteDescriptorSet::Create(
 				descriptorSets[i],
 				vk::DescriptorType::eUniformBuffer,
 				0,
-				uniformBufferViewProjection[i].descriptorInfo)
+				uniformBufferViewProjection[i].descriptorInfo),
+
+			WriteDescriptorSet::Create(
+				descriptorSets[i],
+				vk::DescriptorType::eCombinedImageSampler,
+				1,
+				gBuffer.position.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal)),
+
+			WriteDescriptorSet::Create(
+				descriptorSets[i],
+				vk::DescriptorType::eCombinedImageSampler,
+				2,
+				gBuffer.normal.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal)),
+
+			WriteDescriptorSet::Create(
+				descriptorSets[i],
+				vk::DescriptorType::eCombinedImageSampler,
+				3,
+				gBuffer.albedo.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal)),
+
+			WriteDescriptorSet::Create(
+				descriptorSets[i],
+				vk::DescriptorType::eUniformBuffer,
+				4,
+				uniformBufferComposition[i].descriptorInfo)
 			};
-		
+
 			device.updateDescriptorSets(
 				static_cast<uint32_t>(setWrite.size()),
 				setWrite.data(),
@@ -773,7 +797,7 @@ public:
 
 		// VIEWPORT
 
-		vk::Extent2D extent = device.swapchain.extent;
+		vk::Extent2D extent = { gBuffer.width, gBuffer.height } ;
 
 		vk::Viewport viewport{};
 		viewport.x = 0.0f;
@@ -784,7 +808,6 @@ public:
 		viewport.maxDepth = 1.0f;
 
 		vk::Rect2D scissor;
-
 		scissor.extent = extent;
 		scissor.offset = vk::Offset2D(0, 0);
 
@@ -906,12 +929,12 @@ public:
 		attribDescFSQ[0].format = vk::Format::eR32G32B32Sfloat;
 		// Where the attribute begins as an offset from the beginning
 		// of the structures
-		attribDescFSQ[0].offset = offsetof(Vertex, pos);
+		attribDescFSQ[0].offset = offsetof(TexVertex, pos);
 		// Normal attribute
 		attribDescFSQ[1].binding = 0;
 		attribDescFSQ[1].location = 1;
-		attribDescFSQ[1].format = vk::Format::eR32G32B32Sfloat;
-		attribDescFSQ[1].offset = offsetof(Vertex, texPos);
+		attribDescFSQ[1].format = vk::Format::eR32G32Sfloat;
+		attribDescFSQ[1].offset = offsetof(TexVertex, texPos);
 
 		// VERTEX INPUT
 		vertexInputInfo = vk::PipelineVertexInputStateCreateInfo();
@@ -921,19 +944,39 @@ public:
 		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribDescFSQ.size());
 		vertexInputInfo.pVertexAttributeDescriptions = attribDescFSQ.data();
 
-		vk::PipelineColorBlendAttachmentState blendStateFSQ = {};
-		blendState.colorWriteMask = vk::ColorComponentFlags(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
-		blendState.blendEnable = VK_FALSE;
-		std::array<vk::PipelineColorBlendAttachmentState, 1> blendAttachmentStatesFSQ = {
-			blendStateFSQ
-		};
+		// Blending
+		vk::PipelineColorBlendAttachmentState colorBlendAttachments = {};
+		colorBlendAttachments.colorWriteMask = vk::ColorComponentFlags(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
+		colorBlendAttachments.blendEnable = VK_TRUE;
+
+		// Blending uses equation: (srcColorBlendFactor * new colour) colorBlendOp (dstColorBlendFactor * old colour)
+		colorBlendAttachments.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
+		colorBlendAttachments.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+		colorBlendAttachments.colorBlendOp = vk::BlendOp::eAdd;
+
+		// Summarised: (VK_BLEND_FACTOR_SRC_ALPHA * new colour) + (VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA * old colour)
+		//			   (new colour alpha * new colour) + ((1 - new colour alpha) * old colour)
+		colorBlendAttachments.srcAlphaBlendFactor = vk::BlendFactor::eOne;
+		colorBlendAttachments.dstAlphaBlendFactor = vk::BlendFactor::eZero;
+		colorBlendAttachments.alphaBlendOp = vk::BlendOp::eAdd;
+
 		vk::PipelineColorBlendStateCreateInfo colorBlendStateFSQ = {};
 		colorBlendStateFSQ.logicOpEnable = VK_FALSE;
-		colorBlendStateFSQ.attachmentCount = static_cast<uint32_t>(blendAttachmentStatesFSQ.size());
-		colorBlendStateFSQ.pAttachments = blendAttachmentStatesFSQ.data();
+		colorBlendStateFSQ.attachmentCount = 1;
+		colorBlendStateFSQ.pAttachments = &colorBlendAttachments;
 
 		pipelineInfo.pVertexInputState = &vertexInputInfo;
 		pipelineInfo.pColorBlendState = &colorBlendStateFSQ;
+		depthStencilState.depthCompareOp = vk::CompareOp::eAlways;
+		depthStencilState.depthTestEnable = VK_FALSE;
+		depthStencilState.depthWriteEnable = VK_FALSE;
+		pipelineInfo.pDepthStencilState = &depthStencilState;
+
+		viewport.width = (float)device.swapchain.extent.width;
+		viewport.height = (float)device.swapchain.extent.height;
+		viewportState.pViewports = &viewport;
+
+		pipelineInfo.pViewportState = &viewportState;
 
 		GraphicsPipeline::Create(device.graphicsPipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 
@@ -971,11 +1014,11 @@ public:
 		// VP UBO
 		std::array<vk::DescriptorPoolSize, 2> poolSizes;
 		poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
-		poolSizes[0].descriptorCount = imageCount;
+		poolSizes[0].descriptorCount = imageCount * 2;
 
 		// Texture Sampler
 		poolSizes[1].type = vk::DescriptorType::eCombinedImageSampler;
-		poolSizes[1].descriptorCount = imageCount;
+		poolSizes[1].descriptorCount = imageCount * 3;
 
 		// Pool creation
 		vk::DescriptorPoolCreateInfo poolCreateInfo = {};
@@ -1048,7 +1091,7 @@ public:
 			cmdBuf.bindDescriptorSets(
 				// Point of pipeline and layout
 				vk::PipelineBindPoint::eGraphics,
-				pipelineLayout,
+				pipelineLayout.Get(),
 				0,
 				1,
 				&descriptorSets[imageIndex], // 1 to 1 with command buffers
@@ -1071,7 +1114,7 @@ public:
 	{
 		std::array<vk::ClearValue, 2> clearValues = {};
 		clearValues[0].color = vk::ClearColorValue(clearColor);
-		clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
+		clearValues[1].depthStencil = vk::ClearDepthStencilValue(0.0f);
 
 		vk::RenderPassBeginInfo renderPassInfo;
 		renderPassInfo.renderPass = device.renderPass;
@@ -1094,9 +1137,9 @@ public:
 		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
 		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, device.graphicsPipeline.Get());
 
-		for (size_t j = 0; j < objects.size(); ++j)
-		{
-			const auto& mesh = objects[j];
+		//for (size_t j = 0; j < objects.size(); ++j)
+		//{
+		const auto& mesh = fsq;
 			// Buffers to bind
 			vk::Buffer vertexBuffers[] = { mesh.GetVertexBuffer() };
 			// Offsets
@@ -1112,7 +1155,7 @@ public:
 			cmdBuf.bindDescriptorSets(
 				// Point of pipeline and layout
 				vk::PipelineBindPoint::eGraphics,
-				pipelineLayout,
+				device.pipelineLayout,
 				0,
 				1,
 				&descriptorSets[imageIndex], // 1 to 1 with command buffers
@@ -1125,7 +1168,7 @@ public:
 				cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
 				:
 				cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
-		}
+		//}
 
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
@@ -1202,6 +1245,7 @@ public:
 			"Failed to submit draw queue"
 		);
 
+		device.waitIdle();
 		// FSQ PASS
 		vk::CommandBuffer commandBuffersFSQ[2] = {
 			device.drawCmdBuffers[device.imageIndex],
@@ -1235,56 +1279,57 @@ public:
 		
 		// UPDATE LIGHTS
 		// White
-		uboComposition.lights[0].position = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+		uboComposition.lights[0].position = glm::vec4(0.0f, 10.0f, 1.0f, 0.0f);
 		// uboComposition.lights[0].color = glm::vec3(1.5f);
 		uboComposition.lights[0].color = glm::vec3(1.0f);
 		uboComposition.lights[0].radius = 15.0f * 0.25f;
 		// Red
-		uboComposition.lights[1].position = glm::vec4(-2.0f, 0.0f, 0.0f, 0.0f);
+		uboComposition.lights[1].position = glm::vec4(-2.0f, 5.0f, 0.0f, 0.0f);
 		// uboComposition.lights[1].color = glm::vec3(1.0f, 0.0f, 0.0f);
 		uboComposition.lights[1].color = glm::vec3(1.0f, 1.0f, 1.0f);
-		uboComposition.lights[1].radius = 15.0f;
+		uboComposition.lights[1].radius = 150.0f;
 		// Blue
-		uboComposition.lights[2].position = glm::vec4(2.0f, -1.0f, 0.0f, 0.0f);
+		uboComposition.lights[2].position = glm::vec4(2.0f, -10.0f, 0.0f, 0.0f);
 		// uboComposition.lights[2].color = glm::vec3(0.0f, 0.0f, 2.5f);
 		uboComposition.lights[2].color = glm::vec3(1.0f, 1.0f, 1.0f);
-		uboComposition.lights[2].radius = 5.0f;
+		uboComposition.lights[2].radius = 50.0f;
 		// Yellow
-		uboComposition.lights[3].position = glm::vec4(0.0f, -0.9f, 0.5f, 0.0f);
+		uboComposition.lights[3].position = glm::vec4(0.0f, -9.f, 0.5f, 0.0f);
 		// uboComposition.lights[3].color = glm::vec3(1.0f, 1.0f, 0.0f);
 		uboComposition.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
-		uboComposition.lights[3].radius = 2.0f;
+		uboComposition.lights[3].radius = 20.0f;
 		// Green
-		uboComposition.lights[4].position = glm::vec4(0.0f, -0.5f, 0.0f, 0.0f);
+		uboComposition.lights[4].position = glm::vec4(0.0f, 50.0f, 0.0f, 0.0f);
 		// uboComposition.lights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
 		uboComposition.lights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
-		uboComposition.lights[4].radius = 5.0f;
+		uboComposition.lights[4].radius = 50.0f;
 		// Yellow
-		uboComposition.lights[5].position = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
+		uboComposition.lights[5].position = glm::vec4(0.0f, 3.0f, 0.0f, 0.0f);
 		// uboComposition.lights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
 		uboComposition.lights[5].color = glm::vec3(1.0f, 1.0f, 1.0f);
-		uboComposition.lights[5].radius = 25.0f;
+		uboComposition.lights[5].radius = 75.0f;
 
 		static float timer = 0.0f;
-		uboComposition.lights[0].position.x = sin(glm::radians(360.0f * timer)) * 5.0f;
-		uboComposition.lights[0].position.z = cos(glm::radians(360.0f * timer)) * 5.0f;
+		float lightMovementMod = 0.2f;
+		uboComposition.lights[0].position.x = sin(glm::radians(360.0f * timer * lightMovementMod)) * 30.0f;
+		uboComposition.lights[0].position.z = cos(glm::radians(360.0f * timer* lightMovementMod)) * 30.0f;
 
-		uboComposition.lights[1].position.x = -4.0f + sin(glm::radians(360.0f * timer) + 45.0f) * 2.0f;
-		uboComposition.lights[1].position.z = 0.0f + cos(glm::radians(360.0f * timer) + 45.0f) * 2.0f;
+		uboComposition.lights[1].position.x = -4.0f + sin(glm::radians(360.0f * timer* lightMovementMod) + 45.0f) * 2.0f;
+		uboComposition.lights[1].position.z = 0.0f + cos(glm::radians(360.0f * timer* lightMovementMod) + 45.0f) * 2.0f;
 
-		uboComposition.lights[2].position.x = 4.0f + sin(glm::radians(360.0f * timer)) * 2.0f;
-		uboComposition.lights[2].position.z = 0.0f + cos(glm::radians(360.0f * timer)) * 2.0f;
+		uboComposition.lights[2].position.x = 4.0f + sin(glm::radians(360.0f * timer* lightMovementMod)) * 10.0f;
+		uboComposition.lights[2].position.z = 0.0f + cos(glm::radians(360.0f * timer* lightMovementMod)) * 20.0f;
 
-		uboComposition.lights[4].position.x = 0.0f + sin(glm::radians(360.0f * timer + 90.0f)) * 5.0f;
-		uboComposition.lights[4].position.z = 0.0f - cos(glm::radians(360.0f * timer + 45.0f)) * 5.0f;
+		uboComposition.lights[4].position.x = 0.0f + sin(glm::radians(360.0f * timer* lightMovementMod + 90.0f)) * 5.0f;
+		uboComposition.lights[4].position.z = 0.0f - cos(glm::radians(360.0f * timer* lightMovementMod + 45.0f)) * 5.0f;
 
-		uboComposition.lights[5].position.x = 0.0f + sin(glm::radians(-360.0f * timer + 135.0f)) * 10.0f;
-		uboComposition.lights[5].position.z = 0.0f - cos(glm::radians(-360.0f * timer - 45.0f)) * 10.0f;
+		uboComposition.lights[5].position.x = 0.0f + sin(glm::radians(-360.0f * timer* lightMovementMod + 135.0f)) * 10.0f;
+		uboComposition.lights[5].position.z = 0.0f - cos(glm::radians(-360.0f * timer* lightMovementMod - 45.0f)) * 10.0f;
 
 		// Current view position
 		uboComposition.viewPos = glm::vec4(camera.position, 0.0f) * glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f);
 
-		uboComposition.debugDisplayTarget = 0;
+		uboComposition.debugDisplayTarget = debugDisplayTarget;
 		timer += dt;
 
 		uniformBufferComposition[imageIndex].MapToBuffer(&uboComposition);
@@ -1337,9 +1382,17 @@ public:
 		ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
 		ImGui::InputFloat3("Power Plant Scale", &ppScale[0], "%.9f");
 		ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
+		ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
 
 		for(auto& object : objects)
 			object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));
+
+		ImGui::Text("Debug Target: ");
+		for (int i = 0; i < 5; ++i)
+		{
+			ImGui::RadioButton(std::to_string(i).c_str(), &debugDisplayTarget, i);
+			if (i != 4) ImGui::SameLine();
+		}
 
 		UpdateUniformBuffers(dt, device.imageIndex);
 	}

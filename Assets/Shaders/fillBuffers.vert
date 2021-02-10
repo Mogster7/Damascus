@@ -27,7 +27,7 @@ void main() {
 
     gl_Position = uboViewProjection.projection * uboViewProjection.view * pushModel.model * vec4(vertPos, 1.0);
 
-    vec3 worldPos = (pushModel.model * vec4(vertPos, 1.0)).xyz;
+    worldPos = (pushModel.model * vec4(vertPos, 1.0)).xyz;
     normalVec = (pushModel.model * vec4(vertNormal, 0.0)).xyz;
 
     Normal = vertNormal;

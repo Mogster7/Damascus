@@ -36,6 +36,7 @@ layout (location = 0) out vec2 TexCoord;
 // layout (location = 4) out vec3 eyeVec;
 // layout (location = 5) out vec3 worldPos;
 
+
 void main() 
 {
     gl_Position = vec4(vertPos, 1.0);

@@ -34,9 +34,6 @@ void FrameBufferAttachment::Create(vk::Format format,
 	viewCreateInfo.subresourceRange.layerCount = 1;					// Number of array levels to view
 
 	ImageView::Create(imageView, viewCreateInfo, owner);
-
-	descriptorInfo.imageLayout = destinationLayout;
-	descriptorInfo.imageView = imageView.Get();
 }
 
 void FrameBufferAttachment::Create(
@@ -53,7 +50,6 @@ void FrameBufferAttachment::Create(
 	utils::CheckVkResult(
 		owner.createSampler(&samplerCreateInfo, nullptr, &sampler),
 		"Failed to create frame buffer attachment sampler");
-	descriptorInfo.sampler = sampler;
 }
 
 
@@ -67,6 +63,18 @@ void FrameBufferAttachment::CreateDepth(Device& owner)
 		   owner);
 
 }
+
+vk::DescriptorImageInfo FrameBufferAttachment::GetDescriptor(
+	vk::ImageLayout imageLayout
+)
+{
+	return vk::DescriptorImageInfo(
+		sampler,
+		imageView,
+		imageLayout
+	);
+}
+
 
 vk::Format FrameBufferAttachment::GetDepthFormat()
 {
