@@ -41,20 +41,23 @@ void Texture::Create(const std::string& filepath, Device& owner)
 	void* mapped;
 	auto allocator = owner.allocator;
 	// Map and copy data to the memory, then unmap
-    vmaMapMemory(allocator, stagingBuffer.allocation, &mapped);
-    std::memcpy(mapped, pixels, (size_t)imageSize);
-    vmaUnmapMemory(allocator, stagingBuffer.allocation);
-	
+	vmaMapMemory(allocator, stagingBuffer.allocation, &mapped);
+	std::memcpy(mapped, pixels, (size_t)imageSize);
+	vmaUnmapMemory(allocator, stagingBuffer.allocation);
+
 	VmaAllocationCreateInfo allocInfo{};
 	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-	
-	image.Create2D(glm::uvec2(width, height), 
-				 vk::Format::eR8G8B8A8Unorm,
+
+	image.Create2D(glm::uvec2(width, height),
+				   vk::Format::eR8G8B8A8Unorm,
 				   mipLevels,
-				 vk::ImageTiling::eOptimal,
-				 vk::ImageUsageFlagBits::eTransferDst |
-		vk::ImageUsageFlagBits::eTransferSrc |
-		vk::ImageUsageFlagBits::eSampled, vk::ImageLayout::eTransferDstOptimal, *m_owner);
+				   vk::ImageTiling::eOptimal,
+				   vk::ImageUsageFlagBits::eTransferDst |
+				   vk::ImageUsageFlagBits::eTransferSrc |
+				   vk::ImageUsageFlagBits::eSampled,
+				   vk::ImageLayout::eTransferDstOptimal,
+				   vk::ImageAspectFlagBits::eColor,
+				   *m_owner);
 
 	vk::ImageSubresourceLayers imageSubresource{
 		vk::ImageAspectFlagBits::eColor, // Aspect mask
@@ -91,7 +94,10 @@ void Texture::Create(const std::string& filepath, Device& owner)
 	m_owner->commandPool.EndCommandBuffer(cmdBuf.get());
 
 	// Transition to shader resource
-	image.TransitionLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, mipLevels);
+	image.TransitionLayout(vk::ImageLayout::eTransferDstOptimal, 
+						   vk::ImageLayout::eShaderReadOnlyOptimal, 
+						   vk::ImageAspectFlagBits::eColor,
+						   mipLevels);
 
 	imageView.CreateTexture2DView(image, *m_owner);
 
@@ -111,6 +117,19 @@ void Texture::Create(const std::string& filepath, Device& owner)
 
 	sampler = m_owner->createSamplerUnique(samplerInfo, nullptr);
 }
+
+
+vk::DescriptorImageInfo Texture::GetDescriptor(
+	vk::ImageLayout imageLayout
+)
+{
+	return vk::DescriptorImageInfo(
+		sampler.get(),
+		imageView,
+		imageLayout
+	);
+}
+
 
 void Texture::Destroy()
 {

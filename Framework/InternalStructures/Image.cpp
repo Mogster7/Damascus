@@ -24,6 +24,7 @@ void Image::Create2D(glm::uvec2 size,
 				   vk::ImageTiling tiling,
 				   vk::ImageUsageFlags usage,
 				   vk::ImageLayout dstLayout,
+					 vk::ImageAspectFlags aspectMask,
 				   Device& owner)
 {
 	m_owner = &owner;
@@ -56,23 +57,25 @@ void Image::Create2D(glm::uvec2 size,
 
 	Create(imageCreateInfo, allocInfo, *m_owner);
 
-	TransitionLayout(vk::ImageLayout::eUndefined, dstLayout, mipLevels);
+	TransitionLayout(vk::ImageLayout::eUndefined, dstLayout, aspectMask, mipLevels);
 }
 
 void Image::CreateDepthImage(glm::vec2 size, Device& owner)
 {
 	Create2D(size,
-		   FrameBufferAttachment::GetDepthFormat(),
-		   1,
-		   vk::ImageTiling::eOptimal,
-		   vk::ImageUsageFlagBits::eDepthStencilAttachment,
-		   vk::ImageLayout::eDepthStencilAttachmentOptimal,
-		   owner);
+			 FrameBufferAttachment::GetDepthFormat(),
+			 1,
+			 vk::ImageTiling::eOptimal,
+			 vk::ImageUsageFlagBits::eDepthStencilAttachment,
+			 vk::ImageLayout::eDepthStencilAttachmentOptimal,
+			 vk::ImageAspectFlagBits::eDepth,
+			 owner);
 }
 
 void Image::TransitionLayout(vk::ImageLayout oldLayout,
                              vk::ImageLayout newLayout,
-                             uint32_t mipLevels = 1) 
+							 vk::ImageAspectFlags aspectMask,
+                             uint32_t mipLevels) 
 {
 	// Create a barrier with sensible defaults - some properties will change
 		// depending on the old -> new layout combinations.
@@ -80,7 +83,7 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 	barrier.image = Get();
 	barrier.oldLayout = oldLayout;
 	barrier.newLayout = newLayout;
-	barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+	barrier.subresourceRange.aspectMask = aspectMask;
 	barrier.subresourceRange.baseMipLevel = 0;
 	barrier.subresourceRange.levelCount = mipLevels;
 	barrier.subresourceRange.baseArrayLayer = 0;
@@ -101,10 +104,17 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 	else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal)
 	{
 		barrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-		barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
 
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+	}
+	// Scenario: undefined -> transfer destination optimal
+	else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferSrcOptimal)
+	{
+		barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+
+		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
+		dstFlags = vk::PipelineStageFlagBits::eTransfer;
 	}
 	// Scenario: undefined -> transfer destination optimal
 	else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
@@ -114,6 +124,37 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eTransfer;
 	}
+	else if (oldLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal && newLayout == vk::ImageLayout::eTransferSrcOptimal)
+	{
+		barrier.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead;
+		barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+
+		srcFlags = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+		dstFlags = vk::PipelineStageFlagBits::eTransfer;
+	}
+	else if (oldLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal && newLayout == vk::ImageLayout::eTransferDstOptimal)
+	{
+		barrier.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead;
+		barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+		srcFlags = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+		dstFlags = vk::PipelineStageFlagBits::eTransfer;
+
+	}
+	else if (oldLayout == vk::ImageLayout::eTransferSrcOptimal && newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal)
+	{
+		barrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
+
+		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
+		dstFlags = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+	}
+	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal)
+	{
+		barrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
+
+		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
+		dstFlags = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+	}
 	// Scenario: transfer destination -> shader resource
 	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
 	{
@@ -122,6 +163,7 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eFragmentShader;
 	}
+
 
 	else ASSERT(false, "Unhandled image layout transition");
 

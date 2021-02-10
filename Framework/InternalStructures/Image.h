@@ -19,6 +19,7 @@ public:
 				  vk::ImageTiling tiling,
 				  vk::ImageUsageFlags usage,
 				  vk::ImageLayout dstLayout,
+				  vk::ImageAspectFlags aspectMask,
 				  Device& owner);
 
 	void CreateDepthImage(glm::vec2 size, 
@@ -26,7 +27,8 @@ public:
 
 	void TransitionLayout(vk::ImageLayout oldLayout,
 						  vk::ImageLayout newLayout,
-						  uint32_t mipLevels);
+						  vk::ImageAspectFlags aspectMask,
+						  uint32_t mipLevels = 1);
 
 protected:
 

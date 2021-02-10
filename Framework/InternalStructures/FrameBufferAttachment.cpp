@@ -18,7 +18,7 @@ void FrameBufferAttachment::Create(vk::Format format,
 	m_owner = &owner;
 
 	image.Create2D({extent.width, extent.height}, format, 1, vk::ImageTiling::eOptimal, 
-				   usage, destinationLayout, owner);
+				   usage, destinationLayout, aspectMask, owner);
 
 
 	this->format = format;

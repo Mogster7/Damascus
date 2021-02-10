@@ -31,10 +31,10 @@ public:
     RenderPass renderPass = {};
 
     PipelineLayout pipelineLayout = {};
-    GraphicsPipeline graphicsPipeline = {};
+    GraphicsPipeline pipeline = {};
 
-    std::vector<FrameBuffer> framebuffers = {};
-    std::vector<vk::CommandBuffer> drawCmdBuffers;
+    std::vector<FrameBuffer> frameBuffers = {};
+    std::vector<vk::CommandBuffer> drawBuffers;
 
     CommandPool commandPool = {};
 

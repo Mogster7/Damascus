@@ -69,13 +69,13 @@ void Device::Destroy()
     }
 
 	freeCommandBuffers(commandPool.Get(),
-					   drawCmdBuffers.size(),
-					   drawCmdBuffers.data());
+					   drawBuffers.size(),
+					   drawBuffers.data());
     commandPool.Destroy();
-    for (auto& fb : framebuffers)
+    for (auto& fb : frameBuffers)
         fb.Destroy();
 
-    graphicsPipeline.Destroy();
+    pipeline.Destroy();
     pipelineLayout.Destroy();
 
     renderPass.Destroy();
@@ -154,26 +154,25 @@ void Device::CreateRenderPass()
     vk::AttachmentDescription colorAttachment;
     colorAttachment.format = swapchain.imageFormat;
     colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
-    colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;				// Describes what to do with attachment before rendering
+    colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;				// Describes what to do with attachment before rendering
     colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
     colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	// Describes what to do with stencil before rendering
     colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	// Describes what to do with stencil after rendering
 
     // Framebuffer data will be stored as an image, but images can be given different data layouts
     // to give optimal use for certain operations
-    colorAttachment.initialLayout = vk::ImageLayout::eUndefined;			// Image data layout before render pass starts
+    colorAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;			// Image data layout before render pass starts
     colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;		// Image data layout after render pass (to change to)
-
 
     // Depth
     vk::AttachmentDescription depthAttachment = {};
     depthAttachment.format = depthBuffer.format;
     depthAttachment.samples = vk::SampleCountFlagBits::e1;
-    depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+    depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
     depthAttachment.storeOp = vk::AttachmentStoreOp::eDontCare;
     depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
     depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    depthAttachment.initialLayout = vk::ImageLayout::eUndefined;
+    depthAttachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
     depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
 
@@ -226,8 +225,6 @@ void Device::CreateRenderPass()
     dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
 
-
-
     vk::RenderPassCreateInfo createInfo;
     createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     createInfo.pAttachments = attachments.data();
@@ -245,23 +242,30 @@ void Device::CreateGraphicsPipeline()
 
 void Device::CreateDepthBuffer(bool recreate)
 {
-    if (recreate) depthBuffer.Destroy();
+	if (recreate) depthBuffer.Destroy();
 
-    depthBuffer.CreateDepth(*this);
+    auto& extent = swapchain.extent;
+	depthBuffer.Create(FrameBufferAttachment::GetDepthFormat(), { extent.width, extent.height },
+						 vk::ImageUsageFlagBits::eDepthStencilAttachment |
+						 vk::ImageUsageFlagBits::eTransferDst,
+						 vk::ImageAspectFlagBits::eDepth,
+						 vk::ImageLayout::eDepthStencilAttachmentOptimal,
+						 // No sampler
+						 *this);
 }
 
 void Device::CreateFramebuffers(bool recreate)
 {
     if (recreate)
     {
-		for (auto& fb : framebuffers)
+		for (auto& fb : frameBuffers)
 			fb.Destroy();
     }
 
     const auto& imageViews = swapchain.imageViews;
     const auto& extent = swapchain.extent;
     size_t imageViewsSize = imageViews.size();
-    framebuffers.resize(imageViewsSize);
+    frameBuffers.resize(imageViewsSize);
 
     vk::FramebufferCreateInfo createInfo;
     // FB width/height
@@ -284,7 +288,7 @@ void Device::CreateFramebuffers(bool recreate)
         // List of attachments 1 to 1 with render pass
         createInfo.pAttachments = attachments.data();
 
-        framebuffers[i].Create(&framebuffers[i], createInfo, *this);
+        frameBuffers[i].Create(&frameBuffers[i], createInfo, *this);
     }
 }
 
@@ -304,19 +308,19 @@ void Device::CreateCommandBuffers(bool recreate)
     if (recreate)
     {
 		freeCommandBuffers(commandPool.Get(),
-						   drawCmdBuffers.size(),
-						   drawCmdBuffers.data());
+						   drawBuffers.size(),
+						   drawBuffers.data());
     }
 	
-    size_t fbSize = framebuffers.size();
-    drawCmdBuffers.resize(fbSize);
+    size_t fbSize = frameBuffers.size();
+    drawBuffers.resize(fbSize);
 
     vk::CommandBufferAllocateInfo allocInfo;
     allocInfo.commandPool = commandPool.Get();
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandBufferCount = static_cast<uint32_t>(fbSize);
 
-    utils::CheckVkResult(allocateCommandBuffers(&allocInfo, drawCmdBuffers.data()), "Failed to allocate command buffers");
+    utils::CheckVkResult(allocateCommandBuffers(&allocInfo, drawBuffers.data()), "Failed to allocate command buffers");
 }
 
 void Device::RecordCommandBuffers(uint32_t imageIndex)

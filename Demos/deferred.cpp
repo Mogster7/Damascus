@@ -11,7 +11,7 @@
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
 
-constexpr glm::uvec2 FB_SIZE = { 2048, 2048 }; 
+constexpr glm::uvec2 FB_SIZE = { 1600, 900 }; 
 
 
 class DeferredRenderingContext_Impl : public RenderingContext_Impl
@@ -85,6 +85,7 @@ public:
 
 	Camera camera;
 
+	bool copyDepth = true;
 	int32_t debugDisplayTarget = 0;
 
 	struct {
@@ -115,23 +116,13 @@ public:
 	} uboComposition;
 
 
-	struct {
-		GraphicsPipeline offscreen;
-		GraphicsPipeline forward;
-		GraphicsPipeline composition;
-	} pipelines;
-	PipelineLayout pipelineLayout;
 
-	struct
-	{
-		RenderPass forward;
-	} renderPasses;
 
 	// One sampler for the frame buffer color attachments
 	vk::Sampler colorSampler;
 
     std::vector<Mesh<Vertex>> objects;
-	Mesh<TexVertex> fsq;
+    std::vector<Mesh<Vertex>> forwardObjects;
 
     // Descriptors
     DescriptorSetLayout descriptorSetLayout;
@@ -151,12 +142,26 @@ public:
 		uint32_t width, height;
 		FrameBufferAttachment position, normal, albedo;
 		FrameBufferAttachment depth;
-		vk::RenderPass renderPass;
+		RenderPass renderPass;
+		GraphicsPipeline pipeline;
+		PipelineLayout pipelineLayout;
 
 		std::vector<FrameBuffer> frameBuffers;
 		std::vector<vk::CommandBuffer> drawBuffers;
 		std::vector<Semaphore> semaphores;
 	} gBuffer;
+
+	struct FSQ
+	{
+		RenderPass renderPass;
+		GraphicsPipeline pipeline;
+		PipelineLayout pipelineLayout;
+
+		std::vector<FrameBuffer> frameBuffers;
+		std::vector<vk::CommandBuffer> drawBuffers;
+		std::vector<Semaphore> semaphores;
+		Mesh<TexVertex> mesh;
+	} fsq;
 
 	
 	// TODO: MOVE THESE OUT
@@ -209,8 +214,7 @@ public:
     
 		 //objects.emplace_back().Create(device, cubeVerts, cubeIndices);
 		 //objects.emplace_back().Create(device, meshVerts, squareIndices);
-		 //objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
-		 fsq.Create(device, meshVerts, meshIndices);
+		 fsq.mesh.Create(device, meshVerts, meshIndices);
 		// objects[0].SetModel(
 		// 	glm::translate(objects[0].GetModel(), glm::vec3(0.0f, 0.0f, -3.0f))
 		// 	* glm::rotate(objects[0].GetModel(), glm::radians(-90.0f), glm::vec3(1.0, 0.0f, 0.0f)));
@@ -218,7 +222,13 @@ public:
 
 
 		InitializeAttachments();
-		InitializeAssets();
+		//InitializeAssets();
+		forwardObjects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		objects[0].SetModel(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 2.0f, 2.0f)));
+		objects[1].SetModel(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 3.0f, 3.0f)));
+		testTex.Create(std::string(ASSET_DIR) + "Textures/viking_room.png", device);
 		InitializeUniformBuffers();
 		InitializeDescriptorSetLayouts();
 		InitializeDescriptorPool();
@@ -367,192 +377,319 @@ public:
 	
 	void InitializeAttachments()
 	{
-		gBuffer.height = FB_SIZE.x;
-		gBuffer.width = FB_SIZE.y;
-
-		vk::Format RGBA = vk::Format::eR16G16B16A16Sfloat;
-		auto colorAttach = vk::ImageUsageFlagBits::eColorAttachment;
-		auto sampled = vk::ImageUsageFlagBits::eSampled;
-
-		// COLOR SAMPLER FOR DEFERRED ATTACHMENTS
-		vk::SamplerCreateInfo samplerInfo = {};
-		samplerInfo.magFilter = vk::Filter::eNearest;
-		samplerInfo.minFilter = vk::Filter::eNearest;
-		samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-		samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
-		samplerInfo.addressModeV = samplerInfo.addressModeU;
-		samplerInfo.addressModeW = samplerInfo.addressModeU;
-		samplerInfo.mipLodBias = 0.0f;
-		samplerInfo.maxAnisotropy = 1.0f;
-		samplerInfo.minLod = 0.0f;
-		samplerInfo.maxLod = 1.0f;
-		samplerInfo.borderColor = vk::BorderColor::eFloatOpaqueWhite;
-
-		gBuffer.position.Create(RGBA, { gBuffer.width, gBuffer.height },
-							  colorAttach | sampled, 
-								vk::ImageAspectFlagBits::eColor,
-								vk::ImageLayout::eColorAttachmentOptimal,
-								samplerInfo,
-							  device);
-
-		gBuffer.normal.Create(RGBA, { gBuffer.width, gBuffer.height },
-							  colorAttach | sampled, 
-							  vk::ImageAspectFlagBits::eColor,
-							  vk::ImageLayout::eColorAttachmentOptimal,
-							  samplerInfo,
-							  device);
-
-		gBuffer.albedo.Create(vk::Format::eR8G8B8A8Unorm, { gBuffer.width, gBuffer.height },
-							  colorAttach | sampled, 
-							  vk::ImageAspectFlagBits::eColor,
-							  vk::ImageLayout::eColorAttachmentOptimal,
-							  samplerInfo,
-							  device);
-
-		gBuffer.depth.Create(FrameBufferAttachment::GetDepthFormat(), { gBuffer.width, gBuffer.height },
-							  vk::ImageUsageFlagBits::eDepthStencilAttachment | sampled, 
-							  vk::ImageAspectFlagBits::eDepth,
-							 vk::ImageLayout::eDepthStencilAttachmentOptimal,
-							 // No sampler
-							  device);
-
-		// Set up separate renderpass with references to the color and depth attachments
-		std::array<vk::AttachmentDescription, 4> attachmentDescs = {};
-
-		// Init attachment properties
-		for (uint32_t i = 0; i < 4; ++i)
-		{
-			attachmentDescs[i].samples = vk::SampleCountFlagBits::e1;
-			attachmentDescs[i].loadOp = vk::AttachmentLoadOp::eClear;
-			attachmentDescs[i].storeOp = vk::AttachmentStoreOp::eStore;
-			attachmentDescs[i].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-			attachmentDescs[i].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-			if (i == 3)
-			{
-				attachmentDescs[i].initialLayout = vk::ImageLayout::eUndefined;
-				attachmentDescs[i].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			}
-			else
-			{
-				attachmentDescs[i].initialLayout = vk::ImageLayout::eUndefined;
-				attachmentDescs[i].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-			}
-		}
-
-		attachmentDescs[0].format = gBuffer.position.format;
-		attachmentDescs[1].format = gBuffer.normal.format;
-		attachmentDescs[2].format = gBuffer.albedo.format;
-		attachmentDescs[3].format = gBuffer.depth.format;
-
-		std::array<vk::AttachmentReference, 3> colorRefs =
-		{
-			vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
-			vk::AttachmentReference(1, vk::ImageLayout::eColorAttachmentOptimal),
-			{ 2, vk::ImageLayout::eColorAttachmentOptimal },
-		};
-
-		vk::AttachmentReference depthRef;
-		depthRef.attachment = 3;
-		depthRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-
-		vk::SubpassDescription subpass = {};
-		subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-		subpass.pColorAttachments = colorRefs.data();
-		subpass.colorAttachmentCount = colorRefs.size();
-		subpass.pDepthStencilAttachment = &depthRef;
-
-		std::array<vk::SubpassDependency, 2> dependencies;
-
-		dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependencies[0].dstSubpass = 0;
-		dependencies[0].srcStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
-		dependencies[0].dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-		dependencies[0].srcAccessMask = vk::AccessFlagBits::eMemoryRead;
-		dependencies[0].dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
-		dependencies[0].dependencyFlags = vk::DependencyFlagBits::eByRegion;
-		
-		dependencies[1].srcSubpass = 0;
-		dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-		dependencies[1].srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-		dependencies[1].dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
-		dependencies[1].srcAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
-		dependencies[1].dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-		dependencies[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;
-		
-		vk::RenderPassCreateInfo rpInfo = {};
-
-		rpInfo.pAttachments = attachmentDescs.data();
-		rpInfo.attachmentCount = attachmentDescs.size();
-		rpInfo.subpassCount = 1;
-		rpInfo.pSubpasses = &subpass;
-		rpInfo.dependencyCount = 2;
-		rpInfo.pDependencies = dependencies.data();
-
-		utils::CheckVkResult(
-			device.createRenderPass(&rpInfo, nullptr, &gBuffer.renderPass),
-			"Failed to create deferred render pass"
-			);
-		
-		std::array<vk::ImageView, 4> attachments;
-		attachments[0] = gBuffer.position.imageView.Get();
-		attachments[1] = gBuffer.normal.imageView.Get();
-		attachments[2] = gBuffer.albedo.imageView.Get();
-		attachments[3] = gBuffer.depth.imageView.Get();
-
-		
-		vk::FramebufferCreateInfo fbInfo = {};
-		fbInfo.renderPass = gBuffer.renderPass;
-		fbInfo.attachmentCount = attachments.size();
-		fbInfo.pAttachments = attachments.data();
-		fbInfo.width = gBuffer.width;
-		fbInfo.height = gBuffer.height;
-		fbInfo.layers = 1;
-
 		const size_t imageViewCount = device.swapchain.imageViews.size();
-		gBuffer.frameBuffers.resize(imageViewCount);
-
-		for(size_t i = 0; i < imageViewCount; ++i)
+		// ----------------------
+		// Deferred Render Pass
+		// ----------------------
 		{
-			// // List of attachments 1 to 1 with render pass
-			// fbInfo.pAttachments = attachments.data();
-			
-			FrameBuffer::Create(gBuffer.frameBuffers[i], fbInfo, device);
+			gBuffer.width = FB_SIZE.x;
+			gBuffer.height = FB_SIZE.y;
+
+			vk::Format RGBA = vk::Format::eR16G16B16A16Sfloat;
+			auto colorAttach = vk::ImageUsageFlagBits::eColorAttachment;
+			auto sampled = vk::ImageUsageFlagBits::eSampled;
+
+			// COLOR SAMPLER FOR DEFERRED ATTACHMENTS
+			vk::SamplerCreateInfo samplerInfo = {};
+			samplerInfo.magFilter = vk::Filter::eNearest;
+			samplerInfo.minFilter = vk::Filter::eNearest;
+			samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+			samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
+			samplerInfo.addressModeV = samplerInfo.addressModeU;
+			samplerInfo.addressModeW = samplerInfo.addressModeU;
+			samplerInfo.mipLodBias = 0.0f;
+			samplerInfo.maxAnisotropy = 1.0f;
+			samplerInfo.minLod = 0.0f;
+			samplerInfo.maxLod = 1.0f;
+			samplerInfo.borderColor = vk::BorderColor::eFloatOpaqueWhite;
+
+			gBuffer.position.Create(RGBA, { gBuffer.width, gBuffer.height },
+									colorAttach | sampled,
+									vk::ImageAspectFlagBits::eColor,
+									vk::ImageLayout::eColorAttachmentOptimal,
+									samplerInfo,
+									device);
+
+			gBuffer.normal.Create(RGBA, { gBuffer.width, gBuffer.height },
+								  colorAttach | sampled,
+								  vk::ImageAspectFlagBits::eColor,
+								  vk::ImageLayout::eColorAttachmentOptimal,
+								  samplerInfo,
+								  device);
+
+			gBuffer.albedo.Create(vk::Format::eR8G8B8A8Unorm, { gBuffer.width, gBuffer.height },
+								  colorAttach | sampled,
+								  vk::ImageAspectFlagBits::eColor,
+								  vk::ImageLayout::eColorAttachmentOptimal,
+								  samplerInfo,
+								  device);
+
+			gBuffer.depth.Create(FrameBufferAttachment::GetDepthFormat(), { gBuffer.width, gBuffer.height },
+								 vk::ImageUsageFlagBits::eDepthStencilAttachment | sampled | 
+								 vk::ImageUsageFlagBits::eTransferSrc,
+								 vk::ImageAspectFlagBits::eDepth,
+								 vk::ImageLayout::eDepthStencilAttachmentOptimal,
+								 // No sampler
+								 device);
+
+			// Set up separate renderpass with references to the color and depth attachments
+			std::array<vk::AttachmentDescription, 4> attachmentDescs = {};
+
+			// Init attachment properties
+			for (uint32_t i = 0; i < 4; ++i)
+			{
+				attachmentDescs[i].samples = vk::SampleCountFlagBits::e1;
+				attachmentDescs[i].loadOp = vk::AttachmentLoadOp::eClear;
+				attachmentDescs[i].storeOp = vk::AttachmentStoreOp::eStore;
+				attachmentDescs[i].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+				attachmentDescs[i].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+				if (i == 3)
+				{
+					attachmentDescs[i].initialLayout = vk::ImageLayout::eUndefined;
+					attachmentDescs[i].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+				}
+				else
+				{
+					attachmentDescs[i].initialLayout = vk::ImageLayout::eUndefined;
+					attachmentDescs[i].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+				}
+			}
+
+			attachmentDescs[0].format = gBuffer.position.format;
+			attachmentDescs[1].format = gBuffer.normal.format;
+			attachmentDescs[2].format = gBuffer.albedo.format;
+			attachmentDescs[3].format = gBuffer.depth.format;
+
+			std::array<vk::AttachmentReference, 3> colorRefs =
+			{
+				vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
+				vk::AttachmentReference(1, vk::ImageLayout::eColorAttachmentOptimal),
+				{ 2, vk::ImageLayout::eColorAttachmentOptimal },
+			};
+
+			vk::AttachmentReference depthRef;
+			depthRef.attachment = 3;
+			depthRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+
+			vk::SubpassDescription subpass = {};
+			subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+			subpass.pColorAttachments = colorRefs.data();
+			subpass.colorAttachmentCount = colorRefs.size();
+			subpass.pDepthStencilAttachment = &depthRef;
+
+			std::array<vk::SubpassDependency, 2> dependencies;
+
+			dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+			dependencies[0].dstSubpass = 0;
+			dependencies[0].srcStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
+			dependencies[0].dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+			dependencies[0].srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+			dependencies[0].dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+			dependencies[0].dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+			dependencies[1].srcSubpass = 0;
+			dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+			dependencies[1].srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+			dependencies[1].dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
+			dependencies[1].srcAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+			dependencies[1].dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+			dependencies[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+			vk::RenderPassCreateInfo rpInfo = {};
+			rpInfo.pAttachments = attachmentDescs.data();
+			rpInfo.attachmentCount = attachmentDescs.size();
+			rpInfo.subpassCount = 1;
+			rpInfo.pSubpasses = &subpass;
+			rpInfo.dependencyCount = 2;
+			rpInfo.pDependencies = dependencies.data();
+
+			gBuffer.renderPass.Create(rpInfo, device);
 		}
-		
-
-		gBuffer.drawBuffers.resize(imageViewCount);
-
-		vk::CommandBufferAllocateInfo cmdInfo = {};
-		cmdInfo.commandPool = device.commandPool.Get();
-		cmdInfo.level = vk::CommandBufferLevel::ePrimary;
-		cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
-
-		utils::CheckVkResult(
-			device.allocateCommandBuffers(&cmdInfo, gBuffer.drawBuffers.data()),
-			"Failed to allocate deferred command buffers"
-		);
-
-		gBuffer.semaphores.resize(MAX_FRAME_DRAWS);
-		vk::SemaphoreCreateInfo semInfo = {};
-		for(size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
+		// Frame Buffers
 		{
+			std::array<vk::ImageView, 4> attachments;
+			attachments[0] = gBuffer.position.imageView.Get();
+			attachments[1] = gBuffer.normal.imageView.Get();
+			attachments[2] = gBuffer.albedo.imageView.Get();
+			attachments[3] = gBuffer.depth.imageView.Get();
+
+			vk::FramebufferCreateInfo fbInfo = {};
+			fbInfo.renderPass = gBuffer.renderPass;
+			fbInfo.attachmentCount = attachments.size();
+			fbInfo.pAttachments = attachments.data();
+			fbInfo.width = gBuffer.width;
+			fbInfo.height = gBuffer.height;
+			fbInfo.layers = 1;
+
+			gBuffer.frameBuffers.resize(imageViewCount);
+
+			for (size_t i = 0; i < imageViewCount; ++i)
+				FrameBuffer::Create(gBuffer.frameBuffers[i], fbInfo, device);
+		}
+		// Command Buffers
+		{
+			gBuffer.drawBuffers.resize(imageViewCount);
+
+			vk::CommandBufferAllocateInfo cmdInfo = {};
+			cmdInfo.commandPool = device.commandPool.Get();
+			cmdInfo.level = vk::CommandBufferLevel::ePrimary;
+			cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
+
 			utils::CheckVkResult(
-				device.createSemaphore(&semInfo, nullptr, &gBuffer.semaphores[i]),
-				"Failed to allocate deferred semaphore"
+				device.allocateCommandBuffers(&cmdInfo, gBuffer.drawBuffers.data()),
+				"Failed to allocate deferred command buffers"
 			);
 		}
+		// Semaphores
+		{
+			gBuffer.semaphores.resize(MAX_FRAME_DRAWS);
+			vk::SemaphoreCreateInfo semInfo = {};
+			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
+			{
+				utils::CheckVkResult(
+					device.createSemaphore(&semInfo, nullptr, &gBuffer.semaphores[i]),
+					"Failed to allocate deferred semaphore"
+				);
+			}
+		}
+
+
+		// ----------------------
+		// FSQ Render Pass
+		// ----------------------
+		{
+			// Render pass & subpass
+			{
+
+				// ATTACHMENTS
+				vk::AttachmentDescription colorAttachment;
+				colorAttachment.format = device.swapchain.imageFormat;
+				colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
+				colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;				// Describes what to do with attachment before rendering
+				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
+				colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	// Describes what to do with stencil before rendering
+				colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	// Describes what to do with stencil after rendering
+
+				// Framebuffer data will be stored as an image, but images can be given different data layouts
+				// to give optimal use for certain operations
+				colorAttachment.initialLayout = vk::ImageLayout::eUndefined;			// Image data layout before render pass starts
+				colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;		// Image data layout after render pass (to change to)
+
+				std::array<vk::AttachmentDescription, 1> attachmentsDescFSQ = { colorAttachment };
+
+				// REFERENCES
+				// Attachment reference uses an attachment index that refers to index in the attachment list passed to renderPassCreateInfo
+				vk::AttachmentReference colorAttachmentRef;
+				colorAttachmentRef.attachment = 0;
+				colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+				vk::SubpassDescription subpass = {};
+				subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+				subpass.colorAttachmentCount = 1;
+				subpass.pColorAttachments = &colorAttachmentRef;
+				subpass.pDepthStencilAttachment = nullptr;
+
+
+				// ---------------------------
+				// SUBPASS for converting between IMAGE_LAYOUT_UNDEFINED to IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+				vk::SubpassDependency dependency = {};
+
+				// Indices of the dependency for this subpass and the dependent subpass
+				// VK_SUBPASS_EXTERNAL refers to the implicit subpass before/after this pass
+				// Happens after
+				dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+				// Pipeline Stage
+				dependency.srcStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
+				// Stage access mask 
+				dependency.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+
+				// Happens before 
+				dependency.dstSubpass = 0;
+				dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+				dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+				dependency.dependencyFlags = {};
+
+				// Operations to wait on and what stage they occur
+				// Wait on swap chain to finish reading from the image to access it
+				dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+				dependency.srcAccessMask = {};
+
+				// Operations that should wait on the above operations to finish are in the color attachment writing stage
+				dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+				dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
+				vk::RenderPassCreateInfo createInfo;
+				createInfo.attachmentCount = static_cast<uint32_t>(attachmentsDescFSQ.size());
+				createInfo.pAttachments = attachmentsDescFSQ.data();
+				createInfo.subpassCount = 1;
+				createInfo.pSubpasses = &subpass;
+				createInfo.dependencyCount = 1;
+				createInfo.pDependencies = &dependency;
+
+				fsq.renderPass.Create(createInfo, device);
+			}
+
+			// Frame buffers
+			{
+				const auto& imageViews = device.swapchain.imageViews;
+				const auto& extent = device.swapchain.extent;
+				size_t imageViewsSize = imageViews.size();
+				fsq.frameBuffers.resize(imageViewsSize);
+
+				vk::FramebufferCreateInfo createInfo;
+				// FB width/height
+				createInfo.width = extent.width;
+				createInfo.height = extent.height;
+				// FB layers
+				createInfo.layers = 1;
+				createInfo.renderPass = fsq.renderPass;
+				createInfo.attachmentCount = 1;
+
+				for (size_t i = 0; i < imageViewsSize; ++i)
+				{
+					std::array<vk::ImageView, 1> attachments = {
+						imageViews[i].Get(),
+					};
+
+					// List of attachments 1 to 1 with render pass
+					createInfo.pAttachments = attachments.data();
+
+					FrameBuffer::Create(&fsq.frameBuffers[i], createInfo, device);
+				}
+			}
+
+			// Command buffers
+			{
+				fsq.drawBuffers.resize(imageViewCount);
+
+				vk::CommandBufferAllocateInfo cmdInfo = {};
+				cmdInfo.commandPool = device.commandPool.Get();
+				cmdInfo.level = vk::CommandBufferLevel::ePrimary;
+				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
+
+				utils::CheckVkResult(
+					device.allocateCommandBuffers(&cmdInfo, fsq.drawBuffers.data()),
+					"Failed to allocate deferred command buffers"
+				);
+			}
+
+			// Semaphores
+			fsq.semaphores.resize(MAX_FRAME_DRAWS);
+			vk::SemaphoreCreateInfo semInfo = {};
+			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
+			{
+				utils::CheckVkResult(
+					device.createSemaphore(&semInfo, nullptr, &fsq.semaphores[i]),
+					"Failed to allocate deferred semaphore"
+				);
+			}
+		}
 	}
 
-	void InitializeDeferredCommandBuffer()
-	{
-		
-	}
 
 	void InitializeAssets()
 	{
-		testTex.Create(std::string(ASSET_DIR) + "Textures/viking_room.png", device);
 		std::vector<std::vector<Mesh<Vertex>::MeshData>> meshData(20);
-
 
 		auto loadSection = [&meshData](const std::string& sectionPath, std::vector<Mesh<Vertex>>& objects,
 									   Device& device, int threadID)
@@ -637,6 +774,8 @@ public:
 			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 3),
 			// Binding 4: Composition / Lights
 			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 4),
+			// Binding 5: Texture Sampler
+			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 5)
 		};
 
 		vk::DescriptorSetLayoutCreateInfo createInfo = {};
@@ -674,7 +813,7 @@ public:
 
 		// CONNECT DESCRIPTOR SET TO BUFFER
 		// UPDATE ALL DESCRIPTOR SET BINDINGS
-		std::array<vk::WriteDescriptorSet, 5> setWrite = {};
+		std::array<vk::WriteDescriptorSet, 6> setWrite = {};
 
 		// Update all descriptor set buffer bindings
 		for (size_t i = 0; i < descriptorCount; ++i)
@@ -708,15 +847,22 @@ public:
 				descriptorSets[i],
 				vk::DescriptorType::eUniformBuffer,
 				4,
-				uniformBufferComposition[i].descriptorInfo)
+				uniformBufferComposition[i].descriptorInfo),
+
+			WriteDescriptorSet::Create(
+				descriptorSets[i],
+				vk::DescriptorType::eCombinedImageSampler,
+				5,
+				testTex.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal))
 			};
+
 
 			device.updateDescriptorSets(
 				static_cast<uint32_t>(setWrite.size()),
 				setWrite.data(),
 				0,
 				nullptr);
-		}
+		};
 
 		// PUSH CONSTANTS
 		// NO create needed
@@ -728,7 +874,10 @@ public:
 
 	void InitializePipelines()
 	{
-		ShaderModule vertModule; 
+		// ----------------------
+		// DEFERRED PIPELINE
+		// ----------------------
+		ShaderModule vertModule;
 		auto vertInfo = ShaderModule::Load(
 			vertModule,
 			"fillBuffersVert.spv",
@@ -797,7 +946,7 @@ public:
 
 		// VIEWPORT
 
-		vk::Extent2D extent = { gBuffer.width, gBuffer.height } ;
+		vk::Extent2D extent = { gBuffer.width, gBuffer.height };
 
 		vk::Viewport viewport{};
 		viewport.x = 0.0f;
@@ -849,7 +998,7 @@ public:
 		layout.pushConstantRangeCount = 1;
 		layout.pPushConstantRanges = &pushRange;
 
-		PipelineLayout::Create(pipelineLayout, layout, device);
+		PipelineLayout::Create(gBuffer.pipelineLayout, layout, device);
 
 		// Depth testing
 		vk::PipelineDepthStencilStateCreateInfo depthStencilState = {};
@@ -872,24 +1021,26 @@ public:
 		pipelineInfo.pMultisampleState = &multisampleState;
 		pipelineInfo.pColorBlendState = &colorBlendState;
 		pipelineInfo.pDepthStencilState = &depthStencilState;
-		pipelineInfo.layout = (pipelineLayout).Get();							// Pipeline Layout pipeline should use
+		pipelineInfo.layout = (gBuffer.pipelineLayout).Get();							// Pipeline Layout pipeline should use
 		pipelineInfo.renderPass = gBuffer.renderPass;							// Render pass description the pipeline is compatible with
 		pipelineInfo.subpass = 0;										// Subpass of render pass to use with pipeline
 
-		GraphicsPipeline::Create(pipelines.offscreen, pipelineInfo, device, vk::PipelineCache(), 1);
+		GraphicsPipeline::Create(gBuffer.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 		vertModule.Destroy();
 		fragModule.Destroy();
 
-
+		// ----------------------
+		// FSQ PIPELINE
+		// ----------------------
 		vertInfo = ShaderModule::Load(
 			vertModule,
-			"basicVert.spv",
+			"fsqVert.spv",
 			vk::ShaderStageFlagBits::eVertex,
 			device
 		);
 		fragInfo = ShaderModule::Load(
 			fragModule,
-			"basicFrag.spv",
+			"fsqFrag.spv",
 			vk::ShaderStageFlagBits::eFragment,
 			device
 		);
@@ -897,18 +1048,12 @@ public:
 		shaderStages[0] = vertInfo;
 		shaderStages[1] = fragInfo;
 
-
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = device.renderPass;
+		pipelineInfo.renderPass = fsq.renderPass;
 
-		vk::PipelineLayoutCreateInfo pipelineLayoutFSQ = {};
-		pipelineLayoutFSQ.pSetLayouts = &descriptorSetLayout;
-		pipelineLayoutFSQ.setLayoutCount = 1;
-		pipelineLayoutFSQ.pPushConstantRanges = nullptr;
-		pipelineLayoutFSQ.pushConstantRangeCount = 0;
+		PipelineLayout::Create(fsq.pipelineLayout, layout, device);
+		pipelineInfo.layout = fsq.pipelineLayout.Get();
 
-		PipelineLayout::Create(device.pipelineLayout, layout, device);
-		pipelineInfo.layout = device.pipelineLayout.Get();
 
 		// VERTEX BINDING DATA
 		vk::VertexInputBindingDescription bindDescFSQ = vk::VertexInputBindingDescription();
@@ -937,12 +1082,12 @@ public:
 		attribDescFSQ[1].offset = offsetof(TexVertex, texPos);
 
 		// VERTEX INPUT
-		vertexInputInfo = vk::PipelineVertexInputStateCreateInfo();
-		vertexInputInfo.vertexBindingDescriptionCount = 1;
-		vertexInputInfo.pVertexBindingDescriptions = &bindDescFSQ;
-		// Data spacing / stride info
-		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribDescFSQ.size());
-		vertexInputInfo.pVertexAttributeDescriptions = attribDescFSQ.data();
+		auto vertexInputInfoFSQ = vk::PipelineVertexInputStateCreateInfo();
+		vertexInputInfoFSQ.vertexBindingDescriptionCount = 1;
+		vertexInputInfoFSQ.pVertexBindingDescriptions = &bindDescFSQ;
+		// Data spacingFSQ / stride info
+		vertexInputInfoFSQ.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribDescFSQ.size());
+		vertexInputInfoFSQ.pVertexAttributeDescriptions = attribDescFSQ.data();
 
 		// Blending
 		vk::PipelineColorBlendAttachmentState colorBlendAttachments = {};
@@ -965,12 +1110,9 @@ public:
 		colorBlendStateFSQ.attachmentCount = 1;
 		colorBlendStateFSQ.pAttachments = &colorBlendAttachments;
 
-		pipelineInfo.pVertexInputState = &vertexInputInfo;
+		pipelineInfo.pVertexInputState = &vertexInputInfoFSQ;
 		pipelineInfo.pColorBlendState = &colorBlendStateFSQ;
-		depthStencilState.depthCompareOp = vk::CompareOp::eAlways;
-		depthStencilState.depthTestEnable = VK_FALSE;
-		depthStencilState.depthWriteEnable = VK_FALSE;
-		pipelineInfo.pDepthStencilState = &depthStencilState;
+		pipelineInfo.pDepthStencilState = nullptr;
 
 		viewport.width = (float)device.swapchain.extent.width;
 		viewport.height = (float)device.swapchain.extent.height;
@@ -978,10 +1120,52 @@ public:
 
 		pipelineInfo.pViewportState = &viewportState;
 
-		GraphicsPipeline::Create(device.graphicsPipeline, pipelineInfo, device, vk::PipelineCache(), 1);
-
+		GraphicsPipeline::Create(fsq.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 		vertModule.Destroy();
 		fragModule.Destroy();
+
+		// ----------------------
+		// FORWARD PIPELINE
+		// ----------------------
+		vertInfo = ShaderModule::Load(
+			vertModule,
+			"forwardVert.spv",
+			vk::ShaderStageFlagBits::eVertex,
+			device
+		);
+		fragInfo = ShaderModule::Load(
+			fragModule,
+			"forwardFrag.spv",
+			vk::ShaderStageFlagBits::eFragment,
+			device
+		);
+
+		shaderStages[0] = vertInfo;
+		shaderStages[1] = fragInfo;
+
+		pipelineInfo.pStages = shaderStages;
+		pipelineInfo.renderPass = device.renderPass;
+
+		PipelineLayout::Create(device.pipelineLayout, layout, device);
+		pipelineInfo.layout = device.pipelineLayout.Get();
+
+		// Reuse vertex input from deferred
+		pipelineInfo.pVertexInputState = &vertexInputInfo;
+		// Reuse blending from FSQ
+		pipelineInfo.pColorBlendState = &colorBlendStateFSQ;
+		// Reuse depth state from deferred
+		pipelineInfo.pDepthStencilState = &depthStencilState;
+
+		viewport.width = (float)device.swapchain.extent.width;
+		viewport.height = (float)device.swapchain.extent.height;
+		viewportState.pViewports = &viewport;
+		pipelineInfo.pViewportState = &viewportState;
+
+		GraphicsPipeline::Create(device.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		vertModule.Destroy();
+		fragModule.Destroy();
+
+
 	}
 
 	void InitializeDescriptorPool()
@@ -989,26 +1173,26 @@ public:
 		uint32_t imageCount = device.swapchain.images.size();
 		// How many descriptors, not descriptor sets
 
-        vk::DescriptorPoolSize pool_sizes[] =
-        {
-            { vk::DescriptorType::eSampler, 1000 },
-            { vk::DescriptorType::eCombinedImageSampler, 1000 },
-            { vk::DescriptorType::eSampledImage, 1000 },
-            { vk::DescriptorType::eStorageImage, 1000 },
-            { vk::DescriptorType::eUniformTexelBuffer, 1000 },
-            { vk::DescriptorType::eStorageTexelBuffer, 1000 },
-            { vk::DescriptorType::eUniformBuffer, 1000 },
-            { vk::DescriptorType::eStorageBuffer, 1000 },
-            { vk::DescriptorType::eUniformBufferDynamic, 1000 },
-            { vk::DescriptorType::eStorageBufferDynamic, 1000 },
-            { vk::DescriptorType::eInputAttachment, 1000 }
-        };
+		vk::DescriptorPoolSize pool_sizes[] =
+		{
+			{ vk::DescriptorType::eSampler, 1000 },
+			{ vk::DescriptorType::eCombinedImageSampler, 1000 },
+			{ vk::DescriptorType::eSampledImage, 1000 },
+			{ vk::DescriptorType::eStorageImage, 1000 },
+			{ vk::DescriptorType::eUniformTexelBuffer, 1000 },
+			{ vk::DescriptorType::eStorageTexelBuffer, 1000 },
+			{ vk::DescriptorType::eUniformBuffer, 1000 },
+			{ vk::DescriptorType::eStorageBuffer, 1000 },
+			{ vk::DescriptorType::eUniformBufferDynamic, 1000 },
+			{ vk::DescriptorType::eStorageBufferDynamic, 1000 },
+			{ vk::DescriptorType::eInputAttachment, 1000 }
+		};
 
-        vk::DescriptorPoolCreateInfo pool_info = {};
+		vk::DescriptorPoolCreateInfo pool_info = {};
 		pool_info.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-        pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
-        pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
-        pool_info.pPoolSizes = pool_sizes;
+		pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+		pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+		pool_info.pPoolSizes = pool_sizes;
 
 
 		// VP UBO
@@ -1054,13 +1238,21 @@ public:
 			nullptr
 		);
 
+		//// Transition to read from gBuffer
+		//gBuffer.depth.image.TransitionLayout(
+		//	vk::ImageLayout::eTransferSrcOptimal,
+		//	vk::ImageLayout::eDepthStencilAttachmentOptimal,
+		//	vk::ImageAspectFlagBits::eDepth
+		//);
+
+
 		auto& cmdBuf = gBuffer.drawBuffers[imageIndex];
 
 		utils::CheckVkResult(cmdBuf.begin(&info), "Failed to begin recording command buffer");
 		renderPassInfo.framebuffer = gBuffer.frameBuffers[imageIndex].Get();
 
 		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines.offscreen.Get());
+		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, gBuffer.pipeline.Get());
 
 		for (size_t j = 0; j < objects.size(); ++j)
 		{
@@ -1076,7 +1268,7 @@ public:
 				cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
 
 			cmdBuf.pushConstants(
-				pipelineLayout.Get(),
+				gBuffer.pipelineLayout.Get(),
 				// Stage
 				vk::ShaderStageFlagBits::eVertex,
 				// Offset
@@ -1091,7 +1283,7 @@ public:
 			cmdBuf.bindDescriptorSets(
 				// Point of pipeline and layout
 				vk::PipelineBindPoint::eGraphics,
-				pipelineLayout.Get(),
+				gBuffer.pipelineLayout.Get(),
 				0,
 				1,
 				&descriptorSets[imageIndex], // 1 to 1 with command buffers
@@ -1100,24 +1292,33 @@ public:
 			);
 
 			// Execute pipeline
-			hasIndex ? 
+			hasIndex ?
 				cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
 				:
 				cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
 		}
 
+
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
+
+		// Transition to read from gBuffer
+		gBuffer.depth.image.TransitionLayout(
+			vk::ImageLayout::eDepthStencilAttachmentOptimal,
+			vk::ImageLayout::eTransferSrcOptimal,
+			vk::ImageAspectFlagBits::eDepth
+		);
+
+		device.waitIdle();
 	}
 
 	void PrepareCommandBuffersFSQ(uint32_t imageIndex)
 	{
-		std::array<vk::ClearValue, 2> clearValues = {};
+		std::array<vk::ClearValue, 1> clearValues = {};
 		clearValues[0].color = vk::ClearColorValue(clearColor);
-		clearValues[1].depthStencil = vk::ClearDepthStencilValue(0.0f);
 
 		vk::RenderPassBeginInfo renderPassInfo;
-		renderPassInfo.renderPass = device.renderPass;
+		renderPassInfo.renderPass = fsq.renderPass;
 		renderPassInfo.renderArea.extent = device.swapchain.extent;
 		renderPassInfo.renderArea.offset = vk::Offset2D(0, 0);
 		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
@@ -1129,17 +1330,129 @@ public:
 			nullptr
 		);
 
-		auto& cmdBuf = device.drawCmdBuffers[imageIndex];
+		auto& cmdBuf = fsq.drawBuffers[imageIndex];
 
 		utils::CheckVkResult(cmdBuf.begin(&info), "Failed to begin recording command buffer");
-		renderPassInfo.framebuffer = device.framebuffers[imageIndex].Get();
+		renderPassInfo.framebuffer = fsq.frameBuffers[imageIndex].Get();
 
 		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, device.graphicsPipeline.Get());
+		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, fsq.pipeline.Get());
 
 		//for (size_t j = 0; j < objects.size(); ++j)
 		//{
-		const auto& mesh = fsq;
+		const auto& mesh = fsq.mesh;
+		// Buffers to bind
+		vk::Buffer vertexBuffers[] = { mesh.GetVertexBuffer() };
+		// Offsets
+		vk::DeviceSize offsets[] = { 0 };
+
+		cmdBuf.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+		bool hasIndex = mesh.GetIndexCount() > 0;
+		if (hasIndex)
+			cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
+
+
+		//// Bind descriptor sets
+		cmdBuf.bindDescriptorSets(
+			// Point of pipeline and layout
+			vk::PipelineBindPoint::eGraphics,
+			fsq.pipelineLayout,
+			0,
+			1,
+			&descriptorSets[imageIndex], // 1 to 1 with command buffers
+			0,
+			nullptr
+		);
+
+		// Execute pipeline
+		hasIndex ?
+			cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
+			:
+			cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
+		//}
+
+		cmdBuf.endRenderPass();
+		cmdBuf.end();
+
+	}
+
+	void PrepareCommandBuffersForward(uint32_t imageIndex)
+	{
+		std::array<vk::ClearValue, 2> clearValues = {};
+		clearValues[0].color = vk::ClearColorValue(clearColor);
+		clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
+
+		vk::RenderPassBeginInfo renderPassInfo;
+		auto& extent = device.swapchain.extent;
+		renderPassInfo.renderPass = device.renderPass;
+		renderPassInfo.renderArea.extent = extent;
+		renderPassInfo.renderArea.offset = vk::Offset2D(0, 0);
+		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+		renderPassInfo.pClearValues = clearValues.data();
+
+		// Record command buffers
+		vk::CommandBufferBeginInfo info(
+			{},
+			nullptr
+		);
+
+		// Transition to use as depth buffer
+		device.depthBuffer.image.TransitionLayout(
+			vk::ImageLayout::eDepthStencilAttachmentOptimal,
+			vk::ImageLayout::eTransferDstOptimal,
+			vk::ImageAspectFlagBits::eDepth
+		);
+
+		vk::ImageSubresourceRange range = vk::ImageSubresourceRange(
+			 vk::ImageAspectFlagBits::eDepth,
+			0, 1, 0, 1
+		);
+		auto imageCopyCmd = device.commandPool.BeginCommandBuffer();
+		imageCopyCmd->clearDepthStencilImage(
+			device.depthBuffer.image.Get(),
+			vk::ImageLayout::eTransferDstOptimal,
+			vk::ClearDepthStencilValue(1.0f),
+			range
+		);
+
+		if (copyDepth)
+		{
+			vk::ImageSubresourceLayers imageSubresource = vk::ImageSubresourceLayers(
+				vk::ImageAspectFlagBits::eDepth,
+				0, 0, 1
+			);
+
+			vk::ImageCopy imageCopy = vk::ImageCopy(
+				imageSubresource,
+				{},
+				imageSubresource,
+				{},
+				{ device.swapchain.extent.width, device.swapchain.extent.height, 1 }
+			);
+			imageCopyCmd->copyImage(
+				gBuffer.depth.image.Get(), vk::ImageLayout::eTransferSrcOptimal,
+				device.depthBuffer.image.Get(), vk::ImageLayout::eTransferDstOptimal,
+				imageCopy);
+		}
+		device.commandPool.EndCommandBuffer(imageCopyCmd.get());
+
+		// Transition to use as depth buffer
+		device.depthBuffer.image.TransitionLayout(
+			vk::ImageLayout::eTransferDstOptimal,
+			vk::ImageLayout::eDepthStencilAttachmentOptimal,
+			vk::ImageAspectFlagBits::eDepth
+		);
+
+		auto& cmdBuf = device.drawBuffers[imageIndex];
+
+		utils::CheckVkResult(cmdBuf.begin(&info), "Failed to begin recording command buffer");
+		renderPassInfo.framebuffer = device.frameBuffers[imageIndex].Get();
+
+		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
+		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, device.pipeline.Get());
+		for (size_t j = 0; j < forwardObjects.size(); ++j)
+		{
+			const auto& mesh = forwardObjects[j];
 			// Buffers to bind
 			vk::Buffer vertexBuffers[] = { mesh.GetVertexBuffer() };
 			// Offsets
@@ -1150,12 +1463,23 @@ public:
 			if (hasIndex)
 				cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
 
+			cmdBuf.pushConstants(
+				device.pipelineLayout.Get(),
+				// Stage
+				vk::ShaderStageFlagBits::eVertex,
+				// Offset
+				0,
+				// Size of data being pushed
+				sizeof(glm::mat4),
+				// Actual data being pushed
+				&mesh.GetModel()
+			);
 
 			//// Bind descriptor sets
 			cmdBuf.bindDescriptorSets(
 				// Point of pipeline and layout
 				vk::PipelineBindPoint::eGraphics,
-				device.pipelineLayout,
+				device.pipelineLayout.Get(),
 				0,
 				1,
 				&descriptorSets[imageIndex], // 1 to 1 with command buffers
@@ -1164,16 +1488,19 @@ public:
 			);
 
 			// Execute pipeline
-			hasIndex ? 
+			hasIndex ?
 				cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
 				:
 				cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
-		//}
+		}
 
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
 
+		device.waitIdle();
 	}
+
+
 
 	void PrepareCommandBuffersUI(uint32_t imageIndex)
 	{
@@ -1183,7 +1510,7 @@ public:
 		info.framebuffer = framebuffersUI[imageIndex].Get();
 		info.renderArea.extent = extent;
 		info.clearValueCount = 1;
-		auto clearColor = vk::ClearColorValue(std::array<float,4>{ 0.0f, 0.0f, 1.0f, 1.0f });
+		auto clearColor = vk::ClearColorValue(std::array<float, 4>{ 0.0f, 0.0f, 1.0f, 1.0f });
 		vk::ClearValue clearValue = {};
 		clearValue.color = clearColor;
 		info.pClearValues = &clearValue;
@@ -1202,7 +1529,7 @@ public:
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
 	}
-	
+
 
 	void OnSurfaceRecreate()
 	{
@@ -1212,7 +1539,7 @@ public:
 		// ImGui_ImplVulkan_SetMinImageCount()
 	}
 
-	
+
 	void Draw()
 	{
 		device.waitIdle();
@@ -1221,9 +1548,12 @@ public:
 
 		PrepareCommandBuffersDeferred(device.imageIndex);
 		PrepareCommandBuffersFSQ(device.imageIndex);
+		PrepareCommandBuffersForward(device.imageIndex);
 		PrepareCommandBuffersUI(device.imageIndex);
 
-		// DEFERRED PASS
+		// ----------------------
+		// Deferred Pass
+		// ----------------------
 		vk::CommandBuffer commandBuffersDeferred[1] = {
 			gBuffer.drawBuffers[device.imageIndex]
 		};
@@ -1245,17 +1575,36 @@ public:
 			"Failed to submit draw queue"
 		);
 
-		device.waitIdle();
-		// FSQ PASS
-		vk::CommandBuffer commandBuffersFSQ[2] = {
-			device.drawCmdBuffers[device.imageIndex],
-			commandBuffersUI[device.imageIndex]
+		// ----------------------
+		// FSQ Pass
+		// ----------------------
+		vk::CommandBuffer commandBuffersFSQ[1] = {
+			fsq.drawBuffers[device.imageIndex]
 		};
 
 		submitInfo.pWaitSemaphores = &gBuffer.semaphores[currentFrame];
+		submitInfo.pSignalSemaphores = &fsq.semaphores[currentFrame];
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = commandBuffersFSQ;
+		utils::CheckVkResult(
+			device.graphicsQueue.submit(1,
+										&submitInfo,
+										nullptr),
+			"Failed to submit draw queue"
+		);
+
+		// ----------------------
+		// Forward Pass
+		// ----------------------
+		vk::CommandBuffer commandBuffersForward[2] = {
+			device.drawBuffers[device.imageIndex],
+			commandBuffersUI[device.imageIndex]
+		};
+
+		submitInfo.pWaitSemaphores = &fsq.semaphores[currentFrame];
 		submitInfo.pSignalSemaphores = &device.renderFinished[currentFrame];
 		submitInfo.commandBufferCount = 2;
-		submitInfo.pCommandBuffers = commandBuffersFSQ;
+		submitInfo.pCommandBuffers = commandBuffersForward;
 		utils::CheckVkResult(
 			device.graphicsQueue.submit(1,
 										&submitInfo,
@@ -1263,7 +1612,6 @@ public:
 			"Failed to submit draw queue"
 		);
 
-		
 
 		if (device.SubmitFrame(currentFrame))
 			OnSurfaceRecreate();
@@ -1271,12 +1619,12 @@ public:
 		currentFrame = (currentFrame + 1) % MAX_FRAME_DRAWS;
 	}
 
-	
+
 
 	void UpdateUniformBuffers(float dt, const uint32_t imageIndex)
 	{
 		uniformBufferViewProjection[imageIndex].MapToBuffer(&uboViewProjection);
-		
+
 		// UPDATE LIGHTS
 		// White
 		uboComposition.lights[0].position = glm::vec4(0.0f, 10.0f, 1.0f, 0.0f);
@@ -1312,19 +1660,19 @@ public:
 		static float timer = 0.0f;
 		float lightMovementMod = 0.2f;
 		uboComposition.lights[0].position.x = sin(glm::radians(360.0f * timer * lightMovementMod)) * 30.0f;
-		uboComposition.lights[0].position.z = cos(glm::radians(360.0f * timer* lightMovementMod)) * 30.0f;
+		uboComposition.lights[0].position.z = cos(glm::radians(360.0f * timer * lightMovementMod)) * 30.0f;
 
-		uboComposition.lights[1].position.x = -4.0f + sin(glm::radians(360.0f * timer* lightMovementMod) + 45.0f) * 2.0f;
-		uboComposition.lights[1].position.z = 0.0f + cos(glm::radians(360.0f * timer* lightMovementMod) + 45.0f) * 2.0f;
+		uboComposition.lights[1].position.x = -4.0f + sin(glm::radians(360.0f * timer * lightMovementMod) + 45.0f) * 2.0f;
+		uboComposition.lights[1].position.z = 0.0f + cos(glm::radians(360.0f * timer * lightMovementMod) + 45.0f) * 2.0f;
 
-		uboComposition.lights[2].position.x = 4.0f + sin(glm::radians(360.0f * timer* lightMovementMod)) * 10.0f;
-		uboComposition.lights[2].position.z = 0.0f + cos(glm::radians(360.0f * timer* lightMovementMod)) * 20.0f;
+		uboComposition.lights[2].position.x = 4.0f + sin(glm::radians(360.0f * timer * lightMovementMod)) * 10.0f;
+		uboComposition.lights[2].position.z = 0.0f + cos(glm::radians(360.0f * timer * lightMovementMod)) * 20.0f;
 
-		uboComposition.lights[4].position.x = 0.0f + sin(glm::radians(360.0f * timer* lightMovementMod + 90.0f)) * 5.0f;
-		uboComposition.lights[4].position.z = 0.0f - cos(glm::radians(360.0f * timer* lightMovementMod + 45.0f)) * 5.0f;
+		uboComposition.lights[4].position.x = 0.0f + sin(glm::radians(360.0f * timer * lightMovementMod + 90.0f)) * 5.0f;
+		uboComposition.lights[4].position.z = 0.0f - cos(glm::radians(360.0f * timer * lightMovementMod + 45.0f)) * 5.0f;
 
-		uboComposition.lights[5].position.x = 0.0f + sin(glm::radians(-360.0f * timer* lightMovementMod + 135.0f)) * 10.0f;
-		uboComposition.lights[5].position.z = 0.0f - cos(glm::radians(-360.0f * timer* lightMovementMod - 45.0f)) * 10.0f;
+		uboComposition.lights[5].position.x = 0.0f + sin(glm::radians(-360.0f * timer * lightMovementMod + 135.0f)) * 10.0f;
+		uboComposition.lights[5].position.z = 0.0f - cos(glm::radians(-360.0f * timer * lightMovementMod - 45.0f)) * 10.0f;
 
 		// Current view position
 		uboComposition.viewPos = glm::vec4(camera.position, 0.0f) * glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f);
@@ -1344,7 +1692,7 @@ public:
 
 		static float spaceCooldown = 1.0f;
 		static float spaceTimer = 1.0f;
-		if(glfwGetKey(win, GLFW_KEY_SPACE) && spaceTimer > spaceCooldown)
+		if (glfwGetKey(win, GLFW_KEY_SPACE) && spaceTimer > spaceCooldown)
 		{
 			cursorActive = !cursorActive;
 			glfwSetInputMode(win, GLFW_CURSOR,
@@ -1378,14 +1726,15 @@ public:
 		// const auto& model2 = objects[1].GetModel();
 		// objects[1].SetModel(glm::rotate(model2, glm::radians(speed2 * dt), { 0.0f, 1.0f,1.0f }));
 
-		static glm::vec3 ppScale = {.0001f, .0001f, .0001f};
+		static glm::vec3 ppScale = { .0001f, .0001f, .0001f };
 		ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
 		ImGui::InputFloat3("Power Plant Scale", &ppScale[0], "%.9f");
 		ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
 		ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
+		ImGui::Checkbox("Copy Depth", &copyDepth);
 
-		for(auto& object : objects)
-			object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));
+		/*for (auto& object : objects)
+			object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));*/
 
 		ImGui::Text("Debug Target: ");
 		for (int i = 0; i < 5; ++i)
@@ -1400,7 +1749,7 @@ public:
 
 	void DrawUI()
 	{
-		ImGui::ShowDemoWindow();
+		//ImGui::ShowDemoWindow();
 		ImGui::Render();
 	}
 };
@@ -1420,7 +1769,7 @@ void DeferredRenderingContext::Initialize(std::weak_ptr<Window> window)
 void DeferredRenderingContext::Update()
 {
 	RenderingContext::Update();
-	
+
 }
 
 
