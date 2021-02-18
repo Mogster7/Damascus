@@ -6,23 +6,25 @@
 
 class Application {
 public:
-    float time = 0.0f;
+    RenderingContext& renderingContext;
 
-    Application(const glm::uvec2& windowDimensions)
+    Application(const glm::uvec2& windowDimensions, RenderingContext& renderingContext)
+        : renderingContext(renderingContext)
     {
-        time = static_cast<float>(glfwGetTime());
         window = std::shared_ptr<Window>(new Window(windowDimensions, "Vulkan"));
-        DeferredRenderingContext::Initialize(window);
+        renderingContext.Initialize(window);
     }
 
     void Run() {
         float dt = 0.0f;
         while (window->Update(dt))
         {
-            dt = RenderingContext::dt;
-            DeferredRenderingContext::Update();
-			DeferredRenderingContext::DrawFrame();
+            window->SwapBuffer();
+            renderingContext.Update();
+            dt = renderingContext.dt;
+			renderingContext.Draw();
         }
+
     }
 
 private:
@@ -31,8 +33,7 @@ private:
 };
 
 int main() {
-    Application app({ 1600,900 });
-
+    Application app({ 1600,900 }, RenderingContext::Get());
 
     try {
         app.Run();
@@ -41,6 +42,8 @@ int main() {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
     }
+
+    app.renderingContext.Destroy();
 	return EXIT_SUCCESS;
 }
 

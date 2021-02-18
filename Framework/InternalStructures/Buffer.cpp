@@ -7,6 +7,7 @@
 //------------------------------------------------------------------------------
 #include "RenderingContext.h"
 #include "Device.h"
+#include "Buffer.h"
 
 void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo,
         VmaAllocationCreateInfo& allocCreateInfo, Device& owner)
@@ -35,6 +36,7 @@ void Buffer::MapToBuffer(void* data) const
 	memcpy(toMap, data, size);
 	m_owner->unmapMemory(memory);
 }
+
 
 void Buffer::StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size)
 {
@@ -137,6 +139,15 @@ void Buffer::CreateStaged(void* data, const vk::DeviceSize size,
     stagingBuffer.Destroy();
 }
 
+std::vector<vk::DescriptorBufferInfo*> Buffer::AggregateDescriptorInfo(std::vector<Buffer>& buffers)
+{
+    std::vector<vk::DescriptorBufferInfo*> infos;
+    for (auto& buffer : buffers)
+        infos.emplace_back(&buffer.descriptorInfo);
+    return infos;
+}
+
+
 void IndexBuffer::Create(const std::vector<uint32_t> indices, Device& owner)
 {
     CreateStaged((void*)indices.data(), indices.size() * sizeof(uint32_t),
@@ -145,3 +156,4 @@ void IndexBuffer::Create(const std::vector<uint32_t> indices, Device& owner)
         owner);
     indexCount = indices.size();
 }
+

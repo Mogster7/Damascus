@@ -20,27 +20,13 @@ void Device::Initialization()
     const QueueFamilyIndices& indices = m_owner->GetQueueFamilyIndices();
     getQueue(indices.graphics.value(), 0, &graphicsQueue);
     getQueue(indices.present.value(), 0, &presentQueue);
-    //minUniformBufferOffset = owner->GetMinimumUniformBufferOffset();
-    //// Calculate alignment of model uniform 
-    //modelUniformAlignment = (sizeof(Model) + minUniformBufferOffset - 1)
-    //                            & ~(minUniformBufferOffset - 1);
-
     CreateAllocator();
     CreateSwapchain();
     CreateCommandPool();
     CreateDepthBuffer();
     CreateRenderPass();
-    // CreateDescriptorSetLayout();
-    // CreatePushConstantRange();
     CreateGraphicsPipeline();
     CreateFramebuffers();
-
-
-    // CreateUniformBuffers();
-    // AllocateDynamicBufferTransferSpace();
-    // CreateDescriptorPool();
-    // CreateDescriptorSets();
-
     CreateCommandBuffers();
     CreateSync();
 }
@@ -49,8 +35,8 @@ void Device::CreateAllocator()
 {
     ASSERT(allocator == nullptr, "Creating an existing member");
     VmaAllocatorCreateInfo info = {};
-    info.instance = RenderingContext::GetInstance();
-    info.physicalDevice = RenderingContext::GetPhysicalDevice();
+    info.instance = GetInstance();
+    info.physicalDevice = *m_owner;
     info.device = *this;
 
     vmaCreateAllocator(&info, &allocator);
@@ -58,6 +44,7 @@ void Device::CreateAllocator()
 
 void Device::Destroy()
 {
+    waitIdle();
 
     for(auto& fence : drawFences)
         fence.Destroy();
@@ -91,7 +78,7 @@ void Device::CreateSwapchain(bool recreate)
 	if (recreate) swapchain.Destroy();
 	
     vk::PhysicalDevice physDevice = *m_owner;
-    vk::SurfaceKHR surface = RenderingContext::GetInstance().GetSurface();
+    vk::SurfaceKHR surface = GetInstance().GetSurface();
 
     vk::SurfaceCapabilitiesKHR capabilities = physDevice.getSurfaceCapabilitiesKHR(surface);
     std::vector<vk::SurfaceFormatKHR> formats = physDevice.getSurfaceFormatsKHR(surface);
@@ -102,7 +89,8 @@ void Device::CreateSwapchain(bool recreate)
     // Presentation mode (conditions for swapping images)
     vk::PresentModeKHR presentMode = Swapchain::ChoosePresentMode(presentModes);
     // Swap extent (resolution of images in the swap chain)
-    vk::Extent2D extent = Swapchain::ChooseExtent(capabilities);
+    vk::Extent2D extent = Swapchain::ChooseExtent(GetInstance().GetWindow().lock()->GetDimensions(),
+                                                  capabilities);
 
     // 1 more than the min to not wait on acquiring
     uint32_t imageCount = capabilities.minImageCount + 1;
@@ -115,7 +103,7 @@ void Device::CreateSwapchain(bool recreate)
 
     vk::SwapchainCreateInfoKHR createInfo(
         {},
-        RenderingContext::GetInstance().GetSurface(),
+        GetInstance().GetSurface(),
         imageCount,
         format.format,
         format.colorSpace,
@@ -513,8 +501,10 @@ void Device::Update(float dt)
 }
 
 bool Device::PrepareFrame(const uint32_t frameIndex)
-{
-    auto result = acquireNextImageKHR(swapchain.Get(), std::numeric_limits<uint64_t>::max(), imageAvailable[frameIndex].Get(),
+ {
+    auto result = acquireNextImageKHR(swapchain.Get(), 
+                                      std::numeric_limits<uint64_t>::max(), 
+                                      imageAvailable[frameIndex].Get(),
                                       nullptr, &imageIndex);
     // Freeze until previous image is drawn
     waitForFences(1, &drawFences[frameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());

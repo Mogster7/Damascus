@@ -23,6 +23,8 @@ public:
 
     static void StageTransfer(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size);
 
+    static std::vector<vk::DescriptorBufferInfo*> AggregateDescriptorInfo(
+        std::vector<Buffer>& buffers);
 
     VmaAllocator allocator = {};
     VmaAllocation allocation = {};

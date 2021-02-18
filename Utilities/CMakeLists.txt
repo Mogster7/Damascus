@@ -3,10 +3,6 @@ add_library(Utilities
     
     )
 
-set(GLM_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/ThirdParty/)
-set(VULKAN_INCLUDE_DIR ${VULKAN_DIR}\\Include)
-
-
     
 target_include_directories(Utilities PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}

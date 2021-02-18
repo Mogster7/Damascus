@@ -78,7 +78,7 @@ vk::DescriptorImageInfo FrameBufferAttachment::GetDescriptor(
 
 vk::Format FrameBufferAttachment::GetDepthFormat()
 {
-	vk::FormatProperties formatProperties{ RenderingContext::GetPhysicalDevice().getFormatProperties(vk::Format::eD32Sfloat) };
+	vk::FormatProperties formatProperties{ RenderingContext::Get().physicalDevice.getFormatProperties(vk::Format::eD32Sfloat) };
 
 	if (formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
 	{

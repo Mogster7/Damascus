@@ -1,11 +1,9 @@
 
-#include "RenderingContext_Impl.h"
 #include "deferred.h"
 
 #include "Window.h"
 #include "glfw3.h"
 #include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
 #include "Camera/Camera.h"
 #include "glm/glm.hpp"
 #include "glm/ext/matrix_clip_space.hpp"
@@ -13,8 +11,7 @@
 
 constexpr glm::uvec2 FB_SIZE = { 1600, 900 }; 
 
-
-class DeferredRenderingContext_Impl : public RenderingContext_Impl
+class DeferredRenderingContext : public RenderingContext
 {
 public:
 	const std::vector<TexVertex> meshVerts = {
@@ -123,13 +120,10 @@ public:
     std::vector<Mesh<Vertex>> forwardObjects;
 
     // Descriptors
-    DescriptorSetLayout descriptorSetLayout;
+	Descriptors descriptors;
     vk::PushConstantRange pushRange;
 
-    DescriptorPool descriptorPool;
-    std::vector<vk::DescriptorSet> descriptorSets;
 
-    std::vector<Buffer> uniformBufferModel;
     std::vector<Buffer> uniformBufferViewProjection;
     std::vector<Buffer> uniformBufferComposition;
 
@@ -161,41 +155,37 @@ public:
 		Mesh<TexVertex> mesh;
 	} fsq;
 
-	
-	// TODO: MOVE THESE OUT
-    DescriptorPool descriptorPoolUI;
-	RenderPass renderPassUI;
-	CommandPool commandPoolUI;
-	std::vector<vk::CommandBuffer> commandBuffersUI;
-	std::vector<FrameBuffer> framebuffersUI;
-
 	std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	bool cursorActive = false;
 
-	void SetCursorCallback(bool set)
+	void SetInputCallbacks()
 	{
 		auto win = ((Window*)window.lock().get())->GetHandle();
 		static auto cursorPosCallback = [](GLFWwindow* window, double xPos, double yPos)
 		{
-			auto context = reinterpret_cast<DeferredRenderingContext_Impl*>(glfwGetWindowUserPointer(window));
-			context->camera.ProcessMouseMovement({ xPos, yPos });
+			auto context = reinterpret_cast<DeferredRenderingContext*>(glfwGetWindowUserPointer(window));
+			context->camera.ProcessMouseInput({ xPos, yPos });
 		};
-		if (set)
-			glfwSetCursorPosCallback(win, cursorPosCallback);
-		else 
-			glfwSetCursorPosCallback(win, nullptr);
+		static auto keyCallback = [](GLFWwindow* window, int key, int scancode, int action, int mods)
+		{
+			auto context = reinterpret_cast<DeferredRenderingContext*>(glfwGetWindowUserPointer(window));
+			context->camera.ProcessKeyboardInput(key, action);
+		};
+		glfwSetCursorPosCallback(win, cursorPosCallback);
+		glfwSetKeyCallback(win, keyCallback);
 	}
 
 
 
-	void Initialization()
+	void Initialize(std::weak_ptr<Window> winHandle, bool enableOverlay) override
 	{
+		RenderingContext::Initialize(winHandle, enableOverlay);
 		auto win = ((Window*)window.lock().get())->GetHandle();
 		// glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		glfwSetWindowUserPointer(win, this);
 
-		SetCursorCallback(true);
+		SetInputCallbacks();
 		
 		camera.flipY = false;
 		camera.SetPerspective(45.0f, (float)FB_SIZE.x / FB_SIZE.y, 0.1f, 100.0f);
@@ -223,23 +213,13 @@ public:
 		}
 		 //objects.emplace_back().Create(device, meshVerts, squareIndices);
 		 fsq.mesh.Create(device, meshVerts, meshIndices);
-		// objects[0].SetModel(
-		// 	glm::translate(objects[0].model, glm::vec3(0.0f, 0.0f, -3.0f))
-		// 	* glm::rotate(objects[0].model, glm::radians(-90.0f), glm::vec3(1.0, 0.0f, 0.0f)));
-		// objects[1].SetModel(glm::translate(objects[1].model, glm::vec3(0.0f, 0.0f, -2.5f)));
 
 
 		InitializeAttachments();
-		InitializeAssets();
-		//forwardObjects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
-		//objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
-		//objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
-		//objects[0].SetModel(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 2.0f, 2.0f)));
-		//objects[1].SetModel(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 3.0f, 3.0f)));
-		//testTex.Create(std::string(ASSET_DIR) + "Textures/viking_room.png", device);
+		//InitializeAssets();
+		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		objects.back().SetModel(glm::scale(objects.back().model, glm::vec3(5.0f, 5.0f, 5.0f)));
 		InitializeUniformBuffers();
-		InitializeDescriptorSetLayouts();
-		InitializeDescriptorPool();
 		InitializeDescriptorSets();
 		InitializePipelines();
 		InitializeUI();
@@ -247,138 +227,52 @@ public:
 
 	void Destroy()
 	{
-		descriptorPool.Destroy();
-		descriptorSetLayout.Destroy();
+		device.waitIdle();
+		descriptors.Destroy();
+
+		gBuffer.albedo.Destroy();
+		gBuffer.position.Destroy();
+		gBuffer.normal.Destroy();
+		gBuffer.depth.Destroy();
+
+		utils::VectorDestroyer(gBuffer.frameBuffers);
+		utils::VectorDestroyer(gBuffer.semaphores);
+		
+		gBuffer.pipeline.Destroy();
+		gBuffer.pipelineLayout.Destroy();
+		gBuffer.renderPass.Destroy();
+		
+		utils::VectorDestroyer(fsq.frameBuffers);
+		utils::VectorDestroyer(fsq.semaphores);
+		
+		device.commandPool.FreeCommandBuffers(
+			gBuffer.drawBuffers, fsq.drawBuffers
+		);
+		
+		fsq.pipeline.Destroy();
+		fsq.pipelineLayout.Destroy();
+		fsq.renderPass.Destroy();
+		fsq.mesh.Destroy();
+			
 
 		for (size_t i = 0; i < device.swapchain.images.size(); ++i)
 		{
 			uniformBufferViewProjection[i].Destroy();
+			uniformBufferComposition[i].Destroy();
 		}
 
 		for (size_t i = 0; i < objects.size(); ++i)
 			objects[i].Destroy();
-
-		// UI
-		// -------------
-		for (auto framebuffer : framebuffersUI)
-			framebuffer.Destroy();
-
-		renderPassUI.Destroy();
-		device.freeCommandBuffers(commandPoolUI.Get(),
-								  commandBuffersUI.size(),
-								  commandBuffersUI.data());
-		commandPoolUI.Destroy();
-		ImGui_ImplVulkan_Shutdown();
-		ImGui::DestroyContext();
-		descriptorPoolUI.Destroy();
-		// --------------
+		for (size_t i = 0; i < forwardObjects.size(); ++i)
+			forwardObjects[i].Destroy();
+		
+		RenderingContext::Destroy();
 	}
 
 	
 
 	void InitializeUI()
 	{
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO(); (void)io;
-		ImGui::StyleColorsDark();
-
-		ImGui_ImplGlfw_InitForVulkan(static_cast<Window*>(window.lock().get())->GetHandle(), true);
-		ImGui_ImplVulkan_InitInfo initInfo = {};
-
-		initInfo.Instance = instance;
-		initInfo.PhysicalDevice = physicalDevice;
-		initInfo.Device = device;
-		initInfo.QueueFamily = 0;
-		initInfo.Queue = device.graphicsQueue;
-		initInfo.PipelineCache = VK_NULL_HANDLE;
-		initInfo.DescriptorPool = descriptorPoolUI;
-		initInfo.Allocator = nullptr;
-		initInfo.MinImageCount = device.swapchain.images.size();
-		initInfo.ImageCount = device.swapchain.images.size();
-		initInfo.CheckVkResultFn = utils::AssertVkBase;
-
-		vk::AttachmentDescription attachment = {};
-		attachment.format = device.swapchain.imageFormat;
-		attachment.samples = vk::SampleCountFlagBits::e1;
-		attachment.loadOp = vk::AttachmentLoadOp::eLoad;
-		attachment.storeOp = vk::AttachmentStoreOp::eStore;
-		attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-		attachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-		attachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
-		attachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
-
-		vk::AttachmentReference colorAttach = {};
-		colorAttach.attachment = 0;
-		colorAttach.layout = vk::ImageLayout::eColorAttachmentOptimal;
-
-		vk::SubpassDescription subpass = {};
-		subpass.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttach;
-
-		vk::SubpassDependency dependency = {};
-		dependency.setSrcSubpass(VK_SUBPASS_EXTERNAL);
-		dependency.dstSubpass = 0;
-		dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-		dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-		dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-		dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-
-		vk::RenderPassCreateInfo createInfo = {};
-		createInfo.attachmentCount = 1;
-		createInfo.pAttachments = &attachment;
-		createInfo.subpassCount = 1;
-		createInfo.pSubpasses = &subpass;
-		createInfo.dependencyCount = 1;
-		createInfo.pDependencies = &dependency;
-		renderPassUI.Create(createInfo, device);
-
-		ImGui_ImplVulkan_Init(&initInfo, renderPassUI.Get());
-
-
-		// COMMAND POOL 
-		vk::CommandPoolCreateInfo poolInfo = {};
-		poolInfo.queueFamilyIndex = physicalDevice.GetQueueFamilyIndices().graphics.value();
-		poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
-		commandPoolUI.Create(commandPoolUI, poolInfo, device);
-
-		// COMMAND BUFFER
-		commandBuffersUI.resize(device.swapchain.imageViews.size());
-
-		vk::CommandBufferAllocateInfo bufferInfo = {};
-		bufferInfo.level = vk::CommandBufferLevel::ePrimary;
-		bufferInfo.commandPool = commandPoolUI.Get();
-		bufferInfo.commandBufferCount = commandBuffersUI.size();
-		utils::CheckVkResult(
-			device.allocateCommandBuffers(&bufferInfo, commandBuffersUI.data()),
-			"Failed to allocate ImGui command buffers");
-
-		
-		auto cmdBuf = commandPoolUI.BeginCommandBuffer();
-		ImGui_ImplVulkan_CreateFontsTexture(cmdBuf.get());
-		device.commandPool.EndCommandBuffer(cmdBuf.get());
-
-		{
-			vk::ImageView attachment[1];
-			vk::FramebufferCreateInfo info = {};
-			info.renderPass = renderPassUI;
-			info.attachmentCount = 1;
-			info.pAttachments = attachment;
-			auto extent = device.swapchain.GetExtentDimensions();
-			info.width = extent.x;
-			info.height = extent.y;
-			info.layers = 1;
-
-			framebuffersUI.resize(device.swapchain.images.size());
-
-			for(uint32_t i = 0; i < device.swapchain.images.size(); ++i)
-			{
-				auto view = device.swapchain.imageViews[i];
-				attachment[0] = view.Get();
-				framebuffersUI[i].Create(framebuffersUI[i], info, device);
-			}
-		}
 			
 	}
 
@@ -554,12 +448,7 @@ public:
 			gBuffer.semaphores.resize(MAX_FRAME_DRAWS);
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
-			{
-				utils::CheckVkResult(
-					device.createSemaphore(&semInfo, nullptr, &gBuffer.semaphores[i]),
-					"Failed to allocate deferred semaphore"
-				);
-			}
+				Semaphore::Create(gBuffer.semaphores[i], semInfo, device);
 		}
 
 
@@ -687,10 +576,7 @@ public:
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 			{
-				utils::CheckVkResult(
-					device.createSemaphore(&semInfo, nullptr, &fsq.semaphores[i]),
-					"Failed to allocate deferred semaphore"
-				);
+				Semaphore::Create(fsq.semaphores[i], semInfo, device);
 			}
 		}
 	}
@@ -772,106 +658,39 @@ public:
 		UpdateUniformBuffers(0.0f, device.imageIndex);
 	}
 
-	void InitializeDescriptorSetLayouts()
-	{
-		std::vector<vk::DescriptorSetLayoutBinding> bindings = {
-			// Binding 0: ViewProjection
-			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex, 0),
-			// Binding 1-3: G-Buffer
-			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 1),
-			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 2),
-			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 3),
-			// Binding 4: Composition / Lights
-			DescriptorSetLayoutBinding::Create(vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 4),
-			//// Binding 5: Texture Sampler
-			//DescriptorSetLayoutBinding::Create(vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, 5)
-		};
-
-		vk::DescriptorSetLayoutCreateInfo createInfo = {};
-		createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-		createInfo.pBindings = bindings.data();
-
-		// Create descriptor set layout
-		DescriptorSetLayout::Create(descriptorSetLayout, createInfo, device);
-	}
-
 	void InitializeDescriptorSets()
 	{
-		// TODO: ABSTRACT THIS TO NOT BE EXPLICIT
-		size_t imageCount = device.swapchain.images.size();
-		size_t descriptorCount = imageCount;
-		// One descriptor set for every uniform buffer
-		descriptorSets.resize(imageCount);
-
-		// Create one copy of our descriptor set layout per buffer
-		std::vector<vk::DescriptorSetLayout> setLayouts(descriptorCount, descriptorSetLayout.Get());
-
-		vk::DescriptorSetAllocateInfo allocInfo = {};
-		allocInfo.descriptorPool = descriptorPool.Get();
-		// Number of sets to allocate
-		allocInfo.descriptorSetCount = static_cast<uint32_t>(descriptorCount);
-		// Layouts to use to allocate sets (1:1 relationship)
-		allocInfo.pSetLayouts = setLayouts.data();
-
-		utils::CheckVkResult(
-			device.allocateDescriptorSets(
-				&allocInfo,
-				descriptorSets.data()),
-			"Failed to allocate descriptor sets");
-
-
-		// CONNECT DESCRIPTOR SET TO BUFFER
-		// UPDATE ALL DESCRIPTOR SET BINDINGS
-		std::array<vk::WriteDescriptorSet, 5> setWrite = {};
-
-		// Update all descriptor set buffer bindings
-		for (size_t i = 0; i < descriptorCount; ++i)
+		auto vpDescInfos = Buffer::AggregateDescriptorInfo(uniformBufferViewProjection);
+		auto compositionDescInfos = Buffer::AggregateDescriptorInfo(uniformBufferComposition);
+		std::array<DescriptorInfo, 5> descriptorInfos =
 		{
-			setWrite = {
-			WriteDescriptorSet::Create(
-				descriptorSets[i],
+			DescriptorInfo::CreateAsync(0,
+				vk::ShaderStageFlagBits::eVertex,
 				vk::DescriptorType::eUniformBuffer,
-				0,
-				uniformBufferViewProjection[i].descriptorInfo),
-
-			WriteDescriptorSet::Create(
-				descriptorSets[i],
+				vpDescInfos),
+			DescriptorInfo::Create(1,
+				vk::ShaderStageFlagBits::eFragment,
 				vk::DescriptorType::eCombinedImageSampler,
-				1,
 				gBuffer.position.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal)),
-
-			WriteDescriptorSet::Create(
-				descriptorSets[i],
+			DescriptorInfo::Create(2,
+				vk::ShaderStageFlagBits::eFragment,
 				vk::DescriptorType::eCombinedImageSampler,
-				2,
 				gBuffer.normal.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal)),
-
-			WriteDescriptorSet::Create(
-				descriptorSets[i],
+			DescriptorInfo::Create(3,
+				vk::ShaderStageFlagBits::eFragment,
 				vk::DescriptorType::eCombinedImageSampler,
-				3,
 				gBuffer.albedo.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal)),
-
-			WriteDescriptorSet::Create(
-				descriptorSets[i],
+			DescriptorInfo::CreateAsync(4,
+				vk::ShaderStageFlagBits::eFragment,
 				vk::DescriptorType::eUniformBuffer,
-				4,
-				uniformBufferComposition[i].descriptorInfo),
-
-			//WriteDescriptorSet::Create(
-			//	descriptorSets[i],
-			//	vk::DescriptorType::eCombinedImageSampler,
-			//	5,
-			//	testTex.GetDescriptor(vk::ImageLayout::eShaderReadOnlyOptimal))
-			};
-
-
-			device.updateDescriptorSets(
-				static_cast<uint32_t>(setWrite.size()),
-				setWrite.data(),
-				0,
-				nullptr);
+				compositionDescInfos),
 		};
+
+		descriptors.Create(
+			descriptorInfos,
+			device.swapchain.images.size(),
+			device
+		);
 
 		// PUSH CONSTANTS
 		// NO create needed
@@ -1003,7 +822,7 @@ public:
 
 		vk::PipelineLayoutCreateInfo layout = {};
 		layout.setLayoutCount = 1;
-		layout.pSetLayouts = &descriptorSetLayout;
+		layout.pSetLayouts = &descriptors.layout;
 		layout.pushConstantRangeCount = 1;
 		layout.pPushConstantRanges = &pushRange;
 
@@ -1177,55 +996,6 @@ public:
 
 	}
 
-	void InitializeDescriptorPool()
-	{
-		uint32_t imageCount = device.swapchain.images.size();
-		// How many descriptors, not descriptor sets
-
-		vk::DescriptorPoolSize pool_sizes[] =
-		{
-			{ vk::DescriptorType::eSampler, 1000 },
-			{ vk::DescriptorType::eCombinedImageSampler, 1000 },
-			{ vk::DescriptorType::eSampledImage, 1000 },
-			{ vk::DescriptorType::eStorageImage, 1000 },
-			{ vk::DescriptorType::eUniformTexelBuffer, 1000 },
-			{ vk::DescriptorType::eStorageTexelBuffer, 1000 },
-			{ vk::DescriptorType::eUniformBuffer, 1000 },
-			{ vk::DescriptorType::eStorageBuffer, 1000 },
-			{ vk::DescriptorType::eUniformBufferDynamic, 1000 },
-			{ vk::DescriptorType::eStorageBufferDynamic, 1000 },
-			{ vk::DescriptorType::eInputAttachment, 1000 }
-		};
-
-		vk::DescriptorPoolCreateInfo pool_info = {};
-		pool_info.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-		pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
-		pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
-		pool_info.pPoolSizes = pool_sizes;
-
-
-		// VP UBO
-		std::array<vk::DescriptorPoolSize, 2> poolSizes;
-		poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
-		poolSizes[0].descriptorCount = imageCount * 2;
-
-		// Texture Sampler
-		poolSizes[1].type = vk::DescriptorType::eCombinedImageSampler;
-		poolSizes[1].descriptorCount = imageCount * 3;
-
-		// Pool creation
-		vk::DescriptorPoolCreateInfo poolCreateInfo = {};
-		// Maximum number of descriptor sets that can be created from the pool
-		poolCreateInfo.maxSets = static_cast<uint32_t>(device.swapchain.images.size());
-		// Number of pool sizes being passed 
-		poolCreateInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-		poolCreateInfo.pPoolSizes = poolSizes.data();
-
-		// Create descriptor pool
-		DescriptorPool::Create(descriptorPool, poolCreateInfo, device);
-		DescriptorPool::Create(descriptorPoolUI, poolCreateInfo, device);
-	}
-
 	void PrepareCommandBuffersDeferred(uint32_t imageIndex)
 	{
 		std::array<vk::ClearValue, 4> clearValues = {};
@@ -1246,14 +1016,6 @@ public:
 			{},
 			nullptr
 		);
-
-		//// Transition to read from gBuffer
-		//gBuffer.depth.image.TransitionLayout(
-		//	vk::ImageLayout::eTransferSrcOptimal,
-		//	vk::ImageLayout::eDepthStencilAttachmentOptimal,
-		//	vk::ImageAspectFlagBits::eDepth
-		//);
-
 
 		auto& cmdBuf = gBuffer.drawBuffers[imageIndex];
 
@@ -1295,7 +1057,7 @@ public:
 				gBuffer.pipelineLayout.Get(),
 				0,
 				1,
-				&descriptorSets[imageIndex], // 1 to 1 with command buffers
+				&descriptors.sets[imageIndex], // 1 to 1 with command buffers
 				0,
 				nullptr
 			);
@@ -1368,7 +1130,7 @@ public:
 			fsq.pipelineLayout,
 			0,
 			1,
-			&descriptorSets[imageIndex], // 1 to 1 with command buffers
+			&descriptors.sets[imageIndex], // 1 to 1 with command buffers
 			0,
 			nullptr
 		);
@@ -1378,7 +1140,6 @@ public:
 			cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
 			:
 			cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
-		//}
 
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
@@ -1491,7 +1252,7 @@ public:
 				device.pipelineLayout.Get(),
 				0,
 				1,
-				&descriptorSets[imageIndex], // 1 to 1 with command buffers
+				&descriptors.sets[imageIndex], // 1 to 1 with command buffers
 				0,
 				nullptr
 			);
@@ -1510,36 +1271,6 @@ public:
 	}
 
 
-
-	void PrepareCommandBuffersUI(uint32_t imageIndex)
-	{
-		auto extent = device.swapchain.extent;
-		vk::RenderPassBeginInfo info = { };
-		info.renderPass = renderPassUI;
-		info.framebuffer = framebuffersUI[imageIndex].Get();
-		info.renderArea.extent = extent;
-		info.clearValueCount = 1;
-		auto clearColor = vk::ClearColorValue(std::array<float, 4>{ 0.0f, 0.0f, 1.0f, 1.0f });
-		vk::ClearValue clearValue = {};
-		clearValue.color = clearColor;
-		info.pClearValues = &clearValue;
-
-		// Record command buffers
-		vk::CommandBufferBeginInfo cmdBufBeginInfo(
-			{},
-			nullptr
-		);
-
-
-		auto cmdBuf = commandBuffersUI[imageIndex];
-		cmdBuf.begin(cmdBufBeginInfo);
-		cmdBuf.beginRenderPass(info, vk::SubpassContents::eInline);
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdBuf);
-		cmdBuf.endRenderPass();
-		cmdBuf.end();
-	}
-
-
 	void OnSurfaceRecreate()
 	{
 		const auto& extent = device.swapchain.extent;
@@ -1549,16 +1280,17 @@ public:
 	}
 
 
-	void Draw()
+	void Draw() override
 	{
-		device.waitIdle();
+		DrawUI();
 		if (device.PrepareFrame(currentFrame))
 			OnSurfaceRecreate();
 
+		UpdateUniformBuffers(dt, device.imageIndex);
 		PrepareCommandBuffersDeferred(device.imageIndex);
 		PrepareCommandBuffersFSQ(device.imageIndex);
 		PrepareCommandBuffersForward(device.imageIndex);
-		PrepareCommandBuffersUI(device.imageIndex);
+		overlay.RecordCommandBuffers(device.imageIndex);
 
 		// ----------------------
 		// Deferred Pass
@@ -1607,7 +1339,7 @@ public:
 		// ----------------------
 		vk::CommandBuffer commandBuffersForward[2] = {
 			device.drawBuffers[device.imageIndex],
-			commandBuffersUI[device.imageIndex]
+			overlay.commandBuffers[device.imageIndex]
 		};
 
 		submitInfo.pWaitSemaphores = &fsq.semaphores[currentFrame];
@@ -1632,7 +1364,6 @@ public:
 
 	void UpdateUniformBuffers(float dt, const uint32_t imageIndex)
 	{
-		uniformBufferViewProjection[imageIndex].MapToBuffer(&uboViewProjection);
 
 		// UPDATE LIGHTS
 		// White
@@ -1689,6 +1420,7 @@ public:
 		uboComposition.debugDisplayTarget = debugDisplayTarget;
 		timer += dt;
 
+		uniformBufferViewProjection[imageIndex].MapToBuffer(&uboViewProjection);
 		uniformBufferComposition[imageIndex].MapToBuffer(&uboComposition);
 	}
 
@@ -1710,15 +1442,12 @@ public:
 		}
 		spaceTimer += dt;
 
-		camera.keys.up = (glfwGetKey(win, GLFW_KEY_W) == GLFW_PRESS);
-		camera.keys.down = (glfwGetKey(win, GLFW_KEY_S) == GLFW_PRESS);
-		camera.keys.left = (glfwGetKey(win, GLFW_KEY_A) == GLFW_PRESS);
-		camera.keys.right = (glfwGetKey(win, GLFW_KEY_D) == GLFW_PRESS);
 	}
 
 
-	void Update(float dt)
+	void Update() override
 	{
+		RenderingContext::Update();
 		// TODO: MOVE THIS OUT
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -1731,7 +1460,6 @@ public:
 		// objects[0].SetModel(glm::rotate(model, glm::radians(speed * dt), { 0.0f, 0.0f,1.0f }));
 
 		camera.Update(dt, !cursorActive);
-		uboViewProjection.view = camera.matrices.view;
 		// const auto& model2 = objects[1].model;
 		// objects[1].SetModel(glm::rotate(model2, glm::radians(speed2 * dt), { 0.0f, 1.0f,1.0f }));
 
@@ -1744,8 +1472,8 @@ public:
 		ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
 		ImGui::Checkbox("Copy Depth", &copyDepth);
 
-		for (auto& object : objects)
-			object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));
+		//for (auto& object : objects)
+		//	object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));
 
 		ImGui::Text("Debug Target: ");
 		for (int i = 0; i < 3; ++i)
@@ -1754,7 +1482,16 @@ public:
 			if (i != 4) ImGui::SameLine();
 		}
 
-		UpdateUniformBuffers(dt, device.imageIndex);
+		uboViewProjection.view = camera.matrices.view;
+		for (size_t j = 0; j < forwardObjects.size(); ++j)
+		{
+			auto& mesh = forwardObjects[j];
+			mesh.model = glm::rotate(mesh.model,
+									 glm::radians(speed * dt * utils::Random(1.0f, 5.0f)),
+									 glm::vec3(utils::Random(), utils::Random(), utils::Random())
+			);
+		}
+
 	}
 
 
@@ -1765,27 +1502,10 @@ public:
 	}
 };
 
-
-
-
-DeferredRenderingContext_Impl* DeferredRenderingContext::impl = {};
-void DeferredRenderingContext::Initialize(std::weak_ptr<Window> window)
+RenderingContext& RenderingContext::Get()
 {
-	impl = new DeferredRenderingContext_Impl();
-	RenderingContext::impl = impl;
-	impl->InitVulkan(window);
-	impl->Initialization();
-}
-
-void DeferredRenderingContext::Update()
-{
-	RenderingContext::Update();
-
+	static DeferredRenderingContext context;
+	return context;
 }
 
 
-void DeferredRenderingContext::DrawFrame()
-{
-	impl->DrawUI();
-	impl->Draw();
-}

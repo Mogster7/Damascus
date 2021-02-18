@@ -12,6 +12,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/compatibility.hpp>
+#include <glfw3.h>
 
 class Camera
 {
@@ -36,6 +37,7 @@ private:
 		const glm::mat4 transM = glm::translate(glm::mat4(1.0f), translation);
 
 		matrices.view = type == CameraType::FirstPerson ? rotM * transM : transM * rotM;
+
 
 		viewPos = glm::vec4(position, 0.0f) * glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f);
 		camFront = glm::normalize(static_cast<glm::vec3>(glm::inverse(matrices.view)[2]) * glm::vec3(1.0f, 1.0f, 1.0f));
@@ -75,6 +77,58 @@ public:
 		bool up = false;
 		bool down = false;
 	} keys;
+
+	void ProcessKeyboardInput(int key, int action)
+	{
+		if (action == GLFW_PRESS)
+		{
+			switch (key)
+			{
+			case GLFW_KEY_W:
+				keys.up = true;
+				break;
+			case GLFW_KEY_S:
+				keys.down = true;
+				break;
+			case GLFW_KEY_A:
+				keys.left = true;
+				break;
+			case GLFW_KEY_D:
+				keys.right = true;
+				break;
+			default:
+				break;
+			}
+		}
+		else if (action == GLFW_RELEASE)
+		{
+			switch (key)
+			{
+			case GLFW_KEY_W:
+				keys.up = false;
+				break;
+			case GLFW_KEY_S:
+				keys.down = false;
+				break;
+			case GLFW_KEY_A:
+				keys.left = false;
+				break;
+			case GLFW_KEY_D:
+				keys.right = false;
+				break;
+			default:
+				break;
+			}
+
+		}
+	}
+	void ProcessMouseInput(glm::vec2 cursorPos)
+	{
+		static glm::vec2 prevCursorPos = cursorPos;
+		cursorChange = cursorPos - prevCursorPos;
+		prevCursorPos = cursorPos;
+
+	}
 
 	bool Moving()
 	{
@@ -148,14 +202,6 @@ public:
 		this->movementSpeed = movementSpeed;
 	}
 
-	void ProcessMouseMovement(glm::vec2 cursorPos)
-	{
-		static glm::vec2 prevCursorPos = cursorPos;
-
-		cursorChange = cursorPos - prevCursorPos;
-
-		prevCursorPos = cursorPos;
-	}
 	
 
 	void Update(float deltaTime, bool processCursorChange = true)

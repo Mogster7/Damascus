@@ -23,34 +23,3 @@ vk::DescriptorSetLayoutBinding DescriptorSetLayoutBinding::Create(
 	return setBinding;
 }
 
-vk::WriteDescriptorSet WriteDescriptorSet::Create(
-	vk::DescriptorSet dstSet, 
-	vk::DescriptorType type, 
-	uint32_t binding,
-	vk::DescriptorBufferInfo& bufferInfo, 
-	uint32_t descriptorCount)
-{
-	vk::WriteDescriptorSet writeSet = {};
-	writeSet.dstSet = dstSet;
-	writeSet.descriptorType = type;
-	writeSet.descriptorCount = descriptorCount;
-	writeSet.dstBinding = binding;
-	writeSet.pBufferInfo = &bufferInfo;
-	return writeSet;
-}
-
-vk::WriteDescriptorSet WriteDescriptorSet::Create(
-	vk::DescriptorSet dstSet, 
-	vk::DescriptorType type, 
-	uint32_t binding,
-	vk::DescriptorImageInfo& imageInfo, 
-	uint32_t descriptorCount)
-{
-	vk::WriteDescriptorSet writeSet = {};
-	writeSet.dstSet = dstSet;
-	writeSet.descriptorType = type;
-	writeSet.descriptorCount = descriptorCount;
-	writeSet.dstBinding = binding;
-	writeSet.pImageInfo = &imageInfo;
-	return writeSet;
-}

@@ -4,8 +4,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(FRAMEWORK_SRC 
     RenderingContext/RenderingContext.cpp
     Window/Window.cpp
-    InternalStructures/RenderingDefines.hpp
-    InternalStructures/RenderingStructures.hpp
+    "RenderingDefines.hpp"
+    "RenderingStructures.hpp"
     InternalStructures/Model.cpp
     InternalStructures/Vertex.cpp
     InternalStructures/Mesh.cpp
@@ -27,7 +27,9 @@ set(FRAMEWORK_SRC
     InternalStructures/FrameBufferAttachment.cpp
     InternalStructures/Texture.cpp
     InternalStructures/Shader.cpp
-    Camera/Camera.cpp )
+    InternalStructures/RenderQueue.cpp
+    Camera/Camera.cpp 
+    Overlay/Overlay.cpp)
 
 
 add_library(Framework
@@ -36,28 +38,22 @@ add_library(Framework
 
 
 set(LIBS
-    glfw3
-    vulkan-1
     ThirdParty
+    Utilities
 )
 
 target_include_directories(Framework PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR} 
-    ${VULKAN_INCLUDE_DIR} 
-    ${GLFW_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/Utilities
+    ${CMAKE_SOURCE_DIR}/ThirdParty
     RenderingContext
-    Structures
+    InternalStructures
     Window
 )
 
 target_link_directories(Framework PUBLIC
-    ${VULKAN_LIB_DIR} 
     ${CMAKE_SOURCE_DIR}/Utilities
     ${CMAKE_SOURCE_DIR}/ThirdParty
-    ${CMAKE_SOURCE_DIR}/ThirdParty/imgui
-    ${CMAKE_SOURCE_DIR}/ThirdParty/imgui/backends
-    ${GLFW_LIB_DIR}
     )
 
-target_link_libraries(Framework Utilities ${LIBS})
+target_link_libraries(Framework ${LIBS})

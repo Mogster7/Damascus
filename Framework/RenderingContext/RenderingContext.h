@@ -1,49 +1,43 @@
 //------------------------------------------------------------------------------
 //
-// File Name:	Renderer.h
+// File Name:	RenderingContext.h
 // Author(s):	Jonathan Bourim (j.bourim)
 // Date:        6/5/2020 
 //
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace vk
-{
-    class CommandPool;
-    class Queue;
-}
 
-class Window;
-class QueueFamilyIndices;
-class Vertex;
-struct RenderingContext_Impl;
+struct RenderingContext
+{    
+    RenderingContext() = default;
+    ~RenderingContext() = default;
 
-class RenderingContext
-{
-
-public:
-    inline static float dt = 0.0f;
-    inline static float time = 0.0f;
-
-    static void Initialize(std::weak_ptr<Window> window);
-    static void Update();
-    static void Destroy();
-
-    static void MakeMesh();
-    static void DrawFrame();
-    static Instance& GetInstance();
-    static Device& GetDevice();
-    static PhysicalDevice& GetPhysicalDevice();
-
-    // Pool/queue
-    static vk::CommandPool GetGraphicsPool();
-    static vk::Queue GetGraphicsQueue();
+    // Must be defined by a compilation unit for each demo
+    static RenderingContext& Get();
     
+    // Draw
+    virtual void Draw() = 0;
 
-protected:
-    static RenderingContext_Impl* impl;
+     // Update
+    virtual void Update();
 
-    friend class Window;
+    // Init functions
+    virtual void Initialize(std::weak_ptr<Window> winHandle, bool enabledOverlay = true);
+
+    virtual void Destroy();
+
+    Instance instance = {};
+    PhysicalDevice physicalDevice = {};
+    Device device = {};
+    Overlay overlay = {};
+    bool enabledOverlay = false;
+
+    uint32_t currentFrame = 0;
+    float dt = 0.0f;
+
+
+    std::weak_ptr<Window> window;
 };
 
 

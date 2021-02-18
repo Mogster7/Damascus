@@ -26,10 +26,14 @@ bool Window::Update(float dt)
         return false;
         
     
-    glfwSwapBuffers(winHandle);
     glfwPollEvents();
 
 
 
     return true;
+}
+
+void Window::SwapBuffer()
+{
+    glfwSwapBuffers(winHandle);
 }

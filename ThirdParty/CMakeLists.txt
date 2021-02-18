@@ -4,6 +4,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(LIBS
     glfw3
+    vulkan-1
     )
 set(SRC
     imgui/imgui.cpp
@@ -20,6 +21,9 @@ add_library(
 
 
 
+set(VULKAN_DIR VulkanSDK)
+set(VULKAN_INCLUDE_DIR VulkanSDK/Include)
+set(VULKAN_LIB_DIR VulkanSDK/Lib)
 set(GLFW_INCLUDE_DIR_EXT GLFW/include/GLFW)
 set(GLFW_INCLUDE_DIR GLFW/include/)
 set(GLFW_LIB_DIR GLFW/lib)
@@ -38,6 +42,7 @@ target_include_directories(ThirdParty PUBLIC
 
 target_link_directories(ThirdParty PUBLIC
     ${GLFW_LIB_DIR}
+    ${VULKAN_LIB_DIR}
     )
 target_link_libraries(ThirdParty PUBLIC ${LIBS})
 

@@ -9,6 +9,7 @@ public:
 
     // bool returns whether or not window should close
     bool Update(float dt);
+    void SwapBuffer();
 
     GLFWwindow* GetHandle() const { return winHandle; }
     inline glm::uvec2 GetDimensions() const { return dimensions; }

@@ -101,7 +101,7 @@ void Texture::Create(const std::string& filepath, Device& owner)
 
 	imageView.CreateTexture2DView(image, *m_owner);
 
-	auto physicalDevice = RenderingContext::GetPhysicalDevice();
+	auto physicalDevice = m_owner->GetPhysicalDevice();
 	vk::PhysicalDeviceProperties physicalProps = physicalDevice.GetProperties();
 	vk::SamplerCreateInfo samplerInfo = {};
 	samplerInfo.magFilter = vk::Filter::eLinear;

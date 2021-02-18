@@ -17,7 +17,7 @@ public:
         Device& owner, vk::Format imageFormat, vk::Extent2D extent);
 
 
-    static vk::Extent2D ChooseExtent(vk::SurfaceCapabilitiesKHR);
+    static vk::Extent2D ChooseExtent(glm::uvec2 windowDimensions, vk::SurfaceCapabilitiesKHR);
     static vk::PresentModeKHR ChoosePresentMode(const std::vector<vk::PresentModeKHR>&);
     static vk::SurfaceFormatKHR ChooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>&);
 

@@ -5,50 +5,39 @@
 #include <vk_mem_alloc.h>
 
 
-
-
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
-RenderingContext_Impl* RenderingContext::impl = {};
-void RenderingContext::Initialize(std::weak_ptr<Window> window)
+void RenderingContext::Update()
 {
-    impl = new RenderingContext_Impl();
-    impl->InitVulkan(window);
+	static float prevTime = glfwGetTime();
+	float time = glfwGetTime();
+	dt = time - prevTime;
+
+	device.Update(dt);
+	prevTime = time;
+}
+
+	
+void RenderingContext::Initialize(std::weak_ptr<Window> winHandle, bool enableOverlay) 
+{
+    this->window = winHandle;
+    instance.Create();
+    instance.CreateSurface(winHandle);
+    physicalDevice.Create(instance);
+    physicalDevice.CreateLogicalDevice(device);
+	enabledOverlay = enableOverlay;
+	if (enabledOverlay)
+	{
+		overlay.Create(window, instance, physicalDevice, device);
+	}
 }
 
 void RenderingContext::Destroy()
 {
-    delete impl;
+	if (enabledOverlay)
+		overlay.Destroy();
+	device.Destroy();
+	instance.Destroy();
 }
-
-void RenderingContext::Update()
-{
-    float time = glfwGetTime();
-    RenderingContext::dt = time - RenderingContext::time;
-    RenderingContext::time = time;
-
-    impl->Update(dt);
-}
-
-void RenderingContext::DrawFrame()
-{
-    impl->DrawFrame();
-}
-
-Instance& RenderingContext::GetInstance()
-{   
-    return impl->instance;
-}
-
-Device& RenderingContext::GetDevice()
-{
-    return impl->device;
-}
-
-PhysicalDevice& RenderingContext::GetPhysicalDevice()
-{
-    return impl->physicalDevice;
-}
-
 
 

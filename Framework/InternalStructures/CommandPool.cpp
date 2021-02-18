@@ -1,3 +1,4 @@
+#include "CommandPool.h"
 //------------------------------------------------------------------------------
 //
 // File Name:	CommandPool.cpp
@@ -55,5 +56,3 @@ void CommandPool::EndCommandBuffer(vk::CommandBuffer buffer) const
         "Failed to submit command buffer to the queue");
     m_owner->graphicsQueue.waitIdle();
 }
-
-

@@ -51,6 +51,13 @@ public:
 
 
     void AllocateDynamicBufferTransferSpace();
+    const PhysicalDevice& GetPhysicalDevice() const {
+        return *m_owner;
+    }
+
+    const Instance& GetInstance() const {
+        return m_owner->GetInstance();
+    }
 
 private:
     void CreateAllocator();

@@ -13,15 +13,12 @@ set(
 # ------------------------
 # Must be set by the user for their respective Vulkan SDK path
 # ------------------------
-set(VULKAN_DIR C:\\VulkanSDK\\1.2.162.0)
 # ------------------------
 # ^^^^^^^^^^^^^^^^^^^^^^^^
 # ------------------------
 
 
-set(VULKAN_INCLUDE_DIR ${VULKAN_DIR}\\Include)
-set(VULKAN_LIB_DIR ${VULKAN_DIR}\\Lib)
-set(FRAMEWORK_INCLUDE_DIR ${CMAKE_SOURCE_DIR}\\Framework\\InternalStructures)
+set(FRAMEWORK_INCLUDE_DIR ${CMAKE_SOURCE_DIR}\\Framework\\)
 
 add_executable(${PROJECT_NAME} ${source_list})
 
