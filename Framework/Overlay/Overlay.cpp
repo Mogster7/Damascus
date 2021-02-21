@@ -88,7 +88,7 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 	createInfo.pSubpasses = &subpass;
 	createInfo.dependencyCount = 1;
 	createInfo.pDependencies = &dependency;
-	renderPass.Create(createInfo, device);
+	renderPass.Create(createInfo, device, {}, {});
 
 	ImGui_ImplVulkan_Init(&initInfo, renderPass.Get());
 

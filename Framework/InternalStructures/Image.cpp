@@ -77,6 +77,23 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 							 vk::ImageAspectFlags aspectMask,
                              uint32_t mipLevels) 
 {
+
+	auto cmdBuf = m_owner->commandPool.BeginCommandBuffer();
+
+	TransitionLayout(cmdBuf.get(),
+					 oldLayout, newLayout,
+					 aspectMask, mipLevels);
+
+	m_owner->commandPool.EndCommandBuffer(cmdBuf.get());
+}
+
+
+void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
+					  vk::ImageLayout oldLayout,
+					  vk::ImageLayout newLayout,
+					  vk::ImageAspectFlags aspectMask,
+					  uint32_t mipLevels)
+{
 	// Create a barrier with sensible defaults - some properties will change
 		// depending on the old -> new layout combinations.
 	vk::ImageMemoryBarrier barrier;
@@ -134,7 +151,7 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 	}
 	else if (oldLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal && newLayout == vk::ImageLayout::eTransferDstOptimal)
 	{
-		barrier.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead;
+		barrier.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
 		barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
 
 		srcFlags = vk::PipelineStageFlagBits::eEarlyFragmentTests;
@@ -148,6 +165,21 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eEarlyFragmentTests;
 	}
+	else if (oldLayout == vk::ImageLayout::eTransferSrcOptimal && newLayout == vk::ImageLayout::eTransferDstOptimal)
+	{
+		barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
+		dstFlags = vk::PipelineStageFlagBits::eTransfer;
+	}
+	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eTransferSrcOptimal)
+	{
+		barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+
+		srcFlags = vk::PipelineStageFlagBits::eTransfer;
+		dstFlags = vk::PipelineStageFlagBits::eTransfer;
+	}
+
 	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal)
 	{
 		barrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
@@ -167,20 +199,16 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 
 	else ASSERT(false, "Unhandled image layout transition");
 
-	auto cmdBuf = m_owner->commandPool.BeginCommandBuffer();
-
 	// Pipeline stage flags sets where to apply the command in the pipeline
-	cmdBuf->pipelineBarrier(
+	commandBuffer.pipelineBarrier(
 		srcFlags,
 		dstFlags,
 		vk::DependencyFlags(),
 		0, nullptr,
 		0, nullptr,
 		1, &barrier);
-
-	m_owner->commandPool.EndCommandBuffer(cmdBuf.get());
-
 }
+
 
 
 void Image::Destroy()

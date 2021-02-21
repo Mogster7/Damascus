@@ -24,55 +24,119 @@ class Mesh
 public:
 	struct MeshData
     {
-		std::vector<Vertex> vertices;
+		std::vector<VertexType> vertices;
 		std::vector<uint32_t> indices;
     };
 
-    void Create(Device& device, const std::vector<VertexType>& vertices, 
-        const std::vector<uint32_t>& indices)
+    void CreateStatic(
+		const std::vector<VertexType>& vertices, 
+        const std::vector<uint32_t>& indices,
+		Device& device)
     {
-		m_vertexBuffer.Create(vertices, device);
+		vertexBuffer.CreateStatic(vertices, device);
+		indexBuffer.CreateStatic(indices, device);
+	}
 
-		if (!indices.empty())
-			m_indexBuffer.Create(indices, device);
-    }
+    void CreateStatic(
+		const std::vector<VertexType>& vertices, 
+		Device& device)
+    {
+		vertexBuffer.CreateStatic(vertices, device);
+	}
+
+	// User is responsible for updating / staging
+    void CreateDynamic(
+		std::vector<VertexType>& vertices,
+        std::vector<uint32_t>& indices,
+		Device& device)
+    {
+		vertexBuffer.CreateDynamic(vertices, device);
+		indexBuffer.CreateDynamic(indices, device);
+		dynamic = true;
+	}
+
+    void CreateDynamic(
+		std::vector<VertexType>& vertices,
+		Device& device)
+    {
+		vertexBuffer.CreateDynamic(vertices, device);
+		dynamic = true;
+	}
+
+
+	void UpdateDynamic(
+		std::vector<VertexType>& vertices,
+		std::vector<uint32_t>& indices)
+	{
+		vertexBuffer.UpdateData(vertices.data(), vertices.size() * sizeof(VertexType), vertices.size(), false);
+		indexBuffer.UpdateData(vertices.data(), vertices.size() * sizeof(uint32_t), indices.size(), false);
+	}
+
+	void UpdateDynamic(std::vector<VertexType>& vertices)
+	{
+		vertexBuffer.UpdateData(vertices.data(), vertices.size() * sizeof(VertexType), vertices.size(), false);
+	}
+
+
+	template <class T> 
+	std::vector<T> GetVertexBufferData(uint32_t offset)
+	{
+		std::vector<T> data;
+		auto* buffer = reinterpret_cast<char*>(vertexBuffer.GetMappedData());
+		for (int i = 0; i < vertexBuffer.GetVertexCount(); ++i)
+		{
+			data.emplace_back(
+				*reinterpret_cast<T*>(buffer + offset + sizeof(VertexType) * i)
+			);
+		}
+
+		return data;
+	}
+
+	void StageDynamic(vk::CommandBuffer commandBuffer)
+	{
+		vertexBuffer.StageTransferDynamic(commandBuffer);
+		if (indexBuffer.GetIndexCount() > 0)
+			indexBuffer.StageTransferDynamic(commandBuffer);
+	}
+
 
 	static MeshData LoadModel(const std::string& path)
     {
         ASSERT(false, "There is no template specialization for this model creation.");
     }
-    void CreateModel(const std::string& path, Device& owner)
+    void CreateModel(const std::string& path, bool dynamic, Device& owner)
     {
         ASSERT(false, "There is no template specialization for this model creation.");
+		
     }
 	
     void Destroy()
     {
-		if (m_indexBuffer.GetIndexCount() > 0)
-				m_indexBuffer.Destroy();
+		if (indexBuffer.GetIndexCount() > 0)
+				indexBuffer.Destroy();
 
-		m_vertexBuffer.Destroy();
+		vertexBuffer.Destroy();
     }
 
     void SetModel(const glm::mat4& model) { this->model = model; }
 
-    uint32_t GetIndexCount() const { return m_indexBuffer.GetIndexCount(); }
-    const Buffer& GetIndexBuffer() const { return m_indexBuffer; }
-    void DestroyIndexBuffer() { m_indexBuffer.Destroy(); }
+    uint32_t GetIndexCount() const { return indexBuffer.GetIndexCount(); }
+    const Buffer& GetIndexBuffer() const { return indexBuffer; }
+    void DestroyIndexBuffer() { indexBuffer.Destroy(); }
 
-    uint32_t GetVertexCount() const { return m_vertexBuffer.GetVertexCount(); }
-    const Buffer& GetVertexBuffer() const { return m_vertexBuffer; }
-    void DestroyVertexBuffer() { m_vertexBuffer.Destroy(); }
+    uint32_t GetVertexCount() const { return vertexBuffer.GetVertexCount(); }
+    const Buffer& GetVertexBuffer() const { return vertexBuffer; }
+    void DestroyVertexBuffer() { vertexBuffer.Destroy(); }
+	
 
+	bool dynamic = false;
     glm::mat4 model = glm::mat4(1.0f);
-
-private:
-
-    VertexBuffer<VertexType> m_vertexBuffer = {};
-    IndexBuffer m_indexBuffer = {};
-
+    VertexBuffer<VertexType> vertexBuffer = {};
+    IndexBuffer indexBuffer = {};
 };
 
+template<>
 Mesh<Vertex>::MeshData Mesh<Vertex>::LoadModel(const std::string& path)
 {
 	tinyobj::attrib_t attrib;
@@ -144,10 +208,13 @@ Mesh<Vertex>::MeshData Mesh<Vertex>::LoadModel(const std::string& path)
 }
 
 template <>
-void Mesh<Vertex>::CreateModel(const std::string& path, Device& owner)
+void Mesh<Vertex>::CreateModel(const std::string& path, bool dynamic, Device& owner)
 {
-	const auto data = LoadModel(path);
-	Create(owner, data.vertices, data.indices);
+	auto data = LoadModel(path);
+	if (dynamic)
+		CreateDynamic(data.vertices, data.indices, owner);
+	else
+		CreateStatic(data.vertices, data.indices, owner);
 }
 
 

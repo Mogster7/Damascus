@@ -139,21 +139,43 @@ public:
 		PipelineLayout pipelineLayout;
 
 		std::vector<FrameBuffer> frameBuffers;
-		std::vector<vk::CommandBuffer> drawBuffers;
+		std::vector<CommandBuffer> drawBuffers;
 		std::vector<Semaphore> semaphores;
 	} gBuffer;
+
+	std::vector<CommandBuffer> depthCopyCmd1;
+	std::vector<Semaphore> depthCopySem1;
+	std::vector<CommandBuffer> depthCopyCmd2;
+	std::vector<Semaphore> depthCopySem2;
+
 
 	struct FSQ
 	{
 		RenderPass renderPass;
 		GraphicsPipeline pipeline;
 		PipelineLayout pipelineLayout;
+		FrameBufferAttachment depth;
 
 		std::vector<FrameBuffer> frameBuffers;
-		std::vector<vk::CommandBuffer> drawBuffers;
+		std::vector<CommandBuffer> drawBuffers;
 		std::vector<Semaphore> semaphores;
 		Mesh<TexVertex> mesh;
 	} fsq;
+
+	struct DebugDraw
+	{
+		RenderPass renderPass;
+		GraphicsPipeline pipeline;
+		PipelineLayout pipelineLayout;
+		FrameBufferAttachment depth;
+
+		std::vector<FrameBuffer> frameBuffers;
+		std::vector<CommandBuffer> drawBuffers;
+		std::vector<Semaphore> semaphores;
+		Mesh<PosVertex> mesh;
+		float debugLineLength = 1.0f;
+		float debugLineWidth = 1.0f;
+	} debugDraw;
 
 	std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -198,11 +220,13 @@ public:
 		// // Invert up direction so that pos y is up 
 		// // its down by default in Vulkan
 		uboViewProjection.projection[1][1] *= -1;
+		std::vector<PosVertex> dummy{ PosVertex(glm::vec3(1.0f)) };
+		debugDraw.mesh.CreateDynamic(dummy, device);
 		
     
 		for (int i = 0; i < 20; ++i)
 		{
-			forwardObjects.emplace_back().Create(device, cubeVerts, cubeIndices);
+			forwardObjects.emplace_back().CreateStatic(cubeVerts, cubeIndices, device);
 			auto& obj = forwardObjects.back();
 
 			obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
@@ -212,22 +236,22 @@ public:
 				utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
 		}
 		 //objects.emplace_back().Create(device, meshVerts, squareIndices);
-		 fsq.mesh.Create(device, meshVerts, meshIndices);
+		 fsq.mesh.CreateStatic(meshVerts, meshIndices, device);
 
 
 		InitializeAttachments();
-		//InitializeAssets();
-		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", device);
+		InitializeAssets();
+		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", false, device);
 		objects.back().SetModel(glm::scale(objects.back().model, glm::vec3(5.0f, 5.0f, 5.0f)));
 		InitializeUniformBuffers();
 		InitializeDescriptorSets();
 		InitializePipelines();
-		InitializeUI();
 	}
 
-	void Destroy()
+	void Destroy() override
 	{
 		device.waitIdle();
+
 		descriptors.Destroy();
 
 		gBuffer.albedo.Destroy();
@@ -244,36 +268,30 @@ public:
 		
 		utils::VectorDestroyer(fsq.frameBuffers);
 		utils::VectorDestroyer(fsq.semaphores);
-		
-		device.commandPool.FreeCommandBuffers(
-			gBuffer.drawBuffers, fsq.drawBuffers
-		);
-		
+
 		fsq.pipeline.Destroy();
 		fsq.pipelineLayout.Destroy();
 		fsq.renderPass.Destroy();
 		fsq.mesh.Destroy();
-			
 
-		for (size_t i = 0; i < device.swapchain.images.size(); ++i)
-		{
-			uniformBufferViewProjection[i].Destroy();
-			uniformBufferComposition[i].Destroy();
-		}
+		utils::VectorDestroyer(debugDraw.frameBuffers);
+		utils::VectorDestroyer(debugDraw.semaphores);
+		debugDraw.depth.Destroy();
+		debugDraw.pipeline.Destroy();
+		debugDraw.pipelineLayout.Destroy();
+		debugDraw.renderPass.Destroy();
+		debugDraw.mesh.Destroy();
+				
+		device.commandPool.FreeCommandBuffers(
+			gBuffer.drawBuffers, fsq.drawBuffers, debugDraw.drawBuffers
+		);
 
-		for (size_t i = 0; i < objects.size(); ++i)
-			objects[i].Destroy();
-		for (size_t i = 0; i < forwardObjects.size(); ++i)
-			forwardObjects[i].Destroy();
+		utils::VectorDestroyer(uniformBufferViewProjection);
+		utils::VectorDestroyer(uniformBufferComposition);
+		utils::VectorDestroyer(objects);
+		utils::VectorDestroyer(forwardObjects);
 		
 		RenderingContext::Destroy();
-	}
-
-	
-
-	void InitializeUI()
-	{
-			
 	}
 
 	
@@ -347,7 +365,8 @@ public:
 				attachmentDescs[i].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
 				if (i == 3)
 				{
-					attachmentDescs[i].initialLayout = vk::ImageLayout::eUndefined;
+					//attachmentDescs[i].initialLayout = vk::ImageLayout::eTransferSrcOptimal;
+					attachmentDescs[i].initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 					attachmentDescs[i].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 				}
 				else
@@ -406,7 +425,13 @@ public:
 			rpInfo.dependencyCount = 2;
 			rpInfo.pDependencies = dependencies.data();
 
-			gBuffer.renderPass.Create(rpInfo, device);
+			std::vector<vk::ClearValue> clearValues(4);
+			clearValues[0].color = vk::ClearColorValue(clearColor);
+			clearValues[1].color = vk::ClearColorValue(clearColor);
+			clearValues[2].color = vk::ClearColorValue(clearColor);
+			clearValues[3].depthStencil = vk::ClearDepthStencilValue(1.0f);
+			
+			gBuffer.renderPass.Create(rpInfo, device, vk::Extent2D(FB_SIZE.x, FB_SIZE.y), clearValues);
 		}
 		// Frame Buffers
 		{
@@ -432,6 +457,8 @@ public:
 		// Command Buffers
 		{
 			gBuffer.drawBuffers.resize(imageViewCount);
+			depthCopyCmd1.resize(imageViewCount);
+			depthCopyCmd2.resize(imageViewCount);
 
 			vk::CommandBufferAllocateInfo cmdInfo = {};
 			cmdInfo.commandPool = device.commandPool.Get();
@@ -442,13 +469,28 @@ public:
 				device.allocateCommandBuffers(&cmdInfo, gBuffer.drawBuffers.data()),
 				"Failed to allocate deferred command buffers"
 			);
+
+			utils::CheckVkResult(
+				device.allocateCommandBuffers(&cmdInfo, depthCopyCmd1.data()),
+				"Failed to allocate deferred command buffers"
+			);
+			utils::CheckVkResult(
+				device.allocateCommandBuffers(&cmdInfo, depthCopyCmd2.data()),
+				"Failed to allocate deferred command buffers"
+			);
 		}
 		// Semaphores
 		{
 			gBuffer.semaphores.resize(MAX_FRAME_DRAWS);
+			depthCopySem1.resize(MAX_FRAME_DRAWS);
+			depthCopySem2.resize(MAX_FRAME_DRAWS);
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
+			{
 				Semaphore::Create(gBuffer.semaphores[i], semInfo, device);
+				Semaphore::Create(depthCopySem1[i], semInfo, device);
+				Semaphore::Create(depthCopySem2[i], semInfo, device);
+			}
 		}
 
 
@@ -467,13 +509,27 @@ public:
 				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
 				colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	// Describes what to do with stencil before rendering
 				colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	// Describes what to do with stencil after rendering
+				colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+				colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-				// Framebuffer data will be stored as an image, but images can be given different data layouts
-				// to give optimal use for certain operations
-				colorAttachment.initialLayout = vk::ImageLayout::eUndefined;			// Image data layout before render pass starts
-				colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;		// Image data layout after render pass (to change to)
+				fsq.depth.Create(FrameBufferAttachment::GetDepthFormat(), { gBuffer.width, gBuffer.height },
+								 vk::ImageUsageFlagBits::eDepthStencilAttachment,
+								 vk::ImageAspectFlagBits::eDepth,
+								 vk::ImageLayout::eDepthStencilAttachmentOptimal,
+								 // No sampler
+								 device);
 
-				std::array<vk::AttachmentDescription, 1> attachmentsDescFSQ = { colorAttachment };
+				vk::AttachmentDescription depthAttachment;
+				depthAttachment.format = FrameBufferAttachment::GetDepthFormat();
+				depthAttachment.samples = vk::SampleCountFlagBits::e1;			
+				depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;			
+				depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;		
+				depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+				depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	
+				depthAttachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+				depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;		
+
+				std::array<vk::AttachmentDescription, 2> attachmentsDescFSQ = { colorAttachment, depthAttachment };
 
 				// REFERENCES
 				// Attachment reference uses an attachment index that refers to index in the attachment list passed to renderPassCreateInfo
@@ -481,11 +537,15 @@ public:
 				colorAttachmentRef.attachment = 0;
 				colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
 
+				vk::AttachmentReference depthAttachmentRef;
+				depthAttachmentRef.attachment = 1;
+				depthAttachmentRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+
 				vk::SubpassDescription subpass = {};
 				subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
 				subpass.colorAttachmentCount = 1;
 				subpass.pColorAttachments = &colorAttachmentRef;
-				subpass.pDepthStencilAttachment = nullptr;
+				subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
 
 				// ---------------------------
@@ -505,16 +565,7 @@ public:
 				dependency.dstSubpass = 0;
 				dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 				dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
-				dependency.dependencyFlags = {};
-
-				// Operations to wait on and what stage they occur
-				// Wait on swap chain to finish reading from the image to access it
-				dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-				dependency.srcAccessMask = {};
-
-				// Operations that should wait on the above operations to finish are in the color attachment writing stage
-				dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-				dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+				dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
 
 				vk::RenderPassCreateInfo createInfo;
 				createInfo.attachmentCount = static_cast<uint32_t>(attachmentsDescFSQ.size());
@@ -524,7 +575,11 @@ public:
 				createInfo.dependencyCount = 1;
 				createInfo.pDependencies = &dependency;
 
-				fsq.renderPass.Create(createInfo, device);
+				std::vector<vk::ClearValue> clearValues(2);
+				clearValues[0].color = vk::ClearColorValue(clearColor);
+				clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
+
+				fsq.renderPass.Create(createInfo, device, device.swapchain.extent, clearValues);
 			}
 
 			// Frame buffers
@@ -541,12 +596,13 @@ public:
 				// FB layers
 				createInfo.layers = 1;
 				createInfo.renderPass = fsq.renderPass;
-				createInfo.attachmentCount = 1;
+				createInfo.attachmentCount = 2;
 
 				for (size_t i = 0; i < imageViewsSize; ++i)
 				{
-					std::array<vk::ImageView, 1> attachments = {
+					std::array<vk::ImageView, 2> attachments = {
 						imageViews[i].Get(),
+						fsq.depth.imageView
 					};
 
 					// List of attachments 1 to 1 with render pass
@@ -579,6 +635,155 @@ public:
 				Semaphore::Create(fsq.semaphores[i], semInfo, device);
 			}
 		}
+
+		// ----------------------
+		// Debug Draw Render Pass
+		// ----------------------
+		{
+			// Render pass & subpass
+			{
+				debugDraw.depth.Create(FrameBufferAttachment::GetDepthFormat(), device.swapchain.extent,
+						 vk::ImageUsageFlagBits::eDepthStencilAttachment |
+						 vk::ImageUsageFlagBits::eTransferDst,
+						 vk::ImageAspectFlagBits::eDepth,
+						 vk::ImageLayout::eDepthStencilAttachmentOptimal,
+						 // No sampler
+						 device);
+
+				// ATTACHMENTS
+				vk::AttachmentDescription colorAttachment;
+				colorAttachment.format = device.swapchain.imageFormat;
+				colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
+				colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;				// Describes what to do with attachment before rendering
+				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
+				colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	// Describes what to do with stencil before rendering
+				colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	// Describes what to do with stencil after rendering
+
+				// Framebuffer data will be stored as an image, but images can be given different data layouts
+				// to give optimal use for certain operations
+				colorAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;			// Image data layout before render pass starts
+				colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;		// Image data layout after render pass (to change to)
+
+				vk::AttachmentDescription depthAttachment = {};
+				depthAttachment.format = debugDraw.depth.format;
+				depthAttachment.samples = vk::SampleCountFlagBits::e1;
+				depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
+				depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+				depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	
+				depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	
+				depthAttachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+				depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+
+				std::array<vk::AttachmentDescription, 2> attachmentsDescFSQ = { colorAttachment, depthAttachment };
+
+				// REFERENCES
+				// Attachment reference uses an attachment index that refers to index in the attachment list passed to renderPassCreateInfo
+				vk::AttachmentReference colorAttachmentRef;
+				colorAttachmentRef.attachment = 0;
+				colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+				vk::AttachmentReference depthAttachmentRef;
+				depthAttachmentRef.attachment = 1;
+				depthAttachmentRef.layout = depthAttachment.finalLayout;
+
+				vk::SubpassDescription subpass = {};
+				subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+				subpass.colorAttachmentCount = 1;
+				subpass.pColorAttachments = &colorAttachmentRef;
+				subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+
+				// ---------------------------
+				// SUBPASS for converting between IMAGE_LAYOUT_UNDEFINED to IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+				vk::SubpassDependency dependency = {};
+
+				// Indices of the dependency for this subpass and the dependent subpass
+				// VK_SUBPASS_EXTERNAL refers to the implicit subpass before/after this pass
+				// Happens after
+				dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+				// Pipeline Stage
+				dependency.srcStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
+				// Stage access mask 
+				dependency.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+
+				// Happens before 
+				dependency.dstSubpass = 0;
+				dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+				dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+				dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+				vk::RenderPassCreateInfo createInfo;
+				createInfo.attachmentCount = static_cast<uint32_t>(attachmentsDescFSQ.size());
+				createInfo.pAttachments = attachmentsDescFSQ.data();
+				createInfo.subpassCount = 1;
+				createInfo.pSubpasses = &subpass;
+				createInfo.dependencyCount = 1;
+				createInfo.pDependencies = &dependency;
+
+
+				std::vector<vk::ClearValue> clearValues(2);
+				clearValues[0].color = vk::ClearColorValue(clearColor);
+				clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
+
+				const auto& extent = device.swapchain.extent;
+
+				debugDraw.renderPass.Create(createInfo, device, extent, clearValues);
+			}
+
+			// Frame buffers
+			{
+				const auto& imageViews = device.swapchain.imageViews;
+				const auto& extent = device.swapchain.extent;
+				size_t imageViewsSize = imageViews.size();
+				debugDraw.frameBuffers.resize(imageViewsSize);
+
+				vk::FramebufferCreateInfo createInfo;
+				// FB width/height
+				createInfo.width = extent.width;
+				createInfo.height = extent.height;
+				// FB layers
+				createInfo.layers = 1;
+				createInfo.renderPass = debugDraw.renderPass;
+				createInfo.attachmentCount = 2;
+
+				for (size_t i = 0; i < imageViewsSize; ++i)
+				{
+					std::array<vk::ImageView, 2> attachments = {
+						imageViews[i].Get(),
+						debugDraw.depth.imageView
+					};
+
+					// List of attachments 1 to 1 with render pass
+					createInfo.pAttachments = attachments.data();
+
+					FrameBuffer::Create(&debugDraw.frameBuffers[i], createInfo, device);
+				}
+			}
+
+			// Command buffers
+			{
+				debugDraw.drawBuffers.resize(imageViewCount);
+
+				vk::CommandBufferAllocateInfo cmdInfo = {};
+				cmdInfo.commandPool = device.commandPool.Get();
+				cmdInfo.level = vk::CommandBufferLevel::ePrimary;
+				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
+
+				utils::CheckVkResult(
+					device.allocateCommandBuffers(&cmdInfo, debugDraw.drawBuffers.data()),
+					"Failed to allocate deferred command buffers"
+				);
+			}
+
+			// Semaphores
+			debugDraw.semaphores.resize(MAX_FRAME_DRAWS);
+			vk::SemaphoreCreateInfo semInfo = {};
+			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
+			{
+				Semaphore::Create(debugDraw.semaphores[i], semInfo, device);
+			}
+		}
+
 	}
 
 
@@ -594,7 +799,6 @@ public:
 			std::string modelsPath = std::string(ASSET_DIR) + "Models/";
 			std::string input;
 			std::vector<Mesh<Vertex>::MeshData> section;
-			int i = 0;
 			while (sectionFile >> input)
 			{
 				std::string combinedPath = modelsPath + input;
@@ -622,7 +826,7 @@ public:
 			for (auto& data : vector)
 			{
 				objects.emplace_back();
-				objects.back().Create(device, data.vertices, data.indices);
+				objects.back().CreateStatic(data.vertices, data.indices, device);
 			}
 		}
 	}
@@ -882,6 +1086,14 @@ public:
 		PipelineLayout::Create(fsq.pipelineLayout, layout, device);
 		pipelineInfo.layout = fsq.pipelineLayout.Get();
 
+		// Depth testing
+		depthStencilState = vk::PipelineDepthStencilStateCreateInfo();
+		depthStencilState.depthTestEnable = VK_FALSE;
+		depthStencilState.depthWriteEnable = VK_FALSE;
+		depthStencilState.depthCompareOp = vk::CompareOp::eLess;
+		depthStencilState.depthBoundsTestEnable = VK_FALSE;
+		depthStencilState.stencilTestEnable = VK_FALSE;
+
 
 		// VERTEX BINDING DATA
 		vk::VertexInputBindingDescription bindDescFSQ = vk::VertexInputBindingDescription();
@@ -940,7 +1152,7 @@ public:
 
 		pipelineInfo.pVertexInputState = &vertexInputInfoFSQ;
 		pipelineInfo.pColorBlendState = &colorBlendStateFSQ;
-		pipelineInfo.pDepthStencilState = nullptr;
+		pipelineInfo.pDepthStencilState = &depthStencilState;
 
 		viewport.width = (float)device.swapchain.extent.width;
 		viewport.height = (float)device.swapchain.extent.height;
@@ -968,6 +1180,10 @@ public:
 			device
 		);
 
+		// Depth testing
+		depthStencilState.depthTestEnable = VK_TRUE;
+		depthStencilState.depthWriteEnable = VK_TRUE;
+
 		shaderStages[0] = vertInfo;
 		shaderStages[1] = fragInfo;
 
@@ -993,193 +1209,138 @@ public:
 		vertModule.Destroy();
 		fragModule.Destroy();
 
+		// ----------------------
+		// DEBUG DRAW PIPELINE
+		// ----------------------
+
+		// reuse basically everything from forward
+		vertInfo = ShaderModule::Load(
+			vertModule,
+			"debugDrawVert.spv",
+			vk::ShaderStageFlagBits::eVertex,
+			device
+		);
+		fragInfo = ShaderModule::Load(
+			fragModule,
+			"debugDrawFrag.spv",
+			vk::ShaderStageFlagBits::eFragment,
+			device
+		);
+
+		shaderStages[0] = vertInfo;
+		shaderStages[1] = fragInfo;
+
+		pipelineInfo.pStages = shaderStages;
+		pipelineInfo.renderPass = debugDraw.renderPass;
+		inputAssembly.topology = vk::PrimitiveTopology::eLineList;
+		rasterizeState.lineWidth = debugDraw.debugLineWidth;
+
+		// VERTEX BINDING DATA
+		auto bindDescDebug = vk::VertexInputBindingDescription();
+		bindDescDebug.binding = 0;
+		bindDescDebug.stride = sizeof(PosVertex);
+		bindDescDebug.inputRate = vk::VertexInputRate::eVertex;
+
+		// VERTEX ATTRIB DATA
+		std::array<vk::VertexInputAttributeDescription, PosVertex::NUM_ATTRIBS> attribDescDebug;
+		attribDescDebug[0].binding = 0;
+		attribDescDebug[0].location = 0;
+		attribDescDebug[0].format = vk::Format::eR32G32B32Sfloat;
+		attribDescDebug[0].offset = offsetof(PosVertex, pos);
+
+		// VERTEX INPUT
+		auto vertexInputInfoDebug = vk::PipelineVertexInputStateCreateInfo();
+		vertexInputInfoDebug.vertexBindingDescriptionCount = 1;
+		vertexInputInfoDebug.pVertexBindingDescriptions = &bindDescDebug;
+		// Data spacingDebug / stride info
+		vertexInputInfoDebug.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribDescDebug.size());
+		vertexInputInfoDebug.pVertexAttributeDescriptions = attribDescDebug.data();
+
+		pipelineInfo.pVertexInputState = &vertexInputInfoDebug;
+		
+
+		PipelineLayout::Create(debugDraw.pipelineLayout, layout, device);
+		pipelineInfo.layout = debugDraw.pipelineLayout.Get();
+
+		GraphicsPipeline::Create(debugDraw.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		vertModule.Destroy();
+		fragModule.Destroy();
+	}
+
+	void RecordDeferred(uint32_t imageIndex)
+	{
+		auto& cmdBuf = gBuffer.drawBuffers[imageIndex];
+		cmdBuf.Begin();
+
+		gBuffer.renderPass.Begin(
+			cmdBuf,
+			gBuffer.frameBuffers[imageIndex].Get(),
+			gBuffer.pipeline.Get()
+		);
+		gBuffer.renderPass.RenderObjects(
+			cmdBuf,
+			descriptors.sets[imageIndex],
+			gBuffer.pipelineLayout.Get(),
+			objects.data(),
+			objects.size()
+		);
+
+		gBuffer.renderPass.End(cmdBuf);
+
+		cmdBuf.End();
 
 	}
 
-	void PrepareCommandBuffersDeferred(uint32_t imageIndex)
+	void RecordFSQ(uint32_t imageIndex)
 	{
-		std::array<vk::ClearValue, 4> clearValues = {};
-		clearValues[0].color = vk::ClearColorValue(clearColor);
-		clearValues[1].color = vk::ClearColorValue(clearColor);
-		clearValues[2].color = vk::ClearColorValue(clearColor);
-		clearValues[3].depthStencil = vk::ClearDepthStencilValue(1.0f);
+		auto& cmdBuf = fsq.drawBuffers[imageIndex];
+		cmdBuf.Begin();
 
-		vk::RenderPassBeginInfo renderPassInfo;
-		renderPassInfo.renderPass = gBuffer.renderPass;
-		renderPassInfo.renderArea.extent = vk::Extent2D(FB_SIZE.x, FB_SIZE.y);
-		renderPassInfo.renderArea.offset = vk::Offset2D(0, 0);
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
-
-		// Record command buffers
-		vk::CommandBufferBeginInfo info(
-			{},
-			nullptr
+		fsq.renderPass.Begin(
+			cmdBuf,
+			fsq.frameBuffers[imageIndex].Get(),
+			fsq.pipeline.Get()
 		);
 
-		auto& cmdBuf = gBuffer.drawBuffers[imageIndex];
-
-		utils::CheckVkResult(cmdBuf.begin(&info), "Failed to begin recording command buffer");
-		renderPassInfo.framebuffer = gBuffer.frameBuffers[imageIndex].Get();
-
-		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, gBuffer.pipeline.Get());
-
-		for (size_t j = 0; j < objects.size(); ++j)
-		{
-			const auto& mesh = objects[j];
-			// Buffers to bind
-			vk::Buffer vertexBuffers[] = { mesh.GetVertexBuffer() };
-			// Offsets
-			vk::DeviceSize offsets[] = { 0 };
-
-			cmdBuf.bindVertexBuffers(0, 1, vertexBuffers, offsets);
-			bool hasIndex = mesh.GetIndexCount() > 0;
-			if (hasIndex)
-				cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
-
-			cmdBuf.pushConstants(
-				gBuffer.pipelineLayout.Get(),
-				// Stage
-				vk::ShaderStageFlagBits::eVertex,
-				// Offset
-				0,
-				// Size of data being pushed
-				sizeof(glm::mat4),
-				// Actual data being pushed
-				&objects[j].model
-			);
-
-			//// Bind descriptor sets
-			cmdBuf.bindDescriptorSets(
-				// Point of pipeline and layout
-				vk::PipelineBindPoint::eGraphics,
-				gBuffer.pipelineLayout.Get(),
-				0,
-				1,
-				&descriptors.sets[imageIndex], // 1 to 1 with command buffers
-				0,
-				nullptr
-			);
-
-			// Execute pipeline
-			hasIndex ?
-				cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
-				:
-				cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
-		}
-
+		fsq.renderPass.RenderObjects(
+			cmdBuf,
+			descriptors.sets[imageIndex],
+			fsq.pipelineLayout.Get(),
+			&fsq.mesh
+		);
 
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
+	}
+
+	void RecordDepthCopyForward(uint32_t imageIndex)
+	{
+		auto& cmdBuf = depthCopyCmd1[imageIndex];
+		cmdBuf.Begin();
 
 		// Transition to read from gBuffer
 		gBuffer.depth.image.TransitionLayout(
+			cmdBuf,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
 			vk::ImageLayout::eTransferSrcOptimal,
 			vk::ImageAspectFlagBits::eDepth
 		);
 
-		device.waitIdle();
-	}
-
-	void PrepareCommandBuffersFSQ(uint32_t imageIndex)
-	{
-		std::array<vk::ClearValue, 1> clearValues = {};
-		clearValues[0].color = vk::ClearColorValue(clearColor);
-
-		vk::RenderPassBeginInfo renderPassInfo;
-		renderPassInfo.renderPass = fsq.renderPass;
-		renderPassInfo.renderArea.extent = device.swapchain.extent;
-		renderPassInfo.renderArea.offset = vk::Offset2D(0, 0);
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
-
-		// Record command buffers
-		vk::CommandBufferBeginInfo info(
-			{},
-			nullptr
-		);
-
-		auto& cmdBuf = fsq.drawBuffers[imageIndex];
-
-		utils::CheckVkResult(cmdBuf.begin(&info), "Failed to begin recording command buffer");
-		renderPassInfo.framebuffer = fsq.frameBuffers[imageIndex].Get();
-
-		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, fsq.pipeline.Get());
-
-		//for (size_t j = 0; j < objects.size(); ++j)
-		//{
-		const auto& mesh = fsq.mesh;
-		// Buffers to bind
-		vk::Buffer vertexBuffers[] = { mesh.GetVertexBuffer() };
-		// Offsets
-		vk::DeviceSize offsets[] = { 0 };
-
-		cmdBuf.bindVertexBuffers(0, 1, vertexBuffers, offsets);
-		bool hasIndex = mesh.GetIndexCount() > 0;
-		if (hasIndex)
-			cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
-
-
-		//// Bind descriptor sets
-		cmdBuf.bindDescriptorSets(
-			// Point of pipeline and layout
-			vk::PipelineBindPoint::eGraphics,
-			fsq.pipelineLayout,
-			0,
-			1,
-			&descriptors.sets[imageIndex], // 1 to 1 with command buffers
-			0,
-			nullptr
-		);
-
-		// Execute pipeline
-		hasIndex ?
-			cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
-			:
-			cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
-
-		cmdBuf.endRenderPass();
-		cmdBuf.end();
-
-	}
-
-	void PrepareCommandBuffersForward(uint32_t imageIndex)
-	{
-		std::array<vk::ClearValue, 2> clearValues = {};
-		clearValues[0].color = vk::ClearColorValue(clearColor);
-		clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
-
-		vk::RenderPassBeginInfo renderPassInfo;
-		auto& extent = device.swapchain.extent;
-		renderPassInfo.renderPass = device.renderPass;
-		renderPassInfo.renderArea.extent = extent;
-		renderPassInfo.renderArea.offset = vk::Offset2D(0, 0);
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
-
-		// Record command buffers
-		vk::CommandBufferBeginInfo info(
-			{},
-			nullptr
-		);
-
-		// Transition to use as depth buffer
-		device.depthBuffer.image.TransitionLayout(
+		// Transition to read from gBuffer
+		device.depth.image.TransitionLayout(
+			cmdBuf,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ImageAspectFlagBits::eDepth
 		);
 
+
 		vk::ImageSubresourceRange range = vk::ImageSubresourceRange(
 			 vk::ImageAspectFlagBits::eDepth,
 			0, 1, 0, 1
 		);
-		auto imageCopyCmd = device.commandPool.BeginCommandBuffer();
-		imageCopyCmd->clearDepthStencilImage(
-			device.depthBuffer.image.Get(),
+		cmdBuf.clearDepthStencilImage(
+			device.depth.image.Get(),
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ClearDepthStencilValue(1.0f),
 			range
@@ -1199,76 +1360,145 @@ public:
 				{},
 				{ device.swapchain.extent.width, device.swapchain.extent.height, 1 }
 			);
-			imageCopyCmd->copyImage(
+			cmdBuf.copyImage(
 				gBuffer.depth.image.Get(), vk::ImageLayout::eTransferSrcOptimal,
-				device.depthBuffer.image.Get(), vk::ImageLayout::eTransferDstOptimal,
+				device.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
 				imageCopy);
 		}
-		device.commandPool.EndCommandBuffer(imageCopyCmd.get());
 
-		// Transition to use as depth buffer
-		device.depthBuffer.image.TransitionLayout(
+		device.depth.image.TransitionLayout(
+			cmdBuf,
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
 			vk::ImageAspectFlagBits::eDepth
 		);
 
+		gBuffer.depth.image.TransitionLayout(
+			cmdBuf,
+			vk::ImageLayout::eTransferSrcOptimal,
+			vk::ImageLayout::eDepthStencilAttachmentOptimal,
+			vk::ImageAspectFlagBits::eDepth
+		);
+
+		cmdBuf.End();
+	}
+
+	void RecordForward(uint32_t imageIndex)
+	{
 		auto& cmdBuf = device.drawBuffers[imageIndex];
+		cmdBuf.Begin();
 
-		utils::CheckVkResult(cmdBuf.begin(&info), "Failed to begin recording command buffer");
-		renderPassInfo.framebuffer = device.frameBuffers[imageIndex].Get();
+		device.renderPass.Begin(
+			cmdBuf,
+			device.frameBuffers[imageIndex].Get(),
+			device.pipeline
+		);
 
-		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, device.pipeline.Get());
-		for (size_t j = 0; j < forwardObjects.size(); ++j)
-		{
-			const auto& mesh = forwardObjects[j];
-			// Buffers to bind
-			vk::Buffer vertexBuffers[] = { mesh.GetVertexBuffer() };
-			// Offsets
-			vk::DeviceSize offsets[] = { 0 };
-
-			cmdBuf.bindVertexBuffers(0, 1, vertexBuffers, offsets);
-			bool hasIndex = mesh.GetIndexCount() > 0;
-			if (hasIndex)
-				cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
-
-			cmdBuf.pushConstants(
-				device.pipelineLayout.Get(),
-				// Stage
-				vk::ShaderStageFlagBits::eVertex,
-				// Offset
-				0,
-				// Size of data being pushed
-				sizeof(glm::mat4),
-				// Actual data being pushed
-				&mesh.model
-			);
-
-			//// Bind descriptor sets
-			cmdBuf.bindDescriptorSets(
-				// Point of pipeline and layout
-				vk::PipelineBindPoint::eGraphics,
-				device.pipelineLayout.Get(),
-				0,
-				1,
-				&descriptors.sets[imageIndex], // 1 to 1 with command buffers
-				0,
-				nullptr
-			);
-
-			// Execute pipeline
-			hasIndex ?
-				cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
-				:
-				cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
-		}
-
+		device.renderPass.RenderObjects(
+			cmdBuf,
+			descriptors.sets[imageIndex],
+			device.pipelineLayout,
+			forwardObjects.data(),
+			forwardObjects.size()
+		);
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
-
-		device.waitIdle();
 	}
+
+
+	void RecordDepthCopyDebug(uint32_t imageIndex)
+	{
+		auto& cmdBuf = depthCopyCmd2[imageIndex];
+		cmdBuf.Begin();
+
+		device.depth.image.TransitionLayout(
+			cmdBuf,
+			vk::ImageLayout::eDepthStencilAttachmentOptimal,
+			vk::ImageLayout::eTransferSrcOptimal,
+			vk::ImageAspectFlagBits::eDepth
+		);
+
+		debugDraw.depth.image.TransitionLayout(
+			cmdBuf,
+			vk::ImageLayout::eDepthStencilAttachmentOptimal,
+			vk::ImageLayout::eTransferDstOptimal,
+			vk::ImageAspectFlagBits::eDepth
+		);
+
+
+		vk::ImageSubresourceRange range = vk::ImageSubresourceRange(
+			 vk::ImageAspectFlagBits::eDepth,
+			0, 1, 0, 1
+		);
+		cmdBuf.clearDepthStencilImage(
+			debugDraw.depth.image.Get(),
+			vk::ImageLayout::eTransferDstOptimal,
+			vk::ClearDepthStencilValue(1.0f),
+			range
+		);
+
+		if (copyDepth)
+		{
+			vk::ImageSubresourceLayers imageSubresource = vk::ImageSubresourceLayers(
+				vk::ImageAspectFlagBits::eDepth,
+				0, 0, 1
+			);
+
+			vk::ImageCopy imageCopy = vk::ImageCopy(
+				imageSubresource,
+				{},
+				imageSubresource,
+				{},
+				{ device.swapchain.extent.width, device.swapchain.extent.height, 1 }
+			);
+			cmdBuf.copyImage(
+				device.depth.image.Get(), vk::ImageLayout::eTransferSrcOptimal,
+				debugDraw.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
+				imageCopy);
+		}
+
+		debugDraw.depth.image.TransitionLayout(
+			cmdBuf,
+			vk::ImageLayout::eTransferDstOptimal,
+			vk::ImageLayout::eDepthStencilAttachmentOptimal,
+			vk::ImageAspectFlagBits::eDepth
+		);
+
+		device.depth.image.TransitionLayout(
+			cmdBuf,
+			vk::ImageLayout::eTransferSrcOptimal,
+			vk::ImageLayout::eDepthStencilAttachmentOptimal,
+			vk::ImageAspectFlagBits::eDepth
+		);
+		
+		cmdBuf.End();
+	}
+
+
+	void RecordDebug(uint32_t imageIndex)
+	{
+		auto& cmdBuf = debugDraw.drawBuffers[imageIndex];
+		cmdBuf.Begin();
+		debugDraw.mesh.StageDynamic(cmdBuf);
+
+		debugDraw.renderPass.Begin(
+			cmdBuf,
+			debugDraw.frameBuffers[imageIndex].Get(),
+			debugDraw.pipeline
+		);
+
+
+		debugDraw.renderPass.RenderObjects(
+			cmdBuf,
+			descriptors.sets[imageIndex],
+			debugDraw.pipelineLayout,
+			&debugDraw.mesh
+		);
+		cmdBuf.endRenderPass();
+		cmdBuf.end();
+		
+	}
+
 
 
 	void OnSurfaceRecreate()
@@ -1287,9 +1517,12 @@ public:
 			OnSurfaceRecreate();
 
 		UpdateUniformBuffers(dt, device.imageIndex);
-		PrepareCommandBuffersDeferred(device.imageIndex);
-		PrepareCommandBuffersFSQ(device.imageIndex);
-		PrepareCommandBuffersForward(device.imageIndex);
+		RecordDeferred(device.imageIndex);
+		RecordFSQ(device.imageIndex);
+		RecordDepthCopyForward(device.imageIndex);
+		RecordForward(device.imageIndex);
+		RecordDepthCopyDebug(device.imageIndex);
+		RecordDebug(device.imageIndex);
 		overlay.RecordCommandBuffers(device.imageIndex);
 
 		// ----------------------
@@ -1335,17 +1568,58 @@ public:
 		);
 
 		// ----------------------
+		// Depth Copy Forward Pass
+		// ----------------------
+		submitInfo.pWaitSemaphores = &fsq.semaphores[currentFrame];
+		submitInfo.pSignalSemaphores = &depthCopySem1[currentFrame];
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &depthCopyCmd1[device.imageIndex];
+		utils::CheckVkResult(
+			device.graphicsQueue.submit(1, &submitInfo, nullptr), "Failed to submit draw queue"
+		);
+
+		// ----------------------
 		// Forward Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersForward[2] = {
-			device.drawBuffers[device.imageIndex],
+		vk::CommandBuffer commandBuffersForward[1] = {
+			device.drawBuffers[device.imageIndex]
+		};
+
+		submitInfo.pWaitSemaphores = &depthCopySem1[currentFrame];
+		submitInfo.pSignalSemaphores = &device.renderFinished[currentFrame];
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = commandBuffersForward;
+		utils::CheckVkResult(
+			device.graphicsQueue.submit(1,
+										&submitInfo,
+										nullptr),
+			"Failed to submit draw queue"
+		);
+
+		// ----------------------
+		// Depth Copy Debug Pass
+		// ----------------------
+		submitInfo.pWaitSemaphores = &device.renderFinished[currentFrame];
+		submitInfo.pSignalSemaphores = &depthCopySem2[currentFrame];
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &depthCopyCmd2[device.imageIndex];
+		utils::CheckVkResult(
+			device.graphicsQueue.submit(1, &submitInfo, nullptr), "Failed to submit draw queue"
+		);
+
+
+		// ----------------------
+		// Debug Pass
+		// ----------------------
+		vk::CommandBuffer commandBuffersDebug[2] = {
+			debugDraw.drawBuffers[device.imageIndex],
 			overlay.commandBuffers[device.imageIndex]
 		};
 
-		submitInfo.pWaitSemaphores = &fsq.semaphores[currentFrame];
-		submitInfo.pSignalSemaphores = &device.renderFinished[currentFrame];
+		submitInfo.pWaitSemaphores = &depthCopySem2[currentFrame];
+		submitInfo.pSignalSemaphores = &debugDraw.semaphores[currentFrame];
 		submitInfo.commandBufferCount = 2;
-		submitInfo.pCommandBuffers = commandBuffersForward;
+		submitInfo.pCommandBuffers = commandBuffersDebug;
 		utils::CheckVkResult(
 			device.graphicsQueue.submit(1,
 										&submitInfo,
@@ -1354,7 +1628,7 @@ public:
 		);
 
 
-		if (device.SubmitFrame(currentFrame))
+		if (device.SubmitFrame(currentFrame, debugDraw.semaphores[currentFrame]))
 			OnSurfaceRecreate();
 
 		currentFrame = (currentFrame + 1) % MAX_FRAME_DRAWS;
@@ -1445,6 +1719,52 @@ public:
 	}
 
 
+	void UpdateDebugMesh()
+	{
+		std::vector<PosVertex> debugVertices;
+		for (auto& object : forwardObjects)
+		{
+			std::vector<glm::vec3> positions = object.GetVertexBufferData<glm::vec3>(
+				offsetof(Vertex, pos)
+				);
+
+			std::vector<glm::vec3> normals = object.GetVertexBufferData<glm::vec3>(
+				offsetof(Vertex, normal)
+				);
+
+			for (int i = 0; i < object.vertexBuffer.GetVertexCount(); ++i)
+			{
+				auto worldSpacePosition = (glm::vec3)(object.model * glm::vec4(positions[i], 1.0f));
+				debugVertices.emplace_back(worldSpacePosition);
+				debugVertices.emplace_back(worldSpacePosition + normals[i]*debugDraw.debugLineLength);
+			}
+		}
+
+		for (auto& object : objects)
+		{
+			std::vector<glm::vec3> positions = object.GetVertexBufferData<glm::vec3>(
+				offsetof(Vertex, pos)
+				);
+
+			std::vector<glm::vec3> normals = object.GetVertexBufferData<glm::vec3>(
+				offsetof(Vertex, normal)
+				);
+
+			for (int i = 0; i < object.vertexBuffer.GetVertexCount(); ++i)
+			{
+				auto worldSpacePosition = (glm::vec3)(object.model * glm::vec4(positions[i], 1.0f));
+				debugVertices.emplace_back(worldSpacePosition);
+				debugVertices.emplace_back(worldSpacePosition + normals[i]*debugDraw.debugLineLength);
+			}
+		}
+
+
+		debugDraw.mesh.UpdateDynamic(debugVertices);
+		//for (auto& object : forwardObjects)
+		//{
+
+		//}
+	}
 	void Update() override
 	{
 		RenderingContext::Update();
@@ -1471,6 +1791,7 @@ public:
 		ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
 		ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
 		ImGui::Checkbox("Copy Depth", &copyDepth);
+		ImGui::SliderFloat("Debug Line Length", &debugDraw.debugLineLength, 0.01f, 5.0f);
 
 		//for (auto& object : objects)
 		//	object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));
@@ -1491,7 +1812,7 @@ public:
 									 glm::vec3(utils::Random(), utils::Random(), utils::Random())
 			);
 		}
-
+		UpdateDebugMesh();
 	}
 
 

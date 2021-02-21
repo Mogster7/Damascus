@@ -7,6 +7,14 @@
 //------------------------------------------------------------------------------
 #pragma once
 
+struct PosVertex
+{
+    PosVertex(glm::vec3 pos) : pos(pos) {};
+    glm::vec3 pos;
+
+    inline static const uint32_t NUM_ATTRIBS = 1;
+};
+
 
 struct ColorVertex
 {

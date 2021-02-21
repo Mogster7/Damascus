@@ -4,8 +4,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(FRAMEWORK_SRC 
     RenderingContext/RenderingContext.cpp
     Window/Window.cpp
-    "RenderingDefines.hpp"
-    "RenderingStructures.hpp"
+    RenderingDefines.hpp
+    RenderingStructures.hpp
     InternalStructures/Model.cpp
     InternalStructures/Vertex.cpp
     InternalStructures/Mesh.cpp
@@ -28,8 +28,10 @@ set(FRAMEWORK_SRC
     InternalStructures/Texture.cpp
     InternalStructures/Shader.cpp
     InternalStructures/RenderQueue.cpp
+    InternalStructures/CommandBuffer.h
     Camera/Camera.cpp 
-    Overlay/Overlay.cpp)
+    Overlay/Overlay.cpp 
+    )
 
 
 add_library(Framework

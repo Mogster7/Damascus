@@ -66,7 +66,7 @@ void Device::Destroy()
     pipelineLayout.Destroy();
 
     renderPass.Destroy();
-    depthBuffer.Destroy();
+    depth.Destroy();
     swapchain.Destroy();
     vmaDestroyAllocator(allocator);
 
@@ -154,10 +154,10 @@ void Device::CreateRenderPass()
 
     // Depth
     vk::AttachmentDescription depthAttachment = {};
-    depthAttachment.format = depthBuffer.format;
+    depthAttachment.format = depth.format;
     depthAttachment.samples = vk::SampleCountFlagBits::e1;
     depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
-    depthAttachment.storeOp = vk::AttachmentStoreOp::eDontCare;
+    depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
     depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
     depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
     depthAttachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
@@ -204,15 +204,6 @@ void Device::CreateRenderPass()
     dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
     dependency.dependencyFlags = {};
 
-    // Operations to wait on and what stage they occur
-    // Wait on swap chain to finish reading from the image to access it
-    dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    dependency.srcAccessMask = {};
-
-    // Operations that should wait on the above operations to finish are in the color attachment writing stage
-    dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-
     vk::RenderPassCreateInfo createInfo;
     createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     createInfo.pAttachments = attachments.data();
@@ -221,7 +212,11 @@ void Device::CreateRenderPass()
     createInfo.dependencyCount = 1;
     createInfo.pDependencies = &dependency;
 
-    renderPass.Create(createInfo, *this);
+	std::vector<vk::ClearValue> clearValues(2);
+    clearValues[0].color = vk::ClearColorValue(std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f});
+	clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
+
+    renderPass.Create(createInfo, *this, swapchain.extent, clearValues);
 }
 
 void Device::CreateGraphicsPipeline()
@@ -230,14 +225,16 @@ void Device::CreateGraphicsPipeline()
 
 void Device::CreateDepthBuffer(bool recreate)
 {
-	if (recreate) depthBuffer.Destroy();
+	if (recreate) depth.Destroy();
 
     auto& extent = swapchain.extent;
-	depthBuffer.Create(FrameBufferAttachment::GetDepthFormat(), { extent.width, extent.height },
+	depth.Create(FrameBufferAttachment::GetDepthFormat(), { extent.width, extent.height },
 						 vk::ImageUsageFlagBits::eDepthStencilAttachment |
-						 vk::ImageUsageFlagBits::eTransferDst,
+						 vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc,
 						 vk::ImageAspectFlagBits::eDepth,
+						 //vk::ImageLayout::eTransferSrcOptimal,
 						 vk::ImageLayout::eDepthStencilAttachmentOptimal,
+
 						 // No sampler
 						 *this);
 }
@@ -261,11 +258,11 @@ void Device::CreateFramebuffers(bool recreate)
     createInfo.height = extent.height;
     // FB layers
     createInfo.layers = 1;
-    createInfo.renderPass = renderPass;
+    createInfo.renderPass = renderPass.Get();
     createInfo.attachmentCount = 2;
 
 
-    vk::ImageView depthView = depthBuffer.imageView;
+    vk::ImageView depthView = depth.imageView;
     for (size_t i = 0; i < imageViewsSize; ++i)
     {
         std::array<vk::ImageView, 2> attachments = {
@@ -524,13 +521,13 @@ bool Device::PrepareFrame(const uint32_t frameIndex)
 
 
 // Return if surface is out of date
-bool Device::SubmitFrame(const uint32_t frameIndex)
+bool Device::SubmitFrame(const uint32_t frameIndex, vk::Semaphore waitSemaphore)
 {
     vk::PresentInfoKHR presentInfo{};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &swapchain;
     presentInfo.pImageIndices = &imageIndex;
-    presentInfo.pWaitSemaphores = &renderFinished[frameIndex];
+    presentInfo.pWaitSemaphores = &waitSemaphore;
     presentInfo.waitSemaphoreCount = 1;
     vk::Result result = graphicsQueue.presentKHR(presentInfo);
 

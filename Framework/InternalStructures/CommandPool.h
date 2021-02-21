@@ -17,7 +17,7 @@ public:
 	template <class ...T>
 	void FreeCommandBuffers(T&&... args) const
 	{
-		std::vector<std::vector<vk::CommandBuffer>> argVec = { std::move(args)... };
+		std::vector<std::vector<CommandBuffer>> argVec = { std::move(args)... };
 		for (auto& arg : argVec)
 		{
 			m_owner->freeCommandBuffers(Get(),

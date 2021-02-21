@@ -30,6 +30,12 @@ public:
 						  vk::ImageAspectFlags aspectMask,
 						  uint32_t mipLevels = 1);
 
+	void TransitionLayout(vk::CommandBuffer commandBuffer,
+						  vk::ImageLayout oldLayout,
+						  vk::ImageLayout newLayout,
+						  vk::ImageAspectFlags aspectMask,
+						  uint32_t mipLevels = 1);
+
 protected:
 
 	VmaAllocator allocator = {};

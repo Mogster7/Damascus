@@ -15,7 +15,7 @@ public:
     
     // Return whether or not the surface is out of date
     bool PrepareFrame(const uint32_t frameIndex);
-    bool SubmitFrame(const uint32_t frameIndex);
+    bool SubmitFrame(const uint32_t frameIndex, vk::Semaphore wait);
 
     void DrawFrame(const uint32_t frameIndex);
     void Initialization();
@@ -34,7 +34,7 @@ public:
     GraphicsPipeline pipeline = {};
 
     std::vector<FrameBuffer> frameBuffers = {};
-    std::vector<vk::CommandBuffer> drawBuffers;
+    std::vector<CommandBuffer> drawBuffers = {};
 
     CommandPool commandPool = {};
 
@@ -43,7 +43,7 @@ public:
     std::vector<Fence> drawFences = {};
 
 
-    FrameBufferAttachment depthBuffer;
+    FrameBufferAttachment depth;
 
     //size_t modelUniformAlignment;
     //vk::DeviceSize minUniformBufferOffset;
