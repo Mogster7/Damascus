@@ -9,8 +9,8 @@
 
 struct PosVertex
 {
-    PosVertex(glm::vec3 pos) : pos(pos) {};
-    glm::vec3 pos;
+    PosVertex(glm::vec3 pos = glm::vec3(1.0f)) : pos(pos) {};
+    glm::vec3 pos = {};
 
     inline static const uint32_t NUM_ATTRIBS = 1;
 };
@@ -34,10 +34,10 @@ struct TexVertex
 
 struct Vertex
 {
-    glm::vec3 pos;
-    glm::vec3 normal;
-    glm::vec3 color;
-    glm::vec2 texPos;
+    glm::vec3 pos = {};
+    glm::vec3 normal = {};
+    glm::vec3 color = glm::vec3(1.0f);
+    glm::vec2 texPos = {};
 
     bool operator==(const Vertex& other) const {
         return pos == other.pos && color == other.color && texPos == other.texPos;

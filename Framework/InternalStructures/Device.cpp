@@ -204,6 +204,15 @@ void Device::CreateRenderPass()
     dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
     dependency.dependencyFlags = {};
 
+	// Operations to wait on and what stage they occur
+// Wait on swap chain to finish reading from the image to access it
+	dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+	dependency.srcAccessMask = {};
+
+	// Operations that should wait on the above operations to finish are in the color attachment writing stage
+	dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+	dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
     vk::RenderPassCreateInfo createInfo;
     createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     createInfo.pAttachments = attachments.data();

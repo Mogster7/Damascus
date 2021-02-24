@@ -1,11 +1,13 @@
-#include "RenderingContext.h"
 #include "Window.h"
+#include "RenderingContext.h"
 #include "glfw3.h"
 #include "imgui_impl_glfw.h"
 #include "Camera/Camera.h"
 #include "glm/glm.hpp"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
+#include "Object/Object.h"
+#include "Overlay/Blocks/ObjectEditorBlock.h"
 
 constexpr glm::uvec2 FB_SIZE = { 1600, 900 }; 
 
@@ -20,61 +22,47 @@ public:
 
 	};
 
-	const std::vector<ColorVertex> meshVerts2 = {
-		{ { -0.25, 0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },	// 0
-		{ { -0.25, -0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },	    // 1
-		{ { 0.25, -0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },    // 2
-		{ { 0.25, 0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },   // 3
-
-	};
-
-	const std::vector<uint32_t> squareIndices = {
-		0, 1, 2,
-		2, 3, 0
-	};
-
-
-	const std::vector<Vertex> cubeVerts = {
-		{ { -1.0, -1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
-		{ { 1.0f, -1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } , { 0.0f, 0.0f, 1.0f }},
-                                                
-		{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 1.0f } , { 0.0f, 1.0f, 1.0f } },
-		{ { -1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
-                                                
-		{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f  }, { 0.0f, 0.0f, 0.0f}},
-		{ { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f  }},
-                                                
-		{ { 1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, 0.0f } , { 1.0f, 1.0f, 0.0f }},
-		{ { -1.0f, 1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f  }},
-	};
-
-
-	const std::vector<uint32_t> cubeIndices =
-	{
-		// front
-		0, 1, 2,
-		2, 3, 0,
-		// right
-		1, 5, 6,
-		6, 2, 1,
-		// back
-		7, 6, 5,
-		5, 4, 7,
-		// left
-		4, 0, 3,
-		3, 7, 4,
-		// bottom
-		4, 5, 1,
-		1, 0, 4,
-		// top
-		3, 2, 6,
-		6, 7, 3
-	};
-
 	const std::vector<uint32_t> meshIndices = {
 		0, 1, 2,
 		2, 3, 0
 	};
+		std::vector<Vertex> cubeVerts = {
+		{ { -1.0, -1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
+		{ { 1.0f, -1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } , { 0.0f, 0.0f, 1.0f }},
+
+		{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 1.0f } , { 0.0f, 1.0f, 1.0f } },
+		{ { -1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
+
+		{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f  }, { 0.0f, 0.0f, 0.0f}},
+		{ { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f  }},
+
+		{ { 1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, 0.0f } , { 1.0f, 1.0f, 0.0f }},
+		{ { -1.0f, 1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f  }},
+		};
+
+
+		const std::vector<uint32_t> cubeIndices =
+		{
+			// front
+			0, 1, 2,
+			2, 3, 0,
+			// right
+			1, 5, 6,
+			6, 2, 1,
+			// back
+			7, 6, 5,
+			5, 4, 7,
+			// left
+			4, 0, 3,
+			3, 7, 4,
+			// bottom
+			4, 5, 1,
+			1, 0, 4,
+			// top
+			3, 2, 6,
+			6, 7, 3
+		};
+
 
 	Texture testTex;
 
@@ -114,8 +102,7 @@ public:
 	// One sampler for the frame buffer color attachments
 	vk::Sampler colorSampler;
 
-    std::vector<Mesh<Vertex>> objects;
-    std::vector<Mesh<Vertex>> forwardObjects;
+    std::vector<Object> objects;
 
     // Descriptors
 	Descriptors descriptors;
@@ -125,7 +112,6 @@ public:
     std::vector<Buffer> uniformBufferComposition;
 
 	// Deferred Data
-
 	struct GBuffer
 	{
 		uint32_t width, height;
@@ -133,6 +119,8 @@ public:
 		FrameBufferAttachment depth;
 		RenderPass renderPass;
 		GraphicsPipeline pipeline;
+		GraphicsPipeline wireframePipeline;
+		bool wireframeEnabled;
 		PipelineLayout pipelineLayout;
 
 		std::vector<FrameBuffer> frameBuffers;
@@ -172,6 +160,8 @@ public:
 		Mesh<PosVertex> mesh;
 		float debugLineLength = 1.0f;
 		float debugLineWidth = 1.0f;
+
+		bool render = false;
 	} debugDraw;
 
 	std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -194,8 +184,6 @@ public:
 		glfwSetCursorPosCallback(win, cursorPosCallback);
 		glfwSetKeyCallback(win, keyCallback);
 	}
-
-
 
 	void Initialize(std::weak_ptr<Window> winHandle, bool enableOverlay) override
 	{
@@ -221,33 +209,41 @@ public:
 		debugDraw.mesh.CreateDynamic(dummy, device);
 		
     
-		for (int i = 0; i < 20; ++i)
-		{
-			forwardObjects.emplace_back().CreateStatic(cubeVerts, cubeIndices, device);
-			auto& obj = forwardObjects.back();
+		//for (int i = 0; i < 20; ++i)
+		//{
+		//	objects.push_back({ });
+		//	auto& obj = objects.back();
+		//	obj.mesh.Create(Mesh<Vertex>::UnitCube);
 
-			obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
-			obj.model = glm::rotate(obj.model, utils::Random() * 2.0f * glm::pi<float>(),
-									glm::vec3(utils::Random(), utils::Random(), utils::Random()));
-			obj.model = glm::translate(obj.model, glm::vec3(
-				utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
-		}
-		 //objects.emplace_back().Create(device, meshVerts, squareIndices);
-		 fsq.mesh.CreateStatic(meshVerts, meshIndices, device);
+		//	//obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
+		//	//obj.model = glm::rotate(obj.model, utils::Random() * 2.0f * glm::pi<float>(),
+		//	//						glm::vec3(utils::Random(), utils::Random(), utils::Random()));
+		//	//obj.model = glm::translate(obj.model, glm::vec3(
+		//	//	utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
+		//	obj.SetScale(glm::vec3(utils::Random() * 3.0f));
+		//	//obj.SetRotation(glm::vec3(utils::Random(), utils::Random(), utils::Random()));
+		//	obj.SetPosition(glm::vec3(utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
+		//}
+		fsq.mesh.CreateStatic(meshVerts, meshIndices, device);
 
 
 
 		InitializeAttachments();
-		InitializeAssets();
-		static glm::vec3 ppScale = { .0001f, .0001f, .0001f };
-		for (auto& object : objects)
-			object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));
-		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", false, device);
-		objects.back().SetModel(glm::scale(objects.back().model, glm::vec3(5.0f, 5.0f, 5.0f)));
+		//InitializeAssets();
+		//static glm::vec3 ppScale = { .0001f, .0001f, .0001f };
+		//for(auto& object : objects)
+		//	object.SetScale(ppScale);
+
+		Mesh<Vertex> vikingRoom;
+		vikingRoom.CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", false, device);
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
+		objects.back().SetScale(glm::vec3(5.0f));
 		InitializeUniformBuffers();
 		InitializeDescriptorSets();
 		InitializePipelines();
 		InitializeDebugMesh();
+		InitializeOverlay();
 	}
 
 	void Destroy() override
@@ -291,9 +287,16 @@ public:
 		utils::VectorDestroyer(uniformBufferViewProjection);
 		utils::VectorDestroyer(uniformBufferComposition);
 		utils::VectorDestroyer(objects);
-		utils::VectorDestroyer(forwardObjects);
+		//utils::VectorDestroyer(forwardObjects);
 		
 		RenderingContext::Destroy();
+	}
+
+	void InitializeOverlay()
+	{
+		auto objectWindow = new EditorWindow("Scene Objects");
+		objectWindow->AddBlock(new ObjectEditorBlock(objects));
+		overlay.PushEditorWindow(objectWindow);
 	}
 
 	
@@ -499,11 +502,11 @@ public:
 				vk::AttachmentDescription colorAttachment;
 				colorAttachment.format = device.swapchain.imageFormat;
 				colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
-				colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;				// Describes what to do with attachment before rendering
+				colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;				// Describes what to do with attachment before rendering
 				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
 				colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	// Describes what to do with stencil before rendering
 				colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	// Describes what to do with stencil after rendering
-				colorAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+				colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
 				colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
 				//fsq.depth.Create(FrameBufferAttachment::GetDepthFormat(), { gBuffer.width, gBuffer.height },
@@ -769,7 +772,7 @@ public:
 	{
 		std::vector<std::vector<Mesh<Vertex>::MeshData>> meshData(20);
 
-		auto loadSection = [&meshData](const std::string& sectionPath, std::vector<Mesh<Vertex>>& objects,
+		auto loadSection = [&meshData](const std::string& sectionPath,
 									   Device& device, int threadID)
 		{
 			std::ifstream sectionFile;
@@ -790,8 +793,7 @@ public:
 		for (int i = 1; i < 21; ++i)
 		{
 			loadGroup.emplace_back(loadSection,
-								   std::string(ASSET_DIR) + "Models/Section" + std::to_string(i) + ".txt",
-								   objects, device, i - 1);
+								   std::string(ASSET_DIR) + "Models/Section" + std::to_string(i) + ".txt", device, i - 1);
 		}
 
 		for (auto& loader : loadGroup)
@@ -804,7 +806,7 @@ public:
 			for (auto& data : vector)
 			{
 				objects.emplace_back();
-				objects.back().CreateStatic(data.vertices, data.indices, device);
+				objects.back().mesh.CreateStatic(data.vertices, data.indices, device);
 			}
 		}
 	}
@@ -1036,8 +1038,17 @@ public:
 		pipelineInfo.subpass = 0;										// Subpass of render pass to use with pipeline
 
 		GraphicsPipeline::Create(gBuffer.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+
+		// ----------------------
+		// Deferred wireframe
+		// ----------------------
+		inputAssembly.setTopology(vk::PrimitiveTopology::eLineStrip);
+		GraphicsPipeline::Create(gBuffer.wireframePipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+
+		inputAssembly.setTopology(vk::PrimitiveTopology::eTriangleStrip);
 		vertModule.Destroy();
 		fragModule.Destroy();
+
 
 		// ----------------------
 		// FSQ PIPELINE
@@ -1238,7 +1249,7 @@ public:
 		gBuffer.renderPass.Begin(
 			cmdBuf,
 			gBuffer.frameBuffers[imageIndex].Get(),
-			gBuffer.pipeline.Get()
+			(gBuffer.wireframeEnabled) ? gBuffer.wireframePipeline.Get() : gBuffer.pipeline.Get()
 		);
 		gBuffer.renderPass.RenderObjects(
 			cmdBuf,
@@ -1357,13 +1368,13 @@ public:
 			device.pipeline
 		);
 
-		device.renderPass.RenderObjects(
-			cmdBuf,
-			descriptors.sets[imageIndex],
-			device.pipelineLayout,
-			forwardObjects.data(),
-			forwardObjects.size()
-		);
+		//device.renderPass.RenderObjects(
+		//	cmdBuf,
+		//	descriptors.sets[imageIndex],
+		//	device.pipelineLayout,
+		//	forwardObjects.data(),
+		//	forwardObjects.size()
+		//);
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
 	}
@@ -1442,7 +1453,9 @@ public:
 	{
 		auto& cmdBuf = debugDraw.drawBuffers[imageIndex];
 		cmdBuf.Begin();
-		debugDraw.mesh.StageDynamic(cmdBuf);
+
+		if (debugDraw.render)
+			debugDraw.mesh.StageDynamic(cmdBuf);
 
 		debugDraw.renderPass.Begin(
 			cmdBuf,
@@ -1451,12 +1464,15 @@ public:
 		);
 
 
-		debugDraw.renderPass.RenderObjects(
-			cmdBuf,
-			descriptors.sets[imageIndex],
-			debugDraw.pipelineLayout,
-			&debugDraw.mesh
-		);
+		if (debugDraw.render == true)
+		{
+			debugDraw.renderPass.RenderObjects(
+				cmdBuf,
+				descriptors.sets[imageIndex],
+				debugDraw.pipelineLayout,
+				&debugDraw.mesh
+			);
+		}
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
 		
@@ -1479,7 +1495,10 @@ public:
 		if (device.PrepareFrame(currentFrame))
 			OnSurfaceRecreate();
 
+		for (auto& object : objects)
+			object.UpdateModel();
 		UpdateUniformBuffers(dt, device.imageIndex);
+
 		RecordDeferred(device.imageIndex);
 		RecordFSQ(device.imageIndex);
 		RecordDepthCopyForward(device.imageIndex);
@@ -1659,6 +1678,8 @@ public:
 
 		uniformBufferViewProjection[imageIndex].MapToBuffer(&uboViewProjection);
 		uniformBufferComposition[imageIndex].MapToBuffer(&uboComposition);
+
+		uboViewProjection.view = camera.matrices.view;
 	}
 
 
@@ -1689,18 +1710,18 @@ public:
 		size_t vertexCount = 0;
 		for (auto& object : objects)
 		{
-			vertexCount += object.GetVertexCount();
+			vertexCount += object.mesh.GetVertexCount();
 		}
 
 		debugVertices.resize(vertexCount * 2);
 		size_t vertIndex = 0;
 		for (auto& object : objects)
 		{
-			auto vertices = object.GetVertexBufferData();
+			auto vertices = object.mesh.GetVertexBufferData();
 
-			for (int i = 0; i < object.vertexBuffer.GetVertexCount(); ++i, vertIndex += 2)
+			for (int i = 0; i < object.mesh.vertexBuffer.GetVertexCount(); ++i, vertIndex += 2)
 			{
-				auto worldSpacePosition = (glm::vec3)(object.model * glm::vec4(vertices[i].pos, 0.0f));
+				auto worldSpacePosition = (glm::vec3)(object.GetModel() * glm::vec4(vertices[i].pos, 1.0f));
 				debugVertices[vertIndex] = worldSpacePosition;
 				debugVertices[vertIndex+1] = worldSpacePosition + vertices[i].normal*debugDraw.debugLineLength;
 			}
@@ -1711,30 +1732,28 @@ public:
 	void Update() override
 	{
 		RenderingContext::Update();
-		// TODO: MOVE THIS OUT
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
+		overlay.Begin();
+		overlay.Update(dt);
 
 		static float speed = 90.0f;
 		UpdateInput(dt);
 
-		// const auto& model = objects[0].model;
-		// objects[0].SetModel(glm::rotate(model, glm::radians(speed * dt), { 0.0f, 0.0f,1.0f }));
 
 		camera.Update(dt, !cursorActive);
-		// const auto& model2 = objects[1].model;
-		// objects[1].SetModel(glm::rotate(model2, glm::radians(speed2 * dt), { 0.0f, 1.0f,1.0f }));
 
 
 		ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
 		//ImGui::InputFloat3("Camera Position", &camera.position[0]);
 		//ImGui::InputFloat("Pitch", &camera.pitch);
 		//ImGui::InputFloat("Yaw", &camera.yaw);
-		ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
+		//ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
 		ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
-		ImGui::Checkbox("Copy Depth", &copyDepth);
-		ImGui::SliderFloat("Debug Line Length", &debugDraw.debugLineLength, 0.01f, 5.0f);
+		//ImGui::Checkbox("Copy Depth", &copyDepth);
+		ImGui::Checkbox("Wireframe Toggle", &gBuffer.wireframeEnabled);
+
+		ImGui::Checkbox("Visualize Normals", &debugDraw.render);
+		if (debugDraw.render)
+			ImGui::SliderFloat("Debug Line Length", &debugDraw.debugLineLength, 0.01f, 5.0f);
 
 		ImGui::Text("Debug Target: ");
 		for (int i = 0; i < 3; ++i)
@@ -1743,15 +1762,15 @@ public:
 			if (i != 4) ImGui::SameLine();
 		}
 
-		uboViewProjection.view = camera.matrices.view;
-		for (size_t j = 0; j < forwardObjects.size(); ++j)
-		{
-			auto& mesh = forwardObjects[j];
-			mesh.model = glm::rotate(mesh.model,
-									 glm::radians(speed * dt * utils::Random(1.0f, 5.0f)),
-									 glm::vec3(utils::Random(), utils::Random(), utils::Random())
-			);
-		}
+
+		//for (size_t j = 0; j < forwardObjects.size(); ++j)
+		//{
+		//	auto& mesh = forwardObjects[j];
+		//	mesh.model = glm::rotate(mesh.model,
+		//							 glm::radians(speed * dt * utils::Random(1.0f, 5.0f)),
+		//							 glm::vec3(utils::Random(), utils::Random(), utils::Random())
+		//	);
+		//}
 	}
 
 

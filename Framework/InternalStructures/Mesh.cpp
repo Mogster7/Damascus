@@ -5,3 +5,5 @@
 // Date:		6/8/2020
 //
 //------------------------------------------------------------------------------
+Mesh<Vertex> Mesh<Vertex>::UnitSphere;
+Mesh<Vertex> Mesh<Vertex>::UnitCube;

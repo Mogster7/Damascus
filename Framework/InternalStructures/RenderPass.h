@@ -32,6 +32,32 @@ public:
 		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 	}
 
+
+	void RenderObjects(vk::CommandBuffer cmdBuf,
+					   vk::DescriptorSet descriptorSet,
+					   vk::PipelineLayout pipelineLayout,
+					   Object* objects,
+					   uint32_t numObjects = 1)
+	{
+		//// Bind descriptor sets
+		cmdBuf.bindDescriptorSets(
+			// Point of pipeline and layout
+			vk::PipelineBindPoint::eGraphics,
+			pipelineLayout,
+			0,
+			1,
+			&descriptorSet, // 1 to 1 with command buffers
+			0,
+			nullptr
+		);
+
+		for (size_t j = 0; j < numObjects; ++j)
+		{
+			auto& mesh = objects[j];
+			mesh.Draw(cmdBuf, pipelineLayout);
+		}
+	}	
+	
 	template <class VertexType>
 	void RenderObjects(vk::CommandBuffer cmdBuf,
 					   vk::DescriptorSet descriptorSet,
@@ -39,50 +65,26 @@ public:
 					   Mesh<VertexType>* objects,
 					   uint32_t numObjects = 1)
 	{
+		//// Bind descriptor sets
+		cmdBuf.bindDescriptorSets(
+			// Point of pipeline and layout
+			vk::PipelineBindPoint::eGraphics,
+			pipelineLayout,
+			0,
+			1,
+			&descriptorSet, // 1 to 1 with command buffers
+			0,
+			nullptr
+		);
+
+
 		for (size_t j = 0; j < numObjects; ++j)
 		{
 			auto& mesh = objects[j];
-			// Buffers to bind
-			vk::Buffer vertexBuffers[] = { mesh.GetVertexBuffer() };
-			// Offsets
-			vk::DeviceSize offsets[] = { 0 };
-
-			cmdBuf.bindVertexBuffers(0, 1, vertexBuffers, offsets);
-			bool hasIndex = mesh.GetIndexCount() > 0;
-			if (hasIndex)
-				cmdBuf.bindIndexBuffer(mesh.GetIndexBuffer(), 0, vk::IndexType::eUint32);
-
-			cmdBuf.pushConstants(
-				pipelineLayout,
-				// Stage
-				vk::ShaderStageFlagBits::eVertex,
-				// Offset
-				0,
-				// Size of data being pushed
-				sizeof(glm::mat4),
-				// Actual data being pushed
-				&objects[j].model
-			);
-
-			//// Bind descriptor sets
-			cmdBuf.bindDescriptorSets(
-				// Point of pipeline and layout
-				vk::PipelineBindPoint::eGraphics,
-				pipelineLayout,
-				0,
-				1,
-				&descriptorSet, // 1 to 1 with command buffers
-				0,
-				nullptr
-			);
-
-			// Execute pipeline
-			hasIndex ?
-				cmdBuf.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0)
-				:
-				cmdBuf.draw(mesh.GetVertexCount(), 1, 0, 0);
+			mesh.Draw(cmdBuf, glm::mat4(1.0f), pipelineLayout);
 		}
 	}
+
 	
 	void End(vk::CommandBuffer cmdBuf)
 	{

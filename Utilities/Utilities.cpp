@@ -37,11 +37,6 @@ namespace utils
         return buffer;
     }
 
-    void CheckVkResult(vk::Result result, const std::string& error)
-    {
-        ASSERT(result == vk::Result::eSuccess, error.c_str());
-    }
-
     void AssertVkBase(VkResult result)
     {
         assert(result == VK_SUCCESS);

@@ -17,6 +17,7 @@
 #include "InternalStructures/Swapchain.h"
 #include "InternalStructures/ShaderModule.h"
 #include "InternalStructures/Shader.h"
+#include "Object/Object.h"
 #include "InternalStructures/RenderPass.h"
 #include "InternalStructures/Pipeline.h"
 #include "InternalStructures/Framebuffer.h"

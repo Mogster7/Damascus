@@ -22,17 +22,137 @@ template <class VertexType>
 class Mesh
 {
 public:
+	static Mesh<Vertex> UnitSphere;
+	static Mesh<Vertex> UnitCube;
+	Mesh() = default;
+	~Mesh() = default;
+
+	static void InitializeStatics(Device& owner)
+	{
+		std::vector<Vertex> vertices;
+
+		int i;
+#define Band_Power  8  // 2^Band_Power = Total Points in a band.
+#define Band_Points 256 // 16 = 2^Band_Power
+#define Band_Mask (Band_Points-2)
+#define Sections_In_Band ((Band_Points/2)-1)
+#define Total_Points (Sections_In_Band*Band_Points) 
+		// remember - for each section in a band, we have a band
+#define Section_Arc (6.28/Sections_In_Band)
+		const float R = -1.0; // radius of 10
+
+		float x_angle;
+		float y_angle;
+
+		for (i = 0; i < Total_Points; i++)
+		{
+			// using last bit to alternate,+band number (which band)
+			x_angle = (float)(i & 1) + (i >> Band_Power);
+
+			// (i&Band_Mask)>>1 == Local Y value in the band
+			// (i>>Band_Power)*((Band_Points/2)-1) == how many bands
+			//  have we processed?
+			// Remember - we go "right" one value for every 2 points.
+			//  i>>bandpower - tells us our band number
+			y_angle = (float)((i & Band_Mask) >> 1) + ((i >> Band_Power) * (Sections_In_Band));
+
+			x_angle *= (float)Section_Arc / 2.0f; // remember - 180° x rot not 360
+			y_angle *= (float)Section_Arc * -1;
+
+
+			Vertex vertex;
+			vertex.pos = {
+					R * sin(x_angle) * sin(y_angle),
+				   R * cos(x_angle),
+				   R * sin(x_angle) * cos(y_angle)
+			};
+			vertices.emplace_back(vertex);
+		}
+		UnitSphere.CreateStatic(vertices, owner);
+
+
+		std::vector<Vertex> cubeVerts = {
+		{ { -1.0, -1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
+		{ { 1.0f, -1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } , { 0.0f, 0.0f, 1.0f }},
+
+		{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 1.0f } , { 0.0f, 1.0f, 1.0f } },
+		{ { -1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
+
+		{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f  }, { 0.0f, 0.0f, 0.0f}},
+		{ { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f  }},
+
+		{ { 1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, 0.0f } , { 1.0f, 1.0f, 0.0f }},
+		{ { -1.0f, 1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f  }},
+		};
+
+
+		const std::vector<uint32_t> cubeIndices =
+		{
+			// front
+			0, 1, 2,
+			2, 3, 0,
+			// right
+			1, 5, 6,
+			6, 2, 1,
+			// back
+			7, 6, 5,
+			5, 4, 7,
+			// left
+			4, 0, 3,
+			3, 7, 4,
+			// bottom
+			4, 5, 1,
+			1, 0, 4,
+			// top
+			3, 2, 6,
+			6, 7, 3
+		};
+
+		for (auto& vert : cubeVerts)
+			vert.normal = glm::normalize(vert.pos);
+
+		UnitCube.CreateStatic(cubeVerts, cubeIndices, owner);
+	}
+
 	struct MeshData
     {
 		std::vector<VertexType> vertices;
 		std::vector<uint32_t> indices;
     };
 
+	void Create(Mesh<VertexType>& other)
+	{
+		Mesh<VertexType> mesh;
+		uint32_t indexCount = other.GetIndexCount();
+
+		if (other.dynamic)
+		{
+			if (indexCount > 0)
+				CreateDynamic(other.GetVertexBufferData<VertexType>(0),
+							  other.GetIndexBufferData(), *other.m_owner);
+			else
+				CreateDynamic(other.GetVertexBufferData<VertexType>(0),
+							  *other.m_owner);
+		}
+		else
+		{
+			if (indexCount > 0)
+				CreateStatic(other.GetVertexBufferData<VertexType>(0),
+							 other.GetIndexBufferData(), *other.m_owner);
+			else
+				CreateStatic(other.GetVertexBufferData<VertexType>(0),
+							  *other.m_owner);
+		}
+
+	}
+
+
     void CreateStatic(
 		const std::vector<VertexType>& vertices, 
         const std::vector<uint32_t>& indices,
 		Device& device)
     {
+		m_owner = &device;
 		vertexBuffer.CreateStatic(vertices, device);
 		indexBuffer.CreateStatic(indices, device);
 	}
@@ -41,6 +161,7 @@ public:
 		const std::vector<VertexType>& vertices, 
 		Device& device)
     {
+		m_owner = &device;
 		vertexBuffer.CreateStatic(vertices, device);
 	}
 
@@ -50,6 +171,7 @@ public:
         std::vector<uint32_t>& indices,
 		Device& device)
     {
+		m_owner = &device;
 		vertexBuffer.CreateDynamic(vertices, device);
 		indexBuffer.CreateDynamic(indices, device);
 		dynamic = true;
@@ -59,6 +181,7 @@ public:
 		std::vector<VertexType>& vertices,
 		Device& device)
     {
+		m_owner = &device;
 		vertexBuffer.CreateDynamic(vertices, device);
 		dynamic = true;
 	}
@@ -79,18 +202,39 @@ public:
 
 
 	template <class T> 
-	std::vector<T> GetVertexBufferData(uint32_t offset)
+	std::vector<T> GetVertexBufferData(uint32_t offset) const
 	{
 		std::vector<T> data;
-		auto* buffer = reinterpret_cast<char*>(vertexBuffer.GetMappedData());
+		const auto* buffer = reinterpret_cast<const char*>(vertexBuffer.GetMappedData());
 		for (int i = 0; i < vertexBuffer.GetVertexCount(); ++i)
 		{
 			data.emplace_back(
-				*reinterpret_cast<T*>(buffer + offset + sizeof(VertexType) * i)
+				*reinterpret_cast<const T*>(buffer + offset + sizeof(VertexType) * i)
 			);
 		}
 
-		return data;
+		return std::move(data);
+	}
+
+	std::vector<uint32_t> GetIndexBufferData() const
+	{
+		std::vector<uint32_t> data;
+		const auto* buffer = reinterpret_cast<const char*>(indexBuffer.GetMappedData());
+		for (int i = 0; i < indexBuffer.GetIndexCount(); ++i)
+		{
+			data.emplace_back(
+				*reinterpret_cast<const uint32_t*>(buffer + sizeof(uint32_t) * i)
+			);
+		}
+
+		return std::move(data);
+	}
+
+
+
+	VertexType* GetVertexBufferData()
+	{
+		return reinterpret_cast<VertexType*>(vertexBuffer.GetMappedData());
 	}
 
 	void StageDynamic(vk::CommandBuffer commandBuffer)
@@ -110,9 +254,38 @@ public:
         ASSERT(false, "There is no template specialization for this model creation.");
 		
     }
-	
+
+	void Draw(vk::CommandBuffer commandBuffer, const glm::mat4& model, vk::PipelineLayout layout) const
+	{
+		vk::DeviceSize offset = 0;
+		commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer.Get(), &offset);
+		bool hasIndex = GetIndexCount() > 0;
+		if (hasIndex)
+			commandBuffer.bindIndexBuffer(GetIndexBuffer(), 0, vk::IndexType::eUint32);
+
+		commandBuffer.pushConstants(
+			layout,
+			// Stage
+			vk::ShaderStageFlagBits::eVertex,
+			// Offset
+			0,
+			// Size of data being pushed
+			sizeof(glm::mat4),
+			// Actual data being pushed
+			&model
+		);
+
+		// Execute pipeline
+		hasIndex ?
+			commandBuffer.drawIndexed(GetIndexCount(), 1, 0, 0, 0)
+			:
+			commandBuffer.draw(GetVertexCount(), 1, 0, 0);
+	}
+
     void Destroy()
     {
+		if (m_owner == nullptr) return;
+
 		if (indexBuffer.GetIndexCount() > 0)
 				indexBuffer.Destroy();
 
@@ -131,9 +304,11 @@ public:
 	
 
 	bool dynamic = false;
-    glm::mat4 model = glm::mat4(1.0f);
     VertexBuffer<VertexType> vertexBuffer = {};
     IndexBuffer indexBuffer = {};
+
+	private:
+		Device* m_owner = nullptr;
 };
 
 template<>

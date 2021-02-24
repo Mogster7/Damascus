@@ -1,5 +1,5 @@
 #include "Window.h"
-#include "Demos/deferred.h"
+#include "RenderingContext.h"
 #include <sstream>
 #include "glfw3.h"
 

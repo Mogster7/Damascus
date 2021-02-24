@@ -13,7 +13,10 @@ namespace utils
 {
     float Random(float min = 0.0f, float max = 1.0f);
     std::vector<char> ReadFile(const std::string& filename);
-    void CheckVkResult(vk::Result result, const std::string& error);
+    inline void CheckVkResult(vk::Result result, const std::string& error)
+    {
+        ASSERT(result == vk::Result::eSuccess, error.c_str());
+    }
     void AssertVkBase(VkResult result);
 
     template <class T>

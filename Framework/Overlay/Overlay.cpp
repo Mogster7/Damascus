@@ -1,6 +1,9 @@
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
 #include "Window.h"
+#include "Overlay.h"
+#include "Overlay/EditorBlock.h"
+#include "Overlay/Blocks/StatsEditorBlock.h"
 
 void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalDevice& physicalDevice, Device& device)
 {
@@ -136,7 +139,10 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 		}
 	}
 
-
+	auto stats = new StatsEditorBlock();
+	auto editorWindow = new EditorWindow("Stats");
+	editorWindow->AddBlock(stats);
+	PushEditorWindow(editorWindow);
 }
 
 void Overlay::Destroy()
@@ -151,6 +157,16 @@ void Overlay::Destroy()
 	descriptorPool.Destroy();
 	ImGui_ImplVulkan_Shutdown();
 	ImGui::DestroyContext();
+	
+	for (auto& window : m_editorWindows)
+		delete window;
+}
+
+void Overlay::Begin()
+{
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
 }
 
 void Overlay::RecordCommandBuffers(uint32_t imageIndex)

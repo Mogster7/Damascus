@@ -1,4 +1,5 @@
 #version 450
+#pragma shader_stage(fragment)
 #extension GL_ARB_separate_shader_objects : enable
 
 struct Light
@@ -54,10 +55,10 @@ void main() {
 	// // Render-target composition
 
 	#define lightCount 6
-	#define ambient 0.0
+	#define ambient 0.4
 	
 	// Ambient part
-	vec3 fragcolor  = vec3(ambient);
+	vec3 fragcolor  = vec3(ambient) * albedo.rgb;
 	
 	for(int i = 0; i < lightCount; ++i)
 	{

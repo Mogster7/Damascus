@@ -11,6 +11,7 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <stack>
 #include <string>
 #include <string_view>
 

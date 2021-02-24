@@ -209,19 +209,12 @@ public:
 		updated = false;
 		if (type == CameraType::FirstPerson)
 		{
-			// glm::vec3 camFront;
-			// camFront.x = -cos(glm::radians(rotation.x)) * sin(glm::radians(rotation.y));
-			// camFront.y = sin(glm::radians(rotation.x));
-			// camFront.z = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
-			// camFront = glm::normalize(camFront);
 			float moveSpeed = deltaTime * movementSpeed;
 			float rotSpeed = deltaTime * rotationSpeed;
 
-			// pitch = glm::lerp<float>(pitch, pitch + cursorChange.y * rotSpeed, 0.95f);
-			// yaw = glm::lerp<float>(yaw, yaw + cursorChange.x * rotSpeed, 0.95f);
 			if (processCursorChange)
 			{
-				pitch += cursorChange.y * rotSpeed;
+				pitch = std::max(std::min(pitch + cursorChange.y * rotSpeed, 90.0f), -90.0f);
 				yaw += cursorChange.x * rotSpeed;
 			}
 			cursorChange = { 0.0f, 0.0f };

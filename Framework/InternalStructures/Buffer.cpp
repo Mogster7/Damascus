@@ -15,6 +15,7 @@ void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo,
     m_owner = &owner;
     this->allocator = m_owner->allocator;
     size = bufferCreateInfo.size;
+    assert(size != 0);
 
     utils::CheckVkResult((vk::Result)vmaCreateBuffer(owner.allocator, (VkBufferCreateInfo*)&bufferCreateInfo, &allocCreateInfo,
         (VkBuffer*)&m_object, &allocation, &allocationInfo), 
@@ -88,6 +89,14 @@ void Buffer::MapToStagingBuffer(void* data) const
 }
 
 void* Buffer::GetMappedData()
+{
+    assert(persistentMapped);
+
+    return stagingBuffer->allocationInfo.pMappedData;
+}
+
+
+const void* Buffer::GetMappedData() const
 {
     assert(persistentMapped);
 

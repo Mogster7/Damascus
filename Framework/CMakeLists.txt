@@ -31,7 +31,12 @@ set(FRAMEWORK_SRC
     InternalStructures/CommandBuffer.h
     Camera/Camera.cpp 
     Overlay/Overlay.cpp 
-    )
+    Object/Object.cpp 
+    Overlay/EditorWindow.cpp 
+    Overlay/EditorBlock.cpp 
+    Overlay/Blocks/StatsEditorBlock.cpp 
+    Overlay/Blocks/ObjectEditorBlock.cpp
+    Collider/Collider.cpp)
 
 
 add_library(Framework

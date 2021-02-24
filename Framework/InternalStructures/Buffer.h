@@ -30,6 +30,7 @@ public:
     void MapToBuffer(void* data) const;
     void MapToStagingBuffer(void* data) const;
     void* GetMappedData();
+    const void* GetMappedData() const;
 
     static void StageTransferSingleSubmit(
         Buffer& src, 

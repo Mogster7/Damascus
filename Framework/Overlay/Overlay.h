@@ -1,4 +1,6 @@
 #pragma once
+#include "Overlay/EditorWindow.h"
+#include "Overlay/EditorBlock.h"
 
 class Overlay
 {
@@ -9,7 +11,21 @@ public:
 				Device& device);
 	void Destroy();
 
+	void Begin();
+
+	void Update(float dt)
+	{
+		for (auto& window : m_editorWindows) 
+			window->Update(dt);
+	}
+
 	void RecordCommandBuffers(uint32_t imageIndex);
+
+	void PushEditorWindow(EditorWindow* editorWindow)
+	{
+		m_editorWindows.emplace_back(editorWindow);
+	}
+	
 
     DescriptorPool descriptorPool;
 	RenderPass renderPass;
@@ -19,5 +35,6 @@ public:
 
 private:
 	Device* m_owner;
+	std::vector<EditorWindow*> m_editorWindows;
 
 };
