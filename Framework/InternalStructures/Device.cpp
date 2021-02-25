@@ -530,14 +530,14 @@ bool Device::PrepareFrame(const uint32_t frameIndex)
 
 
 // Return if surface is out of date
-bool Device::SubmitFrame(const uint32_t frameIndex, vk::Semaphore waitSemaphore)
+bool Device::SubmitFrame(const uint32_t frameIndex, const vk::Semaphore* wait, uint32_t waitCount)
 {
     vk::PresentInfoKHR presentInfo{};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &swapchain;
     presentInfo.pImageIndices = &imageIndex;
-    presentInfo.pWaitSemaphores = &waitSemaphore;
-    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = wait;
+    presentInfo.waitSemaphoreCount = waitCount;
     vk::Result result = graphicsQueue.presentKHR(presentInfo);
 
     if (!((result == vk::Result::eSuccess) || (result == vk::Result::eSuboptimalKHR))) {

@@ -1492,7 +1492,7 @@ public:
 	void Draw() override
 	{
 		DrawUI();
-		if (device.PrepareFrame(currentFrame))
+		if (RenderQueue::Begin(device, currentFrame))
 			OnSurfaceRecreate();
 
 		for (auto& object : objects)
@@ -1510,86 +1510,36 @@ public:
 		// ----------------------
 		// Deferred Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersDeferred[1] = {
-			gBuffer.drawBuffers[device.imageIndex]
-		};
 		vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-
-		vk::SubmitInfo submitInfo = {};
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = &device.imageAvailable[currentFrame];
-		submitInfo.pWaitDstStageMask = waitStages;
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = &gBuffer.semaphores[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = commandBuffersDeferred;
-
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1,
-										&submitInfo,
-										nullptr),
-			"Failed to submit draw queue"
-		);
-
+		RenderQueue::SetCommandBuffers(&gBuffer.drawBuffers[device.imageIndex]);
+		RenderQueue::SetStageMask(waitStages);
+		RenderQueue::SetSemaphores(&device.imageAvailable[currentFrame], 
+								   &gBuffer.semaphores[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
 		// FSQ Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersFSQ[1] = {
-			fsq.drawBuffers[device.imageIndex]
-		};
-
-		submitInfo.pWaitSemaphores = &gBuffer.semaphores[currentFrame];
-		submitInfo.pSignalSemaphores = &fsq.semaphores[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = commandBuffersFSQ;
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1,
-										&submitInfo,
-										nullptr),
-			"Failed to submit draw queue"
-		);
-
+		RenderQueue::SetCommandBuffers(&fsq.drawBuffers[device.imageIndex]);
+		RenderQueue::SetSyncChain(&fsq.semaphores[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
 		// Depth Copy Forward Pass
 		// ----------------------
-		submitInfo.pWaitSemaphores = &fsq.semaphores[currentFrame];
-		submitInfo.pSignalSemaphores = &depthCopySem1[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &depthCopyCmd1[device.imageIndex];
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1, &submitInfo, nullptr), "Failed to submit draw queue"
-		);
-
+		RenderQueue::SetCommandBuffers(&depthCopyCmd1[device.imageIndex]);
+		RenderQueue::SetSyncChain(&depthCopySem1[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
 		// Forward Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersForward[1] = {
-			device.drawBuffers[device.imageIndex]
-		};
-
-		submitInfo.pWaitSemaphores = &depthCopySem1[currentFrame];
-		submitInfo.pSignalSemaphores = &device.renderFinished[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = commandBuffersForward;
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1,
-										&submitInfo,
-										nullptr),
-			"Failed to submit draw queue"
-		);
-
+		RenderQueue::SetCommandBuffers(&device.drawBuffers[device.imageIndex]);
+		RenderQueue::SetSyncChain(&device.renderFinished[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
 		// Depth Copy Debug Pass
 		// ----------------------
-		submitInfo.pWaitSemaphores = &device.renderFinished[currentFrame];
-		submitInfo.pSignalSemaphores = &depthCopySem2[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &depthCopyCmd2[device.imageIndex];
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1, &submitInfo, nullptr), "Failed to submit draw queue"
-		);
-
-
+		RenderQueue::SetCommandBuffers(&depthCopyCmd2[device.imageIndex]);
+		RenderQueue::SetSyncChain(&depthCopySem2[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
 		// Debug Pass
 		// ----------------------
@@ -1597,20 +1547,11 @@ public:
 			debugDraw.drawBuffers[device.imageIndex],
 			overlay.commandBuffers[device.imageIndex]
 		};
+		RenderQueue::SetCommandBuffers(commandBuffersDebug, 2);
+		RenderQueue::SetSyncChain(&debugDraw.semaphores[currentFrame]);
+		RenderQueue::Submit(device, device.drawFences[currentFrame]);
 
-		submitInfo.pWaitSemaphores = &depthCopySem2[currentFrame];
-		submitInfo.pSignalSemaphores = &debugDraw.semaphores[currentFrame];
-		submitInfo.commandBufferCount = 2;
-		submitInfo.pCommandBuffers = commandBuffersDebug;
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1,
-										&submitInfo,
-										device.drawFences[currentFrame].Get()),
-			"Failed to submit draw queue"
-		);
-
-
-		if (device.SubmitFrame(currentFrame, debugDraw.semaphores[currentFrame]))
+		if (RenderQueue::End(device, currentFrame))
 			OnSurfaceRecreate();
 
 		currentFrame = (currentFrame + 1) % MAX_FRAME_DRAWS;

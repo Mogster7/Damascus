@@ -15,7 +15,7 @@ public:
     
     // Return whether or not the surface is out of date
     bool PrepareFrame(const uint32_t frameIndex);
-    bool SubmitFrame(const uint32_t frameIndex, vk::Semaphore wait);
+    bool SubmitFrame(const uint32_t frameIndex, const vk::Semaphore* wait, uint32_t waitCount);
 
     void DrawFrame(const uint32_t frameIndex);
     void Initialization();
