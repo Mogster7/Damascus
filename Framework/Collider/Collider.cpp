@@ -1,5 +1,15 @@
 #include "Collider.h"
 
+void Collider::Push(vk::CommandBuffer cmdBuf, vk::PipelineLayout layout, 
+					const glm::mat4& model) const
+{
+	UBO ubo = { model, colliding };
+	cmdBuf.pushConstants(
+		layout,
+		vk::ShaderStageFlagBits::eVertex,
+		0, sizeof(UBO), &ubo
+	);
+}
 
 
 SphereCollider* SphereCollider::Create(const Mesh<Vertex>& mesh)
@@ -76,9 +86,9 @@ void SphereCollider::Draw(vk::CommandBuffer commandBuffer,
 
 	glm::mat4 model = transMat * scaleMat;
 
-	Mesh<Vertex>::UnitSphere.Draw(
-		commandBuffer,
-		model, layout);
+	Mesh<PosVertex>::UnitSphere.Bind(commandBuffer);
+	Object::PushIdentityModel(commandBuffer, layout);
+	Mesh<PosVertex>::UnitSphere.Draw(commandBuffer);
 }
 
 BoxCollider* BoxCollider::Create(const Mesh<Vertex>& mesh)
@@ -167,12 +177,11 @@ void BoxCollider::Draw(vk::CommandBuffer commandBuffer,
 	glm::mat4 model = transMat * scaleMat;
 
 	
-	Mesh<Vertex>::UnitCube.Draw(
-		commandBuffer,
-		model,
-		layout
-	);
+	Mesh<PosVertex>::UnitCube.Bind(commandBuffer);
+	Push(commandBuffer, layout, model);
+	Mesh<PosVertex>::UnitCube.Draw(commandBuffer);
 }
+
 
 void PlaneCollider::Update(const Mesh<Vertex>& mesh, 
 						   const glm::vec3& position, 

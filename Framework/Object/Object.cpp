@@ -25,14 +25,6 @@ void Object::SetRotation(const glm::vec3& rotation)
 	dirty = true;
 }
 
-void Object::Draw(vk::CommandBuffer commandBuffer, vk::PipelineLayout layout)
-{
-	mesh.Draw(commandBuffer, model, layout);
-
-	if (collider)
-		collider->Draw(commandBuffer, m_position, 
-					   m_storedRotMat, m_scale, layout);
-}
 
 void Object::UpdateModel()
 {

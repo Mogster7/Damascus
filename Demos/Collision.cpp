@@ -110,6 +110,7 @@ public:
 
     std::vector<Buffer> uniformBufferViewProjection;
     std::vector<Buffer> uniformBufferComposition;
+    std::vector<Buffer> uniformBufferCollider;
 
 	// Deferred Data
 	struct GBuffer
@@ -147,7 +148,7 @@ public:
 		Mesh<TexVertex> mesh;
 	} fsq;
 
-	struct DebugDraw
+	struct DebugNormal
 	{
 		RenderPass renderPass;
 		GraphicsPipeline pipeline;
@@ -162,7 +163,24 @@ public:
 		float debugLineWidth = 1.0f;
 
 		bool render = false;
-	} debugDraw;
+	} debugNormal;
+
+	struct DebugCollider
+	{
+		RenderPass renderPass;
+		GraphicsPipeline pipeline;
+		PipelineLayout pipelineLayout;
+		// REUSE DEPTH FROM DEBUG NORMAL
+
+		std::vector<FrameBuffer> frameBuffers;
+		std::vector<CommandBuffer> drawBuffers;
+		std::vector<Semaphore> semaphores;
+		float debugLineLength = 1.0f;
+		float debugLineWidth = 1.0f;
+
+		bool render = false;
+	} debugCollider;
+
 
 	std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -206,7 +224,7 @@ public:
 		// // its down by default in Vulkan
 		uboViewProjection.projection[1][1] *= -1;
 		std::vector<PosVertex> dummy{ {} };
-		debugDraw.mesh.CreateDynamic(dummy, device);
+		debugNormal.mesh.CreateDynamic(dummy, device);
 		
     
 		//for (int i = 0; i < 20; ++i)
@@ -272,16 +290,26 @@ public:
 		fsq.renderPass.Destroy();
 		fsq.mesh.Destroy();
 
-		utils::VectorDestroyer(debugDraw.frameBuffers);
-		utils::VectorDestroyer(debugDraw.semaphores);
-		debugDraw.depth.Destroy();
-		debugDraw.pipeline.Destroy();
-		debugDraw.pipelineLayout.Destroy();
-		debugDraw.renderPass.Destroy();
-		debugDraw.mesh.Destroy();
+		utils::VectorDestroyer(debugNormal.frameBuffers);
+		utils::VectorDestroyer(debugNormal.semaphores);
+		debugNormal.depth.Destroy();
+		debugNormal.pipeline.Destroy();
+		debugNormal.pipelineLayout.Destroy();
+		debugNormal.renderPass.Destroy();
+		debugNormal.mesh.Destroy();
+
+		utils::VectorDestroyer(debugCollider.frameBuffers);
+		utils::VectorDestroyer(debugCollider.semaphores);
+		debugCollider.pipeline.Destroy();
+		debugCollider.pipelineLayout.Destroy();
+		debugCollider.renderPass.Destroy();
+
 				
 		device.commandPool.FreeCommandBuffers(
-			gBuffer.drawBuffers, fsq.drawBuffers, debugDraw.drawBuffers
+			gBuffer.drawBuffers, 
+			fsq.drawBuffers, 
+			debugNormal.drawBuffers,
+			debugCollider.drawBuffers
 		);
 
 		utils::VectorDestroyer(uniformBufferViewProjection);
@@ -622,7 +650,7 @@ public:
 		{
 			// Render pass & subpass
 			{
-				debugDraw.depth.Create(FrameBufferAttachment::GetDepthFormat(), device.swapchain.extent,
+				debugNormal.depth.Create(FrameBufferAttachment::GetDepthFormat(), device.swapchain.extent,
 						 vk::ImageUsageFlagBits::eDepthStencilAttachment |
 						 vk::ImageUsageFlagBits::eTransferDst,
 						 vk::ImageAspectFlagBits::eDepth,
@@ -647,7 +675,7 @@ public:
 
 
 				vk::AttachmentDescription depthAttachment = {};
-				depthAttachment.format = debugDraw.depth.format;
+				depthAttachment.format = debugNormal.depth.format;
 				depthAttachment.samples = vk::SampleCountFlagBits::e1;
 				depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
 				depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
@@ -656,7 +684,7 @@ public:
 				depthAttachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 				depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
-				std::array<vk::AttachmentDescription, 2> attachmentsDescFSQ = { colorAttachment, depthAttachment };
+				std::array<vk::AttachmentDescription, 2> attachmentsDesc = { colorAttachment, depthAttachment };
 
 				// REFERENCES
 				// Attachment reference uses an attachment index that refers to index in the attachment list passed to renderPassCreateInfo
@@ -694,8 +722,8 @@ public:
 				//dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
 
 				vk::RenderPassCreateInfo createInfo;
-				createInfo.attachmentCount = static_cast<uint32_t>(attachmentsDescFSQ.size());
-				createInfo.pAttachments = attachmentsDescFSQ.data();
+				createInfo.attachmentCount = static_cast<uint32_t>(attachmentsDesc.size());
+				createInfo.pAttachments = attachmentsDesc.data();
 				createInfo.subpassCount = 1;
 				createInfo.pSubpasses = &subpass;
 				createInfo.dependencyCount = 1;
@@ -708,7 +736,7 @@ public:
 
 				const auto& extent = device.swapchain.extent;
 
-				debugDraw.renderPass.Create(createInfo, device, extent, clearValues);
+				debugNormal.renderPass.Create(createInfo, device, extent, clearValues);
 			}
 
 			// Frame buffers
@@ -716,7 +744,7 @@ public:
 				const auto& imageViews = device.swapchain.imageViews;
 				const auto& extent = device.swapchain.extent;
 				size_t imageViewsSize = imageViews.size();
-				debugDraw.frameBuffers.resize(imageViewsSize);
+				debugNormal.frameBuffers.resize(imageViewsSize);
 
 				vk::FramebufferCreateInfo createInfo;
 				// FB width/height
@@ -724,26 +752,26 @@ public:
 				createInfo.height = extent.height;
 				// FB layers
 				createInfo.layers = 1;
-				createInfo.renderPass = debugDraw.renderPass;
+				createInfo.renderPass = debugNormal.renderPass;
 				createInfo.attachmentCount = 2;
 
 				for (size_t i = 0; i < imageViewsSize; ++i)
 				{
 					std::array<vk::ImageView, 2> attachments = {
 						imageViews[i].Get(),
-						debugDraw.depth.imageView
+						debugNormal.depth.imageView
 					};
 
 					// List of attachments 1 to 1 with render pass
 					createInfo.pAttachments = attachments.data();
 
-					FrameBuffer::Create(&debugDraw.frameBuffers[i], createInfo, device);
+					FrameBuffer::Create(&debugNormal.frameBuffers[i], createInfo, device);
 				}
 			}
 
 			// Command buffers
 			{
-				debugDraw.drawBuffers.resize(imageViewCount);
+				debugNormal.drawBuffers.resize(imageViewCount);
 
 				vk::CommandBufferAllocateInfo cmdInfo = {};
 				cmdInfo.commandPool = device.commandPool.Get();
@@ -751,17 +779,157 @@ public:
 				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
 
 				utils::CheckVkResult(
-					device.allocateCommandBuffers(&cmdInfo, debugDraw.drawBuffers.data()),
+					device.allocateCommandBuffers(&cmdInfo, debugNormal.drawBuffers.data()),
 					"Failed to allocate deferred command buffers"
 				);
 			}
 
 			// Semaphores
-			debugDraw.semaphores.resize(MAX_FRAME_DRAWS);
+			debugNormal.semaphores.resize(MAX_FRAME_DRAWS);
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 			{
-				Semaphore::Create(debugDraw.semaphores[i], semInfo, device);
+				Semaphore::Create(debugNormal.semaphores[i], semInfo, device);
+			}
+		}
+
+		// ----------------------
+		// Debug Collider Render Pass
+		// ----------------------
+		{
+			// Render pass & subpass
+			{
+				// ATTACHMENTS
+				vk::AttachmentDescription colorAttachment;
+				colorAttachment.format = device.swapchain.imageFormat;
+				colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
+				colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;				// Describes what to do with attachment before rendering
+				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
+				colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	// Describes what to do with stencil before rendering
+				colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	// Describes what to do with stencil after rendering
+
+				// Framebuffer data will be stored as an image, but images can be given different data layouts
+				// to give optimal use for certain operations
+				colorAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;			// Image data layout before render pass starts
+				colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;		// Image data layout after render pass (to change to)
+
+
+				// LOAD FROM DEBUG NORMAL PASS
+				vk::AttachmentDescription depthAttachment = {};
+				depthAttachment.format = debugNormal.depth.format;
+				depthAttachment.samples = vk::SampleCountFlagBits::e1;
+				depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
+				depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+				depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	
+				depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	
+				depthAttachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+				depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+
+				std::array<vk::AttachmentDescription, 2> attachmentsDesc = { colorAttachment, depthAttachment };
+
+				// REFERENCES
+				// Attachment reference uses an attachment index that refers to index in the attachment list passed to renderPassCreateInfo
+				vk::AttachmentReference colorAttachmentRef;
+				colorAttachmentRef.attachment = 0;
+				colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+				vk::AttachmentReference depthAttachmentRef;
+				depthAttachmentRef.attachment = 1;
+				depthAttachmentRef.layout = depthAttachment.finalLayout;
+
+				vk::SubpassDescription subpass = {};
+				subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+				subpass.colorAttachmentCount = 1;
+				subpass.pColorAttachments = &colorAttachmentRef;
+				subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+
+				// ---------------------------
+				// SUBPASS for converting between IMAGE_LAYOUT_UNDEFINED to IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+				vk::SubpassDependency dependency = {};
+
+				// Indices of the dependency for this subpass and the dependent subpass
+				// VK_SUBPASS_EXTERNAL refers to the implicit subpass before/after this pass
+				// Happens after
+				dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+				// Pipeline Stage
+				dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+				dependency.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+
+				// Happens before 
+				dependency.dstSubpass = 0;
+				dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+				dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+				//dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+				vk::RenderPassCreateInfo createInfo;
+				createInfo.attachmentCount = static_cast<uint32_t>(attachmentsDesc.size());
+				createInfo.pAttachments = attachmentsDesc.data();
+				createInfo.subpassCount = 1;
+				createInfo.pSubpasses = &subpass;
+				createInfo.dependencyCount = 1;
+				createInfo.pDependencies = &dependency;
+
+				std::vector<vk::ClearValue> clearValues(2);
+				clearValues[0].color = vk::ClearColorValue(clearColor);
+				clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
+
+				const auto& extent = device.swapchain.extent;
+
+				debugCollider.renderPass.Create(createInfo, device, extent, clearValues);
+			}
+
+			// Frame buffers
+			{
+				const auto& imageViews = device.swapchain.imageViews;
+				const auto& extent = device.swapchain.extent;
+				size_t imageViewsSize = imageViews.size();
+				debugCollider.frameBuffers.resize(imageViewsSize);
+
+				vk::FramebufferCreateInfo createInfo;
+				// FB width/height
+				createInfo.width = extent.width;
+				createInfo.height = extent.height;
+				// FB layers
+				createInfo.layers = 1;
+				createInfo.renderPass = debugCollider.renderPass;
+				createInfo.attachmentCount = 2;
+
+				for (size_t i = 0; i < imageViewsSize; ++i)
+				{
+					std::array<vk::ImageView, 2> attachments = {
+						imageViews[i].Get(),
+						debugNormal.depth.imageView
+					};
+
+					// List of attachments 1 to 1 with render pass
+					createInfo.pAttachments = attachments.data();
+
+					FrameBuffer::Create(&debugCollider.frameBuffers[i], createInfo, device);
+				}
+			}
+
+			// Command buffers
+			{
+				debugCollider.drawBuffers.resize(imageViewCount);
+
+				vk::CommandBufferAllocateInfo cmdInfo = {};
+				cmdInfo.commandPool = device.commandPool.Get();
+				cmdInfo.level = vk::CommandBufferLevel::ePrimary;
+				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
+
+				utils::CheckVkResult(
+					device.allocateCommandBuffers(&cmdInfo, debugCollider.drawBuffers.data()),
+					"Failed to allocate deferred command buffers"
+				);
+			}
+
+			// Semaphores
+			debugCollider.semaphores.resize(MAX_FRAME_DRAWS);
+			vk::SemaphoreCreateInfo semInfo = {};
+			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
+			{
+				Semaphore::Create(debugCollider.semaphores[i], semInfo, device);
 			}
 		}
 
@@ -883,8 +1051,6 @@ public:
 		);
 
 		// PUSH CONSTANTS
-		// NO create needed
-		// Where push constant is located
 		pushRange.stageFlags = vk::ShaderStageFlagBits::eVertex;
 		pushRange.offset = 0;
 		pushRange.size = sizeof(glm::mat4);
@@ -1190,19 +1356,19 @@ public:
 		fragModule.Destroy();
 
 		// ----------------------
-		// DEBUG DRAW PIPELINE
+		// NORMAL DEBUG PIPELINE
 		// ----------------------
 
 		// reuse basically everything from forward
 		vertInfo = ShaderModule::Load(
 			vertModule,
-			"debugDrawVert.spv",
+			"debugNormalVert.spv",
 			vk::ShaderStageFlagBits::eVertex,
 			device
 		);
 		fragInfo = ShaderModule::Load(
 			fragModule,
-			"debugDrawFrag.spv",
+			"debugNormalFrag.spv",
 			vk::ShaderStageFlagBits::eFragment,
 			device
 		);
@@ -1211,9 +1377,9 @@ public:
 		shaderStages[1] = fragInfo;
 
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = debugDraw.renderPass;
+		pipelineInfo.renderPass = debugNormal.renderPass;
 		inputAssembly.topology = vk::PrimitiveTopology::eLineList;
-		rasterizeState.lineWidth = debugDraw.debugLineWidth;
+		rasterizeState.lineWidth = debugNormal.debugLineWidth;
 
 		// VERTEX BINDING DATA
 		auto bindDescDebug = vk::VertexInputBindingDescription();
@@ -1233,12 +1399,46 @@ public:
 		pipelineInfo.pVertexInputState = &vertexInputInfoDebug;
 		
 
-		PipelineLayout::Create(debugDraw.pipelineLayout, layout, device);
-		pipelineInfo.layout = debugDraw.pipelineLayout.Get();
+		PipelineLayout::Create(debugNormal.pipelineLayout, layout, device);
+		pipelineInfo.layout = debugNormal.pipelineLayout.Get();
 
-		GraphicsPipeline::Create(debugDraw.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		GraphicsPipeline::Create(debugNormal.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 		vertModule.Destroy();
 		fragModule.Destroy();
+
+		// ----------------------
+		// COLLIDER DEBUG PIPELINE
+		// ----------------------
+
+		// reuse basically everything from debug normal
+		vertInfo = ShaderModule::Load(
+			vertModule,
+			"debugColliderVert.spv",
+			vk::ShaderStageFlagBits::eVertex,
+			device
+		);
+		fragInfo = ShaderModule::Load(
+			fragModule,
+			"debugColliderFrag.spv",
+			vk::ShaderStageFlagBits::eFragment,
+			device
+		);
+
+		shaderStages[0] = vertInfo;
+		shaderStages[1] = fragInfo;
+
+		pipelineInfo.pStages = shaderStages;
+		pipelineInfo.renderPass = debugCollider.renderPass;
+		inputAssembly.topology = vk::PrimitiveTopology::eLineStrip;
+		rasterizeState.lineWidth = debugCollider.debugLineWidth;
+
+		layout.pPushConstantRanges = &Collider::PushConstant;
+
+		PipelineLayout::Create(debugCollider.pipelineLayout, layout, device);
+		pipelineInfo.layout = debugCollider.pipelineLayout.Get();
+
+		GraphicsPipeline::Create(debugCollider.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+
 	}
 
 	void RecordDeferred(uint32_t imageIndex)
@@ -1392,7 +1592,7 @@ public:
 			vk::ImageAspectFlagBits::eDepth
 		);
 
-		debugDraw.depth.image.TransitionLayout(
+		debugNormal.depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
 			vk::ImageLayout::eTransferDstOptimal,
@@ -1405,7 +1605,7 @@ public:
 			0, 1, 0, 1
 		);
 		cmdBuf.clearDepthStencilImage(
-			debugDraw.depth.image.Get(),
+			debugNormal.depth.image.Get(),
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ClearDepthStencilValue(1.0f),
 			range
@@ -1427,11 +1627,11 @@ public:
 			);
 			cmdBuf.copyImage(
 				device.depth.image.Get(), vk::ImageLayout::eTransferSrcOptimal,
-				debugDraw.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
+				debugNormal.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
 				imageCopy);
 		}
 
-		debugDraw.depth.image.TransitionLayout(
+		debugNormal.depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
@@ -1449,34 +1649,76 @@ public:
 	}
 
 
-	void RecordDebug(uint32_t imageIndex)
+	void RecordDebugNormal(uint32_t imageIndex)
 	{
-		auto& cmdBuf = debugDraw.drawBuffers[imageIndex];
+		auto& cmdBuf = debugNormal.drawBuffers[imageIndex];
 		cmdBuf.Begin();
 
-		if (debugDraw.render)
-			debugDraw.mesh.StageDynamic(cmdBuf);
+		if (debugNormal.render)
+			debugNormal.mesh.StageDynamic(cmdBuf);
 
-		debugDraw.renderPass.Begin(
+		debugNormal.renderPass.Begin(
 			cmdBuf,
-			debugDraw.frameBuffers[imageIndex].Get(),
-			debugDraw.pipeline
+			debugNormal.frameBuffers[imageIndex].Get(),
+			debugNormal.pipeline
 		);
 
 
-		if (debugDraw.render == true)
+		if (debugNormal.render == true)
 		{
-			debugDraw.renderPass.RenderObjects(
+			debugNormal.renderPass.RenderObjects(
 				cmdBuf,
 				descriptors.sets[imageIndex],
-				debugDraw.pipelineLayout,
-				&debugDraw.mesh
+				debugNormal.pipelineLayout,
+				&debugNormal.mesh
 			);
 		}
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
 		
 	}
+
+	void RecordDebugCollider(uint32_t imageIndex)
+	{
+		auto& cmdBuf = debugCollider.drawBuffers[imageIndex];
+		cmdBuf.Begin();
+
+		debugCollider.renderPass.Begin(
+			cmdBuf,
+			debugCollider.frameBuffers[imageIndex].Get(),
+			debugCollider.pipeline
+		);
+
+		if (debugCollider.render == true)
+		{
+			cmdBuf.bindDescriptorSets(
+				vk::PipelineBindPoint::eGraphics,
+				debugCollider.pipelineLayout,
+				0,
+				1,
+				&descriptors.sets[imageIndex],
+				0,
+				nullptr);
+
+			for (size_t i = 0; i < objects.size(); ++i)
+			{
+				auto& object = objects[i];
+				if (object.collider == nullptr) return;
+
+				object.collider->Draw(
+					cmdBuf,
+					object.GetPosition(),
+					object.GetStoredRotation(),
+					object.GetScale(),
+					debugCollider.pipelineLayout
+					);
+			}
+		}
+		cmdBuf.endRenderPass();
+		cmdBuf.end();
+		
+	}
+
 
 
 
@@ -1504,7 +1746,8 @@ public:
 		RecordDepthCopyForward(device.imageIndex);
 		RecordForward(device.imageIndex);
 		RecordDepthCopyDebug(device.imageIndex);
-		RecordDebug(device.imageIndex);
+		RecordDebugNormal(device.imageIndex);
+		RecordDebugCollider(device.imageIndex);
 		overlay.RecordCommandBuffers(device.imageIndex);
 
 		// ----------------------
@@ -1541,14 +1784,20 @@ public:
 		RenderQueue::SetSyncChain(&depthCopySem2[currentFrame]);
 		RenderQueue::Submit(device);
 		// ----------------------
-		// Debug Pass
+		// Debug Normal Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersDebug[2] = {
-			debugDraw.drawBuffers[device.imageIndex],
+		RenderQueue::SetCommandBuffers(&debugNormal.drawBuffers[device.imageIndex]);
+		RenderQueue::SetSyncChain(&debugNormal.semaphores[currentFrame]);
+		RenderQueue::Submit(device);
+		// ----------------------
+		// Debug Collider Pass
+		// ----------------------
+		vk::CommandBuffer commandBuffersDebugCollider[2] = {
+			debugCollider.drawBuffers[device.imageIndex],
 			overlay.commandBuffers[device.imageIndex]
 		};
-		RenderQueue::SetCommandBuffers(commandBuffersDebug, 2);
-		RenderQueue::SetSyncChain(&debugDraw.semaphores[currentFrame]);
+		RenderQueue::SetCommandBuffers(commandBuffersDebugCollider, 2);
+		RenderQueue::SetSyncChain(&debugCollider.semaphores[currentFrame]);
 		RenderQueue::Submit(device, device.drawFences[currentFrame]);
 
 		if (RenderQueue::End(device, currentFrame))
@@ -1664,11 +1913,11 @@ public:
 			{
 				auto worldSpacePosition = (glm::vec3)(object.GetModel() * glm::vec4(vertices[i].pos, 1.0f));
 				debugVertices[vertIndex] = worldSpacePosition;
-				debugVertices[vertIndex+1] = worldSpacePosition + vertices[i].normal*debugDraw.debugLineLength;
+				debugVertices[vertIndex+1] = worldSpacePosition + vertices[i].normal*debugNormal.debugLineLength;
 			}
 		}
 
-		debugDraw.mesh.UpdateDynamic(debugVertices);
+		debugNormal.mesh.UpdateDynamic(debugVertices);
 	}
 	void Update() override
 	{
@@ -1692,9 +1941,10 @@ public:
 		//ImGui::Checkbox("Copy Depth", &copyDepth);
 		ImGui::Checkbox("Wireframe Toggle", &gBuffer.wireframeEnabled);
 
-		ImGui::Checkbox("Visualize Normals", &debugDraw.render);
-		if (debugDraw.render)
-			ImGui::SliderFloat("Debug Line Length", &debugDraw.debugLineLength, 0.01f, 5.0f);
+		ImGui::Checkbox("Visualize Normals", &debugNormal.render);
+		if (debugNormal.render)
+			ImGui::SliderFloat("Debug Line Length", &debugNormal.debugLineLength, 0.01f, 5.0f);
+		ImGui::Checkbox("Visualize Colliders", &debugCollider.render);
 
 		ImGui::Text("Debug Target: ");
 		for (int i = 0; i < 3; ++i)

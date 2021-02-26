@@ -7,6 +7,26 @@ class Object
 public:
 	inline static glm::mat4 identity = glm::mat4(1.0f);
 
+	static void PushIdentityModel(vk::CommandBuffer commandBuffer,
+								  vk::PipelineLayout pipelineLayout)
+	{
+		commandBuffer.pushConstants(
+			pipelineLayout,
+			vk::ShaderStageFlagBits::eVertex,
+			0, sizeof(glm::mat4), &identity
+		);
+	}
+
+	void PushModel(vk::CommandBuffer commandBuffer,
+				   vk::PipelineLayout pipelineLayout)
+	{
+		commandBuffer.pushConstants(
+			pipelineLayout,
+			vk::ShaderStageFlagBits::eVertex,
+			0, sizeof(glm::mat4), &GetModel()
+		);
+	}
+
 	bool dirty = true;
 
 	glm::mat4 model = glm::mat4(1.0f);
@@ -31,16 +51,16 @@ public:
 	}
 
 
-	const glm::vec3& GetPosition() { return m_position; }
-	const glm::vec3& GetScale() { return m_scale; }
-	const glm::vec3& GetRotation() { return m_rotation; }
+	const glm::vec3& GetPosition() const { return m_position; }
+	const glm::vec3& GetScale() const { return m_scale; }
+	const glm::vec3& GetRotation() const { return m_rotation; }
+	const glm::mat4& GetStoredRotation() const { return m_storedRotMat; }
 
 	void SetPosition(const glm::vec3& translation);
 	void SetScale(const glm::vec3& scale);
 	void SetRotation(const glm::vec3& rotation);
 
 
-	void Draw(vk::CommandBuffer commandBuffer, vk::PipelineLayout layout);
 	void UpdateModel();
 	const glm::mat4& GetModel() { if (dirty) UpdateModel(); return model; }
 

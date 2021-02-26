@@ -53,8 +53,23 @@ public:
 
 		for (size_t j = 0; j < numObjects; ++j)
 		{
-			auto& mesh = objects[j];
-			mesh.Draw(cmdBuf, pipelineLayout);
+			auto& object = objects[j];
+			auto& mesh = objects[j].mesh;
+			mesh.Bind(cmdBuf);
+
+			cmdBuf.pushConstants(
+				pipelineLayout,
+				// Stage
+				vk::ShaderStageFlagBits::eVertex,
+				// Offset
+				0,
+				// Size of data being pushed
+				sizeof(glm::mat4),
+				// Actual data being pushed
+				&object.GetModel()
+			);
+
+			mesh.Draw(cmdBuf);
 		}
 	}	
 	
@@ -77,11 +92,12 @@ public:
 			nullptr
 		);
 
-
 		for (size_t j = 0; j < numObjects; ++j)
 		{
 			auto& mesh = objects[j];
-			mesh.Draw(cmdBuf, glm::mat4(1.0f), pipelineLayout);
+			mesh.Bind(cmdBuf);
+			Object::PushIdentityModel(cmdBuf, pipelineLayout);
+			mesh.Draw(cmdBuf);
 		}
 	}
 

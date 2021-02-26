@@ -23,6 +23,23 @@ public:
 					  vk::PipelineLayout layout) const {};
 
 	Type type;
+	bool colliding = false;
+
+	struct UBO
+	{
+		glm::mat4 model;
+		int colliding;
+	};
+	inline static vk::PushConstantRange PushConstant = {
+		vk::ShaderStageFlagBits::eVertex,
+		0,
+		sizeof(UBO)
+	};
+
+protected:
+	void Push(vk::CommandBuffer cmdBuf, vk::PipelineLayout layout,
+			  const glm::mat4& model) const;
+
 };
 
 class BoxCollider : public Collider
@@ -45,6 +62,7 @@ public:
 
 	glm::vec3 halfExtent = glm::vec3(0.5f);
 	glm::vec3 center;
+
 };
 
 

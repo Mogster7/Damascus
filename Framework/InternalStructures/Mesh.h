@@ -22,8 +22,8 @@ template <class VertexType>
 class Mesh
 {
 public:
-	static Mesh<Vertex> UnitSphere;
-	static Mesh<Vertex> UnitCube;
+	static Mesh<VertexType> UnitSphere;
+	static Mesh<VertexType> UnitCube;
 	Mesh() = default;
 	~Mesh() = default;
 
@@ -112,6 +112,17 @@ public:
 			vert.normal = glm::normalize(vert.pos);
 
 		UnitCube.CreateStatic(cubeVerts, cubeIndices, owner);
+
+		auto cubePositions2 = Mesh<Vertex>::UnitCube.GetVertexBufferData<glm::vec3>(0);
+		auto cubeIndices2 = Mesh<Vertex>::UnitCube.GetIndexBufferData();
+
+		std::vector<PosVertex> cubePosVertices(cubePositions2.begin(), cubePositions2.end());
+
+		auto spherePositions2 = Mesh<Vertex>::UnitSphere.GetVertexBufferData<glm::vec3>(0);
+		std::vector<PosVertex> spherePosVertices(spherePositions2.begin(), spherePositions2.end());
+
+		Mesh<PosVertex>::UnitCube.CreateStatic(cubePosVertices, cubeIndices2, owner);
+		Mesh<PosVertex>::UnitSphere.CreateStatic(spherePosVertices, owner);
 	}
 
 	struct MeshData
@@ -255,27 +266,18 @@ public:
 		
     }
 
-	void Draw(vk::CommandBuffer commandBuffer, const glm::mat4& model, vk::PipelineLayout layout) const
+	void Bind(vk::CommandBuffer commandBuffer) const
 	{
 		vk::DeviceSize offset = 0;
 		commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer.Get(), &offset);
 		bool hasIndex = GetIndexCount() > 0;
 		if (hasIndex)
 			commandBuffer.bindIndexBuffer(GetIndexBuffer(), 0, vk::IndexType::eUint32);
+	}
 
-		commandBuffer.pushConstants(
-			layout,
-			// Stage
-			vk::ShaderStageFlagBits::eVertex,
-			// Offset
-			0,
-			// Size of data being pushed
-			sizeof(glm::mat4),
-			// Actual data being pushed
-			&model
-		);
-
-		// Execute pipeline
+	void Draw(vk::CommandBuffer commandBuffer) const
+	{
+		bool hasIndex = GetIndexCount() > 0;
 		hasIndex ?
 			commandBuffer.drawIndexed(GetIndexCount(), 1, 0, 0, 0)
 			:
