@@ -20,5 +20,5 @@ layout(push_constant) uniform PushConstant
 void main() {
 
     gl_Position = uboViewProjection.projection * uboViewProjection.view * push.model * vec4(vertPos, 1.0);
-    Colliding = push.colliding ? 1 : 0;
+    Colliding = push.colliding;
 }

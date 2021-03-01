@@ -17,8 +17,8 @@ set(INCLUDES
 set(LINK_DIRS ThirdParty Utilities)
 set(LINK_LIBS ThirdParty Framework Utilities)
 set(POST_COMMAND COMMAND cmd /c ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile.bat
-                   COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       ${CMAKE_SOURCE_DIR}/Assets/Textures $<TARGET_FILE_DIR:Collision>/Assets/Textures
+                   #COMMAND ${CMAKE_COMMAND} -E copy_directory
+                   #    ${CMAKE_SOURCE_DIR}/Assets/Textures $<TARGET_FILE_DIR:Collision>/Assets/Textures
                     COMMAND ${CMAKE_COMMAND} -E copy_directory
                        ${CMAKE_SOURCE_DIR}/Assets/Shaders $<TARGET_FILE_DIR:Collision>/Assets/Shaders)
 

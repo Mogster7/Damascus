@@ -128,7 +128,11 @@ private:
 #define CUSTOM_VK_DEFINE_FULL(myName, vkName, ownerName, EXT)\
     void myName::Destroy()\
     {\
-        m_owner->destroy##vkName##EXT(Get());\
+        if(m_owner)\
+        {\
+            m_owner->destroy##vkName##EXT(Get()); \
+            m_owner = nullptr;\
+        }\
     }
 
 #define CUSTOM_VK_DEFINE(myName, vkName, ownerName) CUSTOM_VK_DEFINE_FULL(myName, vkName, ownerName,)

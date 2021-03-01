@@ -7,5 +7,4 @@
 //------------------------------------------------------------------------------
 Mesh<Vertex> Mesh<Vertex>::UnitSphere;
 Mesh<Vertex> Mesh<Vertex>::UnitCube;
-Mesh<PosVertex> Mesh<PosVertex>::UnitCube;
-Mesh<PosVertex> Mesh<PosVertex>::UnitSphere;
+Mesh<Vertex> Mesh<Vertex>::Point;

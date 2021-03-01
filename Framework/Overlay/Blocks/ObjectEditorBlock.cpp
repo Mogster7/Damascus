@@ -13,18 +13,10 @@ void ObjectEditorBlock::Update(float dt)
 	{
 		if (ImGui::TreeNode(std::string("Object: " + std::to_string(i++)).c_str()))
 		{
-
-			auto position = object.GetPosition();
-			ImGui::InputFloat3("Position", &position[0]);
-			object.SetPosition(position);
-
-			auto scale = object.GetScale();
-			ImGui::InputFloat3("Scale", &scale[0]);
-			object.SetScale(scale);
-
-			auto rotation = object.GetRotation();
-			ImGui::InputFloat3("Rotation", &rotation[0]);
-			object.SetRotation(rotation);
+			ImGui::SliderFloat3(std::string("Position" + std::to_string(i++)).c_str(), &object.m_position[0], -10.0f, 10.0f);
+			ImGui::SliderFloat3(std::string("Scale" + std::to_string(i++)).c_str(), &object.m_scale[0], 0.1f, 3.0f);
+			ImGui::SliderFloat3(std::string("Rotation" + std::to_string(i++)).c_str(), &object.m_rotation[0], 0.0f, 720.0f);
+			object.dirty = true;
 
 			ImGui::TreePop();
 		}

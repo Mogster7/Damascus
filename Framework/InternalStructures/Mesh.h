@@ -24,6 +24,7 @@ class Mesh
 public:
 	static Mesh<VertexType> UnitSphere;
 	static Mesh<VertexType> UnitCube;
+	static Mesh<VertexType> Point;
 	Mesh() = default;
 	~Mesh() = default;
 
@@ -39,7 +40,7 @@ public:
 #define Total_Points (Sections_In_Band*Band_Points) 
 		// remember - for each section in a band, we have a band
 #define Section_Arc (6.28/Sections_In_Band)
-		const float R = -1.0; // radius of 10
+		const float R = -0.5; // radius of 10
 
 		float x_angle;
 		float y_angle;
@@ -72,17 +73,17 @@ public:
 
 
 		std::vector<Vertex> cubeVerts = {
-		{ { -1.0, -1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
-		{ { 1.0f, -1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } , { 0.0f, 0.0f, 1.0f }},
+		{ { -0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
+		{ { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f } , { 0.0f, 0.0f, 1.0f }},
 
-		{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 1.0f } , { 0.0f, 1.0f, 1.0f } },
-		{ { -1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
+		{ { 0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 1.0f } , { 0.0f, 1.0f, 1.0f } },
+		{ { -0.5f, 0.5f, 0.5f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
 
-		{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f  }, { 0.0f, 0.0f, 0.0f}},
-		{ { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f  }},
+		{ { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, 0.0f  }, { 0.0f, 0.0f, 0.0f}},
+		{ { 0.5f, -0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f  }},
 
-		{ { 1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, 0.0f } , { 1.0f, 1.0f, 0.0f }},
-		{ { -1.0f, 1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f  }},
+		{ { 0.5f, 0.5f, -0.5f }, { 1.0f, 1.0f, 0.0f } , { 1.0f, 1.0f, 0.0f }},
+		{ { -0.5f, 0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f  }},
 		};
 
 
@@ -113,16 +114,10 @@ public:
 
 		UnitCube.CreateStatic(cubeVerts, cubeIndices, owner);
 
-		auto cubePositions2 = Mesh<Vertex>::UnitCube.GetVertexBufferData<glm::vec3>(0);
-		auto cubeIndices2 = Mesh<Vertex>::UnitCube.GetIndexBufferData();
-
-		std::vector<PosVertex> cubePosVertices(cubePositions2.begin(), cubePositions2.end());
-
-		auto spherePositions2 = Mesh<Vertex>::UnitSphere.GetVertexBufferData<glm::vec3>(0);
-		std::vector<PosVertex> spherePosVertices(spherePositions2.begin(), spherePositions2.end());
-
-		Mesh<PosVertex>::UnitCube.CreateStatic(cubePosVertices, cubeIndices2, owner);
-		Mesh<PosVertex>::UnitSphere.CreateStatic(spherePosVertices, owner);
+		std::vector<Vertex> pt = {
+		{ { 0.0, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } , { 1.0f, 0.0f, 1.0f }}
+		};
+		Point.CreateStatic(pt, owner);
 	}
 
 	struct MeshData

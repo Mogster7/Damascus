@@ -26,43 +26,6 @@ public:
 		0, 1, 2,
 		2, 3, 0
 	};
-		std::vector<Vertex> cubeVerts = {
-		{ { -1.0, -1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
-		{ { 1.0f, -1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } , { 0.0f, 0.0f, 1.0f }},
-
-		{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 1.0f } , { 0.0f, 1.0f, 1.0f } },
-		{ { -1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
-
-		{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f  }, { 0.0f, 0.0f, 0.0f}},
-		{ { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f  }},
-
-		{ { 1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, 0.0f } , { 1.0f, 1.0f, 0.0f }},
-		{ { -1.0f, 1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f  }},
-		};
-
-
-		const std::vector<uint32_t> cubeIndices =
-		{
-			// front
-			0, 1, 2,
-			2, 3, 0,
-			// right
-			1, 5, 6,
-			6, 2, 1,
-			// back
-			7, 6, 5,
-			5, 4, 7,
-			// left
-			4, 0, 3,
-			3, 7, 4,
-			// bottom
-			4, 5, 1,
-			1, 0, 4,
-			// top
-			3, 2, 6,
-			6, 7, 3
-		};
-
 
 	Texture testTex;
 
@@ -121,7 +84,7 @@ public:
 		RenderPass renderPass;
 		GraphicsPipeline pipeline;
 		GraphicsPipeline wireframePipeline;
-		bool wireframeEnabled;
+		bool wireframeEnabled = true;
 		PipelineLayout pipelineLayout;
 
 		std::vector<FrameBuffer> frameBuffers;
@@ -159,8 +122,8 @@ public:
 		std::vector<CommandBuffer> drawBuffers;
 		std::vector<Semaphore> semaphores;
 		Mesh<PosVertex> mesh;
-		float debugLineLength = 1.0f;
-		float debugLineWidth = 1.0f;
+		float lineLength = 1.0f;
+		float lineWidth = 1.0f;
 
 		bool render = false;
 	} debugNormal;
@@ -175,10 +138,9 @@ public:
 		std::vector<FrameBuffer> frameBuffers;
 		std::vector<CommandBuffer> drawBuffers;
 		std::vector<Semaphore> semaphores;
-		float debugLineLength = 1.0f;
-		float debugLineWidth = 1.0f;
+		float lineWidth = 2.0f;
 
-		bool render = false;
+		bool render = true;
 	} debugCollider;
 
 
@@ -214,9 +176,10 @@ public:
 		
 		camera.flipY = false;
 		camera.SetPerspective(45.0f, (float)FB_SIZE.x / FB_SIZE.y, 0.1f, 100.0f);
-		camera.SetPosition({ 12, -6.0f, -2.0f });
-		camera.pitch = -6.0f;
-		camera.yaw = -4.0f;
+		camera.SetPosition({ -23.0f, -60.0f, 30.0f });
+		
+		camera.pitch = 0.9f;
+		camera.yaw = 3.785f;
 		// uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
 		uboViewProjection.projection = camera.matrices.perspective;
     
@@ -227,11 +190,11 @@ public:
 		debugNormal.mesh.CreateDynamic(dummy, device);
 		
     
-		//for (int i = 0; i < 20; ++i)
+		//for (int i = 0; i < 30; ++i)
 		//{
 		//	objects.push_back({ });
 		//	auto& obj = objects.back();
-		//	obj.mesh.Create(Mesh<Vertex>::UnitCube);
+		//	obj.Create(Mesh<Vertex>::UnitSphere, (utils::Random() < 0.5f) ? Collider::Type::Box : Collider::Type::Sphere);
 
 		//	//obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
 		//	//obj.model = glm::rotate(obj.model, utils::Random() * 2.0f * glm::pi<float>(),
@@ -240,7 +203,7 @@ public:
 		//	//	utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
 		//	obj.SetScale(glm::vec3(utils::Random() * 3.0f));
 		//	//obj.SetRotation(glm::vec3(utils::Random(), utils::Random(), utils::Random()));
-		//	obj.SetPosition(glm::vec3(utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
+		//	obj.SetPosition(glm::vec3(utils::Random(-20.0f, 20.0f), utils::Random(-20.0f, 20.0f), utils::Random(-20.0f, 20.0f)));
 		//}
 		fsq.mesh.CreateStatic(meshVerts, meshIndices, device);
 
@@ -252,16 +215,117 @@ public:
 		//for(auto& object : objects)
 		//	object.SetScale(ppScale);
 
-		Mesh<Vertex> vikingRoom;
-		vikingRoom.CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", false, device);
+		
+
+		// SPHERE SPHERE
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Sphere);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Sphere);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+		// BOX SPHERE
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Box);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Sphere);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+		// BOX BOX
 		objects.emplace_back();
 		objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
-		objects.back().SetScale(glm::vec3(5.0f));
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+		// PLANE BOX
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+		// PLANE SPHERE
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Sphere);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+		// POINT BOX
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Point);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+		// POINT SPHERE
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Point);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Sphere);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+		// POINT PLANE
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Point);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+		// RAY BOX
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Ray);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Box);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+		// RAY SPHERE
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Ray);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Sphere);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+
+		// RAY PLANE
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Ray);
+		objects.back().SetScale(glm::vec3(3.0f));
+		objects.emplace_back();
+		objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
+		objects.back().SetScale(glm::vec3(3.0f));
+
+
+
 		InitializeUniformBuffers();
 		InitializeDescriptorSets();
 		InitializePipelines();
 		InitializeDebugMesh();
 		InitializeOverlay();
+	}
+
+	void DestroyPipelines()
+	{
+		device.waitIdle();
+		gBuffer.pipeline.Destroy();
+		gBuffer.pipelineLayout.Destroy();
+		fsq.pipeline.Destroy();
+		fsq.pipelineLayout.Destroy();
+		debugNormal.pipeline.Destroy();
+		debugNormal.pipelineLayout.Destroy();
+		debugCollider.pipeline.Destroy();
+		debugCollider.pipelineLayout.Destroy();
 	}
 
 	void Destroy() override
@@ -278,32 +342,25 @@ public:
 		utils::VectorDestroyer(gBuffer.frameBuffers);
 		utils::VectorDestroyer(gBuffer.semaphores);
 		
-		gBuffer.pipeline.Destroy();
-		gBuffer.pipelineLayout.Destroy();
 		gBuffer.renderPass.Destroy();
 		
 		utils::VectorDestroyer(fsq.frameBuffers);
 		utils::VectorDestroyer(fsq.semaphores);
 
-		fsq.pipeline.Destroy();
-		fsq.pipelineLayout.Destroy();
 		fsq.renderPass.Destroy();
 		fsq.mesh.Destroy();
 
 		utils::VectorDestroyer(debugNormal.frameBuffers);
 		utils::VectorDestroyer(debugNormal.semaphores);
 		debugNormal.depth.Destroy();
-		debugNormal.pipeline.Destroy();
-		debugNormal.pipelineLayout.Destroy();
 		debugNormal.renderPass.Destroy();
 		debugNormal.mesh.Destroy();
 
 		utils::VectorDestroyer(debugCollider.frameBuffers);
 		utils::VectorDestroyer(debugCollider.semaphores);
-		debugCollider.pipeline.Destroy();
-		debugCollider.pipelineLayout.Destroy();
 		debugCollider.renderPass.Destroy();
 
+		DestroyPipelines();
 				
 		device.commandPool.FreeCommandBuffers(
 			gBuffer.drawBuffers, 
@@ -1379,7 +1436,13 @@ public:
 		pipelineInfo.pStages = shaderStages;
 		pipelineInfo.renderPass = debugNormal.renderPass;
 		inputAssembly.topology = vk::PrimitiveTopology::eLineList;
-		rasterizeState.lineWidth = debugNormal.debugLineWidth;
+		rasterizeState.lineWidth = debugNormal.lineWidth;
+
+		vk::DynamicState dynamicState = vk::DynamicState::eLineWidth;
+		vk::PipelineDynamicStateCreateInfo dsInfo = {};
+		dsInfo.pDynamicStates = &dynamicState;
+		dsInfo.dynamicStateCount = 1;
+		pipelineInfo.pDynamicState = &dsInfo;
 
 		// VERTEX BINDING DATA
 		auto bindDescDebug = vk::VertexInputBindingDescription();
@@ -1430,7 +1493,7 @@ public:
 		pipelineInfo.pStages = shaderStages;
 		pipelineInfo.renderPass = debugCollider.renderPass;
 		inputAssembly.topology = vk::PrimitiveTopology::eLineStrip;
-		rasterizeState.lineWidth = debugCollider.debugLineWidth;
+		rasterizeState.lineWidth = debugCollider.lineWidth;
 
 		layout.pPushConstantRanges = &Collider::PushConstant;
 
@@ -1666,6 +1729,7 @@ public:
 
 		if (debugNormal.render == true)
 		{
+			cmdBuf.setLineWidth(debugNormal.lineWidth);
 			debugNormal.renderPass.RenderObjects(
 				cmdBuf,
 				descriptors.sets[imageIndex],
@@ -1691,6 +1755,7 @@ public:
 
 		if (debugCollider.render == true)
 		{
+			cmdBuf.setLineWidth(debugCollider.lineWidth);
 			cmdBuf.bindDescriptorSets(
 				vk::PipelineBindPoint::eGraphics,
 				debugCollider.pipelineLayout,
@@ -1703,7 +1768,7 @@ public:
 			for (size_t i = 0; i < objects.size(); ++i)
 			{
 				auto& object = objects[i];
-				if (object.collider == nullptr) return;
+				if (object.collider == nullptr) continue;
 
 				object.collider->Draw(
 					cmdBuf,
@@ -1715,8 +1780,7 @@ public:
 			}
 		}
 		cmdBuf.endRenderPass();
-		cmdBuf.end();
-		
+		cmdBuf.End();
 	}
 
 
@@ -1864,12 +1928,71 @@ public:
 		uboComposition.viewPos = glm::vec4(camera.position, 0.0f) * glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f);
 
 		uboComposition.debugDisplayTarget = debugDisplayTarget;
-		timer += dt;
 
 		uniformBufferViewProjection[imageIndex].MapToBuffer(&uboViewProjection);
 		uniformBufferComposition[imageIndex].MapToBuffer(&uboComposition);
 
 		uboViewProjection.view = camera.matrices.view;
+
+		auto& sphere1 = objects[0];
+		auto& sphere2 = objects[1];
+		sphere1.SetPosition(glm::vec3(-20.0f, 10.0f * (glm::sin(timer * 2.0f) + 0.5f) * 0.75f, 20.0f));
+		sphere2.SetPosition(glm::vec3(-20.0f, -10.0f * (glm::sin(timer * 2.5f) + 0.5f) * 0.75f, 20.0f));
+
+		auto& box1 = objects[2];
+		auto& sphere3 = objects[3];
+		box1.SetPosition(glm::vec3(-10.0f, 10.0f * (glm::sin(timer * 2.0f) + 0.5f) * 0.75f, 20.0f));
+		sphere3.SetPosition(glm::vec3(-10.0f, -10.0f * (glm::sin(timer * 2.5f) + 0.5f) * 0.5f, 20.0f));
+
+		auto& box2 = objects[4];
+		auto& box3 = objects[5];
+		box2.SetPosition(glm::vec3(-0.0f, 10.0f * (glm::sin(timer * 2.0f) + 0.5f) * 0.75f, 20.0f));
+		box3.SetPosition(glm::vec3(-0.0f, -10.0f * (glm::sin(timer * 2.5f) + 0.5f) * 0.75f, 20.0f));
+
+		auto& plane1 = objects[6];
+		auto& box4 = objects[7];
+		plane1.SetPosition(glm::vec3(10.0f, 5.0f * (glm::sin(timer * 0.75f)), 20.0f));
+		box4.SetPosition(glm::vec3(10.0f, -10.0f * (glm::sin(timer * 0.5f)), 20.0f));
+		
+		auto& plane2 = objects[8];
+		auto& sphere4 = objects[9];
+		plane2.SetPosition(glm::vec3(20.0f, 5.0f * (glm::sin(timer * 0.75f)), 20.0f));
+		sphere4.SetPosition(glm::vec3(20.0f, -10.0f * (glm::sin(timer * 0.5f)), 20.0f));
+
+		auto& point1 = objects[10];
+		auto& box5 = objects[11];
+		point1.SetPosition(glm::vec3(-20.0f, 5.0f * (glm::sin(timer * 0.75f)), 0.0f));
+		box5.SetPosition(glm::vec3(-20.0f, -10.0f * (glm::sin(timer * 0.5f)), 0.0f));
+
+		auto& point2 = objects[12];
+		auto& sphere5 = objects[13];
+		point2.SetPosition(glm::vec3(-10.0f, 5.0f * (glm::sin(timer * 1.5f)), 0.0f));
+		sphere5.SetPosition(glm::vec3(-10.0f, -10.0f * (glm::sin(timer * 1.1f)), 0.0f));
+
+		auto& point3 = objects[14];
+		auto& plane3 = objects[15];
+		point3.SetPosition(glm::vec3(0.0f, 5.0f * (glm::sin(timer * 0.75f)), 0.0f));
+		plane3.SetPosition(glm::vec3(0.0f, -10.0f * (glm::sin(timer * 0.5f)), 0.0f));
+
+		auto& ray1 = objects[16];
+		auto& box6 = objects[17];
+		ray1.SetPosition(glm::vec3(10.0f, 5.0f * (glm::sin(timer * 0.75f)), 0.0f));
+		box6.SetPosition(glm::vec3(10.0f, -10.0f * (glm::sin(timer * 1.0f)), 0.0f));
+
+		auto& ray2 = objects[18];
+		auto& sphere6 = objects[19];
+		ray2.SetPosition(glm::vec3(20.0f, 5.0f * (glm::sin(timer * 0.75f)), 0.0f));
+		sphere6.SetPosition(glm::vec3(20.0f, -10.0f * (glm::sin(timer * 1.0f)), 0.0f));
+
+		auto& ray3 = objects[20];
+		auto& plane4 = objects[21];
+		ray3.SetPosition(glm::vec3(-20.0f, 5.0f * (glm::sin(timer * 1.25f)), -10.0f));
+		plane4.SetPosition(glm::vec3(-20.0f, -10.0f * (glm::sin(timer * 1.0f)), -10.0f));
+
+
+
+
+		timer += dt;
 	}
 
 
@@ -1895,6 +2018,8 @@ public:
 
 	void InitializeDebugMesh()
 	{
+		if (debugNormal.render != true) return;
+
 		std::vector<PosVertex> debugVertices;
 
 		size_t vertexCount = 0;
@@ -1913,7 +2038,7 @@ public:
 			{
 				auto worldSpacePosition = (glm::vec3)(object.GetModel() * glm::vec4(vertices[i].pos, 1.0f));
 				debugVertices[vertIndex] = worldSpacePosition;
-				debugVertices[vertIndex+1] = worldSpacePosition + vertices[i].normal*debugNormal.debugLineLength;
+				debugVertices[vertIndex+1] = worldSpacePosition + vertices[i].normal*debugNormal.lineLength;
 			}
 		}
 
@@ -1925,6 +2050,7 @@ public:
 		overlay.Begin();
 		overlay.Update(dt);
 
+		InitializeDebugMesh();
 		static float speed = 90.0f;
 		UpdateInput(dt);
 
@@ -1933,18 +2059,29 @@ public:
 
 
 		ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
-		//ImGui::InputFloat3("Camera Position", &camera.position[0]);
-		//ImGui::InputFloat("Pitch", &camera.pitch);
-		//ImGui::InputFloat("Yaw", &camera.yaw);
+		ImGui::InputFloat3("Camera Position", &camera.position[0]);
+		ImGui::InputFloat("Pitch", &camera.pitch);
+		ImGui::InputFloat("Yaw", &camera.yaw);
 		//ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
 		ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
 		//ImGui::Checkbox("Copy Depth", &copyDepth);
 		ImGui::Checkbox("Wireframe Toggle", &gBuffer.wireframeEnabled);
 
-		ImGui::Checkbox("Visualize Normals", &debugNormal.render);
-		if (debugNormal.render)
-			ImGui::SliderFloat("Debug Line Length", &debugNormal.debugLineLength, 0.01f, 5.0f);
+		//ImGui::Checkbox("Visualize Normals", &debugNormal.render);
+		//if (debugNormal.render)
+		//{
+		//	ImGui::Indent();
+		//	ImGui::SliderFloat("Line Length##DebugNormal", &debugNormal.lineLength, 0.01f, 5.0f);
+		//	ImGui::SliderFloat("Line Width##DebugNormal", &debugNormal.lineWidth, 0.01f, 5.0f);
+		//	ImGui::Unindent();
+		//}
 		ImGui::Checkbox("Visualize Colliders", &debugCollider.render);
+		if (debugCollider.render)
+		{
+			ImGui::Indent();
+			ImGui::SliderFloat("Line Width##DebugCollider", &debugCollider.lineWidth, 0.01f, 5.0f);
+			ImGui::Unindent();
+		}
 
 		ImGui::Text("Debug Target: ");
 		for (int i = 0; i < 3; ++i)
@@ -1962,6 +2099,38 @@ public:
 		//							 glm::vec3(utils::Random(), utils::Random(), utils::Random())
 		//	);
 		//}
+
+
+		for (auto& obj : objects)
+		{
+			if (!obj.collider) return;
+
+			obj.collider->colliding = false;
+		}
+
+		//for (int i = 0; i < objects.size() - 1; ++i)
+		//{
+		//	auto& obj1 = objects[i];
+		//	if (obj1.collider == nullptr) continue;
+		//	auto& collider1 = *obj1.collider;
+
+		//	for (int j = i + 1; j < objects.size(); ++j)
+		//	{
+		//		auto& obj2 = objects[j];
+		//		if (obj2.collider == nullptr) continue;
+		//		auto& collider2 = *obj2.collider;
+
+		//		collider1.TestIntersection(&collider2);
+		//	}
+		//}
+
+		for (int i = 0; i < objects.size() - 1; i += 2)
+		{
+			auto& obj1 = objects[i];
+			auto& obj2 = objects[i + 1];
+
+			obj1.collider->TestIntersection(obj2.collider);
+		}
 	}
 
 

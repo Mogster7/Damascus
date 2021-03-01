@@ -45,7 +45,17 @@ public:
 		case Collider::Type::Sphere:
 			collider = SphereCollider::Create(mesh);
 			break;
+		case Collider::Type::Plane:
+			collider = PlaneCollider::Create(mesh);
+			break;
+		case Collider::Type::Point:
+			collider = PointCollider::Create(mesh);
+			break;
+		case Collider::Type::Ray:
+			collider = RayCollider::Create(mesh, { 0.0f, 0.0f, 1.0f });
+			break;
 		default:
+			assert(false);
 			break;
 		}
 	}
@@ -76,6 +86,8 @@ private:
 	glm::vec3 m_rotation = glm::vec3(0.0f);
 	glm::vec3 m_position = glm::vec3(0.0f);
 	glm::mat4 m_storedRotMat = glm::mat4(1.0f);
+
+	friend class ObjectEditorBlock;
 
 };
 
