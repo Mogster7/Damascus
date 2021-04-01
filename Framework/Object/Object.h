@@ -7,25 +7,6 @@ class Object
 public:
 	inline static glm::mat4 identity = glm::mat4(1.0f);
 
-	static void PushIdentityModel(vk::CommandBuffer commandBuffer,
-								  vk::PipelineLayout pipelineLayout)
-	{
-		commandBuffer.pushConstants(
-			pipelineLayout,
-			vk::ShaderStageFlagBits::eVertex,
-			0, sizeof(glm::mat4), &identity
-		);
-	}
-
-	void PushModel(vk::CommandBuffer commandBuffer,
-				   vk::PipelineLayout pipelineLayout)
-	{
-		commandBuffer.pushConstants(
-			pipelineLayout,
-			vk::ShaderStageFlagBits::eVertex,
-			0, sizeof(glm::mat4), &GetModel()
-		);
-	}
 
 	bool dirty = true;
 
@@ -83,6 +64,7 @@ public:
 private:
 	// Transform data
 	glm::vec3 m_scale = glm::vec3(1.0f);
+	// in degrees
 	glm::vec3 m_rotation = glm::vec3(0.0f);
 	glm::vec3 m_position = glm::vec3(0.0f);
 	glm::mat4 m_storedRotMat = glm::mat4(1.0f);

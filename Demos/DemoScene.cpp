@@ -1,11 +1,14 @@
-#include "RenderingContext.h"
 #include "Window.h"
+#include "RenderingContext.h"
 #include "glfw3.h"
 #include "imgui_impl_glfw.h"
 #include "Camera/Camera.h"
 #include "glm/glm.hpp"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
+#include "Object/Object.h"
+#include "Overlay/Blocks/EntityEditorBlock.h"
+#include "Octree/Octree.hpp"
 
 constexpr glm::uvec2 FB_SIZE = { 1600, 900 }; 
 
@@ -18,57 +21,6 @@ public:
 		{ { 1.0, -1.0, 0.5 },{ 1.0f, 0.0f } },    // 2
 		{ { 1.0, 1.0, 0.5 },{ 1.0f, 1.0f } },   // 3
 
-	};
-
-	const std::vector<ColorVertex> meshVerts2 = {
-		{ { -0.25, 0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },	// 0
-		{ { -0.25, -0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },	    // 1
-		{ { 0.25, -0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },    // 2
-		{ { 0.25, 0.6, 0.0 },{ 0.0f, 0.0f, 1.0f } },   // 3
-
-	};
-
-	const std::vector<uint32_t> squareIndices = {
-		0, 1, 2,
-		2, 3, 0
-	};
-
-
-	const std::vector<Vertex> cubeVerts = {
-		{ { -1.0, -1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
-		{ { 1.0f, -1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } , { 0.0f, 0.0f, 1.0f }},
-                                                
-		{ { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 1.0f } , { 0.0f, 1.0f, 1.0f } },
-		{ { -1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
-                                                
-		{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f  }, { 0.0f, 0.0f, 0.0f}},
-		{ { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f  }},
-                                                
-		{ { 1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, 0.0f } , { 1.0f, 1.0f, 0.0f }},
-		{ { -1.0f, 1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f  }},
-	};
-
-
-	const std::vector<uint32_t> cubeIndices =
-	{
-		// front
-		0, 1, 2,
-		2, 3, 0,
-		// right
-		1, 5, 6,
-		6, 2, 1,
-		// back
-		7, 6, 5,
-		5, 4, 7,
-		// left
-		4, 0, 3,
-		3, 7, 4,
-		// bottom
-		4, 5, 1,
-		1, 0, 4,
-		// top
-		3, 2, 6,
-		6, 7, 3
 	};
 
 	const std::vector<uint32_t> meshIndices = {
@@ -114,8 +66,7 @@ public:
 	// One sampler for the frame buffer color attachments
 	vk::Sampler colorSampler;
 
-    std::vector<Mesh<Vertex>> objects;
-    std::vector<Mesh<Vertex>> forwardObjects;
+    std::vector<entt::entity> entities;
 
     // Descriptors
 	Descriptors descriptors;
@@ -123,9 +74,9 @@ public:
 
     std::vector<Buffer> uniformBufferViewProjection;
     std::vector<Buffer> uniformBufferComposition;
+    std::vector<Buffer> uniformBufferCollider;
 
 	// Deferred Data
-
 	struct GBuffer
 	{
 		uint32_t width, height;
@@ -133,6 +84,8 @@ public:
 		FrameBufferAttachment depth;
 		RenderPass renderPass;
 		GraphicsPipeline pipeline;
+		GraphicsPipeline wireframePipeline;
+		bool wireframeEnabled = true;
 		PipelineLayout pipelineLayout;
 
 		std::vector<FrameBuffer> frameBuffers;
@@ -159,7 +112,7 @@ public:
 		Mesh<TexVertex> mesh;
 	} fsq;
 
-	struct DebugDraw
+	struct DebugNormal
 	{
 		RenderPass renderPass;
 		GraphicsPipeline pipeline;
@@ -170,13 +123,34 @@ public:
 		std::vector<CommandBuffer> drawBuffers;
 		std::vector<Semaphore> semaphores;
 		Mesh<PosVertex> mesh;
-		float debugLineLength = 1.0f;
-		float debugLineWidth = 1.0f;
-	} debugDraw;
+		float lineLength = 1.0f;
+		float lineWidth = 1.0f;
+
+		bool render = false;
+	} debugNormal;
+
+	struct DebugCollider
+	{
+		RenderPass renderPass;
+		GraphicsPipeline pipeline;
+		PipelineLayout pipelineLayout;
+		// REUSE DEPTH FROM DEBUG NORMAL
+
+		std::vector<FrameBuffer> frameBuffers;
+		std::vector<CommandBuffer> drawBuffers;
+		std::vector<Semaphore> semaphores;
+		float lineWidth = 2.0f;
+
+		bool render = true;
+	} debugCollider;
+
 
 	std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	bool cursorActive = false;
+
+	RenderComponentSystem* renderSystem = nullptr;
+	Octree octree;
 
 	void SetInputCallbacks()
 	{
@@ -195,8 +169,6 @@ public:
 		glfwSetKeyCallback(win, keyCallback);
 	}
 
-
-
 	void Initialize(std::weak_ptr<Window> winHandle, bool enableOverlay) override
 	{
 		RenderingContext::Initialize(winHandle, enableOverlay);
@@ -208,9 +180,10 @@ public:
 		
 		camera.flipY = false;
 		camera.SetPerspective(45.0f, (float)FB_SIZE.x / FB_SIZE.y, 0.1f, 100.0f);
-		camera.SetPosition({ 12, -6.0f, -2.0f });
-		camera.pitch = -6.0f;
-		camera.yaw = -4.0f;
+		camera.SetPosition({ -23.0f, -60.0f, 30.0f });
+		
+		camera.pitch = 0.9f;
+		camera.yaw = 3.785f;
 		// uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
 		uboViewProjection.projection = camera.matrices.perspective;
     
@@ -218,36 +191,162 @@ public:
 		// // its down by default in Vulkan
 		uboViewProjection.projection[1][1] *= -1;
 		std::vector<PosVertex> dummy{ {} };
-		debugDraw.mesh.CreateDynamic(dummy, device);
-		
+		debugNormal.mesh.CreateDynamic(dummy, device);
+
+		octree.Create(glm::vec3(0.0f), 10.0f, 3);
+
+		renderSystem = &ECS::GetSystem<RenderComponentSystem>();
+		auto& reg = ECS::Get();
+
+		//auto entity = reg.create();
+		//reg.emplace<TransformComponent>(entity);
+		//reg.emplace<DeferredRenderComponent>(entity, Mesh<Vertex>::UnitSphere);
+
+
     
-		for (int i = 0; i < 20; ++i)
-		{
-			forwardObjects.emplace_back().CreateStatic(cubeVerts, cubeIndices, device);
-			auto& obj = forwardObjects.back();
+		//for (int i = 0; i < 30; ++i)
+		//{
+		//	objects.push_back({ });
+		//	auto& obj = objects.back();
+		//	obj.Create(Mesh<Vertex>::UnitSphere, (utils::Random() < 0.5f) ? Collider::Type::Box : Collider::Type::Sphere);
 
-			obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
-			obj.model = glm::rotate(obj.model, utils::Random() * 2.0f * glm::pi<float>(),
-									glm::vec3(utils::Random(), utils::Random(), utils::Random()));
-			obj.model = glm::translate(obj.model, glm::vec3(
-				utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
-		}
-		 //objects.emplace_back().Create(device, meshVerts, squareIndices);
-		 fsq.mesh.CreateStatic(meshVerts, meshIndices, device);
-
+		//	//obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
+		//	//obj.model = glm::rotate(obj.model, utils::Random() * 2.0f * glm::pi<float>(),
+		//	//						glm::vec3(utils::Random(), utils::Random(), utils::Random()));
+		//	//obj.model = glm::translate(obj.model, glm::vec3(
+		//	//	utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
+		//	obj.SetScale(glm::vec3(utils::Random() * 3.0f));
+		//	//obj.SetRotation(glm::vec3(utils::Random(), utils::Random(), utils::Random()));
+		//	obj.SetPosition(glm::vec3(utils::Random(-20.0f, 20.0f), utils::Random(-20.0f, 20.0f), utils::Random(-20.0f, 20.0f)));
+		//}
+		fsq.mesh.CreateStatic(meshVerts, meshIndices, device);
+		auto fsqEntity = reg.create();
+		reg.emplace<TransformComponent>(fsqEntity);
+		reg.emplace<PostRenderComponent>(fsqEntity, fsq.mesh);
 
 
 		InitializeAttachments();
-		InitializeAssets();
-		static glm::vec3 ppScale = { .0001f, .0001f, .0001f };
-		for (auto& object : objects)
-			object.SetModel(glm::scale(glm::mat4(1.0f), ppScale));
-		objects.emplace_back().CreateModel(std::string(ASSET_DIR) + "Models/viking_room.obj", false, device);
-		objects.back().SetModel(glm::scale(objects.back().model, glm::vec3(5.0f, 5.0f, 5.0f)));
+		//InitializeAssets();
+		//static glm::vec3 ppScale = { .0001f, .0001f, .0001f };
+		//for(auto& object : objects)
+		//	object.SetScale(ppScale);
+
+		
+
+		//// SPHERE SPHERE
+		{
+			auto entity = reg.create();
+			auto& transform1 = reg.emplace<TransformComponent>(entity);
+			transform1.SetScale(glm::vec3(3.0f));
+			reg.emplace<DeferredRenderComponent>(entity, Mesh<Vertex>::UnitCube);
+
+			entity = reg.create();
+			auto& transform2 = reg.emplace<TransformComponent>(entity);
+			transform2.SetScale(glm::vec3(3.0f));
+			reg.emplace<DeferredRenderComponent>(entity, Mesh<Vertex>::UnitCube);
+		}
+
+		//// BOX SPHERE
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Box);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Sphere);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+		//// BOX BOX
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+		//// PLANE BOX
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+		//// PLANE SPHERE
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Sphere);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+		//// POINT BOX
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Point);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+		//// POINT SPHERE
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Point);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Sphere);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+		//// POINT PLANE
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Point);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+		//// RAY BOX
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Ray);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Box);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+		//// RAY SPHERE
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Ray);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Sphere);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+
+		//// RAY PLANE
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Ray);
+		//objects.back().SetScale(glm::vec3(3.0f));
+		//objects.emplace_back();
+		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
+		//objects.back().SetScale(glm::vec3(3.0f));
+
+
+
 		InitializeUniformBuffers();
 		InitializeDescriptorSets();
 		InitializePipelines();
 		InitializeDebugMesh();
+		InitializeOverlay();
+	}
+
+	void DestroyPipelines()
+	{
+		device.waitIdle();
+		gBuffer.pipeline.Destroy();
+		gBuffer.pipelineLayout.Destroy();
+		fsq.pipeline.Destroy();
+		fsq.pipelineLayout.Destroy();
+		debugNormal.pipeline.Destroy();
+		debugNormal.pipelineLayout.Destroy();
+		debugCollider.pipeline.Destroy();
+		debugCollider.pipelineLayout.Destroy();
 	}
 
 	void Destroy() override
@@ -264,36 +363,45 @@ public:
 		utils::VectorDestroyer(gBuffer.frameBuffers);
 		utils::VectorDestroyer(gBuffer.semaphores);
 		
-		gBuffer.pipeline.Destroy();
-		gBuffer.pipelineLayout.Destroy();
 		gBuffer.renderPass.Destroy();
 		
 		utils::VectorDestroyer(fsq.frameBuffers);
 		utils::VectorDestroyer(fsq.semaphores);
 
-		fsq.pipeline.Destroy();
-		fsq.pipelineLayout.Destroy();
 		fsq.renderPass.Destroy();
 		fsq.mesh.Destroy();
 
-		utils::VectorDestroyer(debugDraw.frameBuffers);
-		utils::VectorDestroyer(debugDraw.semaphores);
-		debugDraw.depth.Destroy();
-		debugDraw.pipeline.Destroy();
-		debugDraw.pipelineLayout.Destroy();
-		debugDraw.renderPass.Destroy();
-		debugDraw.mesh.Destroy();
+		utils::VectorDestroyer(debugNormal.frameBuffers);
+		utils::VectorDestroyer(debugNormal.semaphores);
+		debugNormal.depth.Destroy();
+		debugNormal.renderPass.Destroy();
+		debugNormal.mesh.Destroy();
+
+		utils::VectorDestroyer(debugCollider.frameBuffers);
+		utils::VectorDestroyer(debugCollider.semaphores);
+		debugCollider.renderPass.Destroy();
+
+		DestroyPipelines();
 				
 		device.commandPool.FreeCommandBuffers(
-			gBuffer.drawBuffers, fsq.drawBuffers, debugDraw.drawBuffers
+			gBuffer.drawBuffers, 
+			fsq.drawBuffers, 
+			debugNormal.drawBuffers,
+			debugCollider.drawBuffers
 		);
 
 		utils::VectorDestroyer(uniformBufferViewProjection);
 		utils::VectorDestroyer(uniformBufferComposition);
-		utils::VectorDestroyer(objects);
-		utils::VectorDestroyer(forwardObjects);
+		//utils::VectorDestroyer(forwardObjects);
 		
 		RenderingContext::Destroy();
+	}
+
+	void InitializeOverlay()
+	{
+		auto entityWindow = new EditorWindow("Entities");
+		entityWindow->AddBlock(new EntityEditorBlock(entities));
+		overlay.PushEditorWindow(entityWindow);
 	}
 
 	
@@ -499,11 +607,11 @@ public:
 				vk::AttachmentDescription colorAttachment;
 				colorAttachment.format = device.swapchain.imageFormat;
 				colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
-				colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;				// Describes what to do with attachment before rendering
+				colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;				// Describes what to do with attachment before rendering
 				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
 				colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	// Describes what to do with stencil before rendering
 				colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	// Describes what to do with stencil after rendering
-				colorAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+				colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
 				colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
 				//fsq.depth.Create(FrameBufferAttachment::GetDepthFormat(), { gBuffer.width, gBuffer.height },
@@ -619,7 +727,7 @@ public:
 		{
 			// Render pass & subpass
 			{
-				debugDraw.depth.Create(FrameBufferAttachment::GetDepthFormat(), device.swapchain.extent,
+				debugNormal.depth.Create(FrameBufferAttachment::GetDepthFormat(), device.swapchain.extent,
 						 vk::ImageUsageFlagBits::eDepthStencilAttachment |
 						 vk::ImageUsageFlagBits::eTransferDst,
 						 vk::ImageAspectFlagBits::eDepth,
@@ -644,7 +752,7 @@ public:
 
 
 				vk::AttachmentDescription depthAttachment = {};
-				depthAttachment.format = debugDraw.depth.format;
+				depthAttachment.format = debugNormal.depth.format;
 				depthAttachment.samples = vk::SampleCountFlagBits::e1;
 				depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
 				depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
@@ -653,7 +761,7 @@ public:
 				depthAttachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 				depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
-				std::array<vk::AttachmentDescription, 2> attachmentsDescFSQ = { colorAttachment, depthAttachment };
+				std::array<vk::AttachmentDescription, 2> attachmentsDesc = { colorAttachment, depthAttachment };
 
 				// REFERENCES
 				// Attachment reference uses an attachment index that refers to index in the attachment list passed to renderPassCreateInfo
@@ -691,8 +799,8 @@ public:
 				//dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
 
 				vk::RenderPassCreateInfo createInfo;
-				createInfo.attachmentCount = static_cast<uint32_t>(attachmentsDescFSQ.size());
-				createInfo.pAttachments = attachmentsDescFSQ.data();
+				createInfo.attachmentCount = static_cast<uint32_t>(attachmentsDesc.size());
+				createInfo.pAttachments = attachmentsDesc.data();
 				createInfo.subpassCount = 1;
 				createInfo.pSubpasses = &subpass;
 				createInfo.dependencyCount = 1;
@@ -705,7 +813,7 @@ public:
 
 				const auto& extent = device.swapchain.extent;
 
-				debugDraw.renderPass.Create(createInfo, device, extent, clearValues);
+				debugNormal.renderPass.Create(createInfo, device, extent, clearValues);
 			}
 
 			// Frame buffers
@@ -713,7 +821,7 @@ public:
 				const auto& imageViews = device.swapchain.imageViews;
 				const auto& extent = device.swapchain.extent;
 				size_t imageViewsSize = imageViews.size();
-				debugDraw.frameBuffers.resize(imageViewsSize);
+				debugNormal.frameBuffers.resize(imageViewsSize);
 
 				vk::FramebufferCreateInfo createInfo;
 				// FB width/height
@@ -721,26 +829,26 @@ public:
 				createInfo.height = extent.height;
 				// FB layers
 				createInfo.layers = 1;
-				createInfo.renderPass = debugDraw.renderPass;
+				createInfo.renderPass = debugNormal.renderPass;
 				createInfo.attachmentCount = 2;
 
 				for (size_t i = 0; i < imageViewsSize; ++i)
 				{
 					std::array<vk::ImageView, 2> attachments = {
 						imageViews[i].Get(),
-						debugDraw.depth.imageView
+						debugNormal.depth.imageView
 					};
 
 					// List of attachments 1 to 1 with render pass
 					createInfo.pAttachments = attachments.data();
 
-					FrameBuffer::Create(&debugDraw.frameBuffers[i], createInfo, device);
+					FrameBuffer::Create(&debugNormal.frameBuffers[i], createInfo, device);
 				}
 			}
 
 			// Command buffers
 			{
-				debugDraw.drawBuffers.resize(imageViewCount);
+				debugNormal.drawBuffers.resize(imageViewCount);
 
 				vk::CommandBufferAllocateInfo cmdInfo = {};
 				cmdInfo.commandPool = device.commandPool.Get();
@@ -748,17 +856,157 @@ public:
 				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
 
 				utils::CheckVkResult(
-					device.allocateCommandBuffers(&cmdInfo, debugDraw.drawBuffers.data()),
+					device.allocateCommandBuffers(&cmdInfo, debugNormal.drawBuffers.data()),
 					"Failed to allocate deferred command buffers"
 				);
 			}
 
 			// Semaphores
-			debugDraw.semaphores.resize(MAX_FRAME_DRAWS);
+			debugNormal.semaphores.resize(MAX_FRAME_DRAWS);
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 			{
-				Semaphore::Create(debugDraw.semaphores[i], semInfo, device);
+				Semaphore::Create(debugNormal.semaphores[i], semInfo, device);
+			}
+		}
+
+		// ----------------------
+		// Debug Collider Render Pass
+		// ----------------------
+		{
+			// Render pass & subpass
+			{
+				// ATTACHMENTS
+				vk::AttachmentDescription colorAttachment;
+				colorAttachment.format = device.swapchain.imageFormat;
+				colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
+				colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;				// Describes what to do with attachment before rendering
+				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
+				colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	// Describes what to do with stencil before rendering
+				colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	// Describes what to do with stencil after rendering
+
+				// Framebuffer data will be stored as an image, but images can be given different data layouts
+				// to give optimal use for certain operations
+				colorAttachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;			// Image data layout before render pass starts
+				colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;		// Image data layout after render pass (to change to)
+
+
+				// LOAD FROM DEBUG NORMAL PASS
+				vk::AttachmentDescription depthAttachment = {};
+				depthAttachment.format = debugNormal.depth.format;
+				depthAttachment.samples = vk::SampleCountFlagBits::e1;
+				depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
+				depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+				depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;	
+				depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;	
+				depthAttachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+				depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+
+				std::array<vk::AttachmentDescription, 2> attachmentsDesc = { colorAttachment, depthAttachment };
+
+				// REFERENCES
+				// Attachment reference uses an attachment index that refers to index in the attachment list passed to renderPassCreateInfo
+				vk::AttachmentReference colorAttachmentRef;
+				colorAttachmentRef.attachment = 0;
+				colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+				vk::AttachmentReference depthAttachmentRef;
+				depthAttachmentRef.attachment = 1;
+				depthAttachmentRef.layout = depthAttachment.finalLayout;
+
+				vk::SubpassDescription subpass = {};
+				subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+				subpass.colorAttachmentCount = 1;
+				subpass.pColorAttachments = &colorAttachmentRef;
+				subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+
+				// ---------------------------
+				// SUBPASS for converting between IMAGE_LAYOUT_UNDEFINED to IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+				vk::SubpassDependency dependency = {};
+
+				// Indices of the dependency for this subpass and the dependent subpass
+				// VK_SUBPASS_EXTERNAL refers to the implicit subpass before/after this pass
+				// Happens after
+				dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+				// Pipeline Stage
+				dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+				dependency.srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+
+				// Happens before 
+				dependency.dstSubpass = 0;
+				dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+				dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
+				//dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+				vk::RenderPassCreateInfo createInfo;
+				createInfo.attachmentCount = static_cast<uint32_t>(attachmentsDesc.size());
+				createInfo.pAttachments = attachmentsDesc.data();
+				createInfo.subpassCount = 1;
+				createInfo.pSubpasses = &subpass;
+				createInfo.dependencyCount = 1;
+				createInfo.pDependencies = &dependency;
+
+				std::vector<vk::ClearValue> clearValues(2);
+				clearValues[0].color = vk::ClearColorValue(clearColor);
+				clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
+
+				const auto& extent = device.swapchain.extent;
+
+				debugCollider.renderPass.Create(createInfo, device, extent, clearValues);
+			}
+
+			// Frame buffers
+			{
+				const auto& imageViews = device.swapchain.imageViews;
+				const auto& extent = device.swapchain.extent;
+				size_t imageViewsSize = imageViews.size();
+				debugCollider.frameBuffers.resize(imageViewsSize);
+
+				vk::FramebufferCreateInfo createInfo;
+				// FB width/height
+				createInfo.width = extent.width;
+				createInfo.height = extent.height;
+				// FB layers
+				createInfo.layers = 1;
+				createInfo.renderPass = debugCollider.renderPass;
+				createInfo.attachmentCount = 2;
+
+				for (size_t i = 0; i < imageViewsSize; ++i)
+				{
+					std::array<vk::ImageView, 2> attachments = {
+						imageViews[i].Get(),
+						debugNormal.depth.imageView
+					};
+
+					// List of attachments 1 to 1 with render pass
+					createInfo.pAttachments = attachments.data();
+
+					FrameBuffer::Create(&debugCollider.frameBuffers[i], createInfo, device);
+				}
+			}
+
+			// Command buffers
+			{
+				debugCollider.drawBuffers.resize(imageViewCount);
+
+				vk::CommandBufferAllocateInfo cmdInfo = {};
+				cmdInfo.commandPool = device.commandPool.Get();
+				cmdInfo.level = vk::CommandBufferLevel::ePrimary;
+				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
+
+				utils::CheckVkResult(
+					device.allocateCommandBuffers(&cmdInfo, debugCollider.drawBuffers.data()),
+					"Failed to allocate deferred command buffers"
+				);
+			}
+
+			// Semaphores
+			debugCollider.semaphores.resize(MAX_FRAME_DRAWS);
+			vk::SemaphoreCreateInfo semInfo = {};
+			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
+			{
+				Semaphore::Create(debugCollider.semaphores[i], semInfo, device);
 			}
 		}
 
@@ -769,7 +1017,7 @@ public:
 	{
 		std::vector<std::vector<Mesh<Vertex>::MeshData>> meshData(20);
 
-		auto loadSection = [&meshData](const std::string& sectionPath, std::vector<Mesh<Vertex>>& objects,
+		auto loadSection = [&meshData](const std::string& sectionPath,
 									   Device& device, int threadID)
 		{
 			std::ifstream sectionFile;
@@ -790,8 +1038,7 @@ public:
 		for (int i = 1; i < 21; ++i)
 		{
 			loadGroup.emplace_back(loadSection,
-								   std::string(ASSET_DIR) + "Models/Section" + std::to_string(i) + ".txt",
-								   objects, device, i - 1);
+								   std::string(ASSET_DIR) + "Models/Section" + std::to_string(i) + ".txt", device, i - 1);
 		}
 
 		for (auto& loader : loadGroup)
@@ -799,14 +1046,14 @@ public:
 			loader.join();
 		}
 
-		for (auto& vector : meshData)
-		{
-			for (auto& data : vector)
-			{
-				objects.emplace_back();
-				objects.back().CreateStatic(data.vertices, data.indices, device);
-			}
-		}
+		//for (auto& vector : meshData)
+		//{
+		//	for (auto& data : vector)
+		//	{
+		//		objects.emplace_back();
+		//		objects.back().mesh.CreateStatic(data.vertices, data.indices, device);
+		//	}
+		//}
 	}
 
 	void InitializeUniformBuffers()
@@ -836,8 +1083,6 @@ public:
 			uniformBufferViewProjection[i].Create(vpCreateInfo, aCreateInfo, device);
 			uniformBufferComposition[i].Create(compCreateInfo, aCreateInfo, device);
 		}
-
-		UpdateUniformBuffers(0.0f, device.imageIndex);
 	}
 
 	void InitializeDescriptorSets()
@@ -881,8 +1126,6 @@ public:
 		);
 
 		// PUSH CONSTANTS
-		// NO create needed
-		// Where push constant is located
 		pushRange.stageFlags = vk::ShaderStageFlagBits::eVertex;
 		pushRange.offset = 0;
 		pushRange.size = sizeof(glm::mat4);
@@ -1036,8 +1279,17 @@ public:
 		pipelineInfo.subpass = 0;										// Subpass of render pass to use with pipeline
 
 		GraphicsPipeline::Create(gBuffer.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+
+		// ----------------------
+		// Deferred wireframe
+		// ----------------------
+		inputAssembly.setTopology(vk::PrimitiveTopology::eLineStrip);
+		GraphicsPipeline::Create(gBuffer.wireframePipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+
+		inputAssembly.setTopology(vk::PrimitiveTopology::eTriangleStrip);
 		vertModule.Destroy();
 		fragModule.Destroy();
+
 
 		// ----------------------
 		// FSQ PIPELINE
@@ -1179,19 +1431,19 @@ public:
 		fragModule.Destroy();
 
 		// ----------------------
-		// DEBUG DRAW PIPELINE
+		// NORMAL DEBUG PIPELINE
 		// ----------------------
 
 		// reuse basically everything from forward
 		vertInfo = ShaderModule::Load(
 			vertModule,
-			"debugDrawVert.spv",
+			"debugNormalVert.spv",
 			vk::ShaderStageFlagBits::eVertex,
 			device
 		);
 		fragInfo = ShaderModule::Load(
 			fragModule,
-			"debugDrawFrag.spv",
+			"debugNormalFrag.spv",
 			vk::ShaderStageFlagBits::eFragment,
 			device
 		);
@@ -1200,9 +1452,15 @@ public:
 		shaderStages[1] = fragInfo;
 
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = debugDraw.renderPass;
+		pipelineInfo.renderPass = debugNormal.renderPass;
 		inputAssembly.topology = vk::PrimitiveTopology::eLineList;
-		rasterizeState.lineWidth = debugDraw.debugLineWidth;
+		rasterizeState.lineWidth = debugNormal.lineWidth;
+
+		vk::DynamicState dynamicState = vk::DynamicState::eLineWidth;
+		vk::PipelineDynamicStateCreateInfo dsInfo = {};
+		dsInfo.pDynamicStates = &dynamicState;
+		dsInfo.dynamicStateCount = 1;
+		pipelineInfo.pDynamicState = &dsInfo;
 
 		// VERTEX BINDING DATA
 		auto bindDescDebug = vk::VertexInputBindingDescription();
@@ -1222,12 +1480,46 @@ public:
 		pipelineInfo.pVertexInputState = &vertexInputInfoDebug;
 		
 
-		PipelineLayout::Create(debugDraw.pipelineLayout, layout, device);
-		pipelineInfo.layout = debugDraw.pipelineLayout.Get();
+		PipelineLayout::Create(debugNormal.pipelineLayout, layout, device);
+		pipelineInfo.layout = debugNormal.pipelineLayout.Get();
 
-		GraphicsPipeline::Create(debugDraw.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		GraphicsPipeline::Create(debugNormal.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 		vertModule.Destroy();
 		fragModule.Destroy();
+
+		// ----------------------
+		// COLLIDER DEBUG PIPELINE
+		// ----------------------
+
+		// reuse basically everything from debug normal
+		vertInfo = ShaderModule::Load(
+			vertModule,
+			"debugColliderVert.spv",
+			vk::ShaderStageFlagBits::eVertex,
+			device
+		);
+		fragInfo = ShaderModule::Load(
+			fragModule,
+			"debugColliderFrag.spv",
+			vk::ShaderStageFlagBits::eFragment,
+			device
+		);
+
+		shaderStages[0] = vertInfo;
+		shaderStages[1] = fragInfo;
+
+		pipelineInfo.pStages = shaderStages;
+		pipelineInfo.renderPass = debugCollider.renderPass;
+		inputAssembly.topology = vk::PrimitiveTopology::eLineStrip;
+		rasterizeState.lineWidth = debugCollider.lineWidth;
+
+		layout.pPushConstantRanges = &Collider::PushConstant;
+
+		PipelineLayout::Create(debugCollider.pipelineLayout, layout, device);
+		pipelineInfo.layout = debugCollider.pipelineLayout.Get();
+
+		GraphicsPipeline::Create(debugCollider.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+
 	}
 
 	void RecordDeferred(uint32_t imageIndex)
@@ -1238,14 +1530,12 @@ public:
 		gBuffer.renderPass.Begin(
 			cmdBuf,
 			gBuffer.frameBuffers[imageIndex].Get(),
-			gBuffer.pipeline.Get()
+			(gBuffer.wireframeEnabled) ? gBuffer.wireframePipeline.Get() : gBuffer.pipeline.Get()
 		);
-		gBuffer.renderPass.RenderObjects(
+		renderSystem->RenderEntities<DeferredRenderComponent>(
 			cmdBuf,
 			descriptors.sets[imageIndex],
-			gBuffer.pipelineLayout.Get(),
-			objects.data(),
-			objects.size()
+			gBuffer.pipelineLayout.Get()
 		);
 
 		gBuffer.renderPass.End(cmdBuf);
@@ -1265,11 +1555,10 @@ public:
 			fsq.pipeline.Get()
 		);
 
-		fsq.renderPass.RenderObjects(
+		renderSystem->RenderEntities<PostRenderComponent>(
 			cmdBuf,
 			descriptors.sets[imageIndex],
-			fsq.pipelineLayout.Get(),
-			&fsq.mesh
+			fsq.pipelineLayout.Get()
 		);
 
 		cmdBuf.endRenderPass();
@@ -1357,13 +1646,13 @@ public:
 			device.pipeline
 		);
 
-		device.renderPass.RenderObjects(
-			cmdBuf,
-			descriptors.sets[imageIndex],
-			device.pipelineLayout,
-			forwardObjects.data(),
-			forwardObjects.size()
-		);
+		//device.renderPass.RenderObjects(
+		//	cmdBuf,
+		//	descriptors.sets[imageIndex],
+		//	device.pipelineLayout,
+		//	forwardObjects.data(),
+		//	forwardObjects.size()
+		//);
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
 	}
@@ -1381,7 +1670,7 @@ public:
 			vk::ImageAspectFlagBits::eDepth
 		);
 
-		debugDraw.depth.image.TransitionLayout(
+		debugNormal.depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
 			vk::ImageLayout::eTransferDstOptimal,
@@ -1394,7 +1683,7 @@ public:
 			0, 1, 0, 1
 		);
 		cmdBuf.clearDepthStencilImage(
-			debugDraw.depth.image.Get(),
+			debugNormal.depth.image.Get(),
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ClearDepthStencilValue(1.0f),
 			range
@@ -1416,11 +1705,11 @@ public:
 			);
 			cmdBuf.copyImage(
 				device.depth.image.Get(), vk::ImageLayout::eTransferSrcOptimal,
-				debugDraw.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
+				debugNormal.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
 				imageCopy);
 		}
 
-		debugDraw.depth.image.TransitionLayout(
+		debugNormal.depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
@@ -1438,29 +1727,77 @@ public:
 	}
 
 
-	void RecordDebug(uint32_t imageIndex)
+	void RecordDebugNormal(uint32_t imageIndex)
 	{
-		auto& cmdBuf = debugDraw.drawBuffers[imageIndex];
+		auto& cmdBuf = debugNormal.drawBuffers[imageIndex];
 		cmdBuf.Begin();
-		debugDraw.mesh.StageDynamic(cmdBuf);
 
-		debugDraw.renderPass.Begin(
+		if (debugNormal.render)
+			debugNormal.mesh.StageDynamic(cmdBuf);
+
+		debugNormal.renderPass.Begin(
 			cmdBuf,
-			debugDraw.frameBuffers[imageIndex].Get(),
-			debugDraw.pipeline
+			debugNormal.frameBuffers[imageIndex].Get(),
+			debugNormal.pipeline
 		);
 
 
-		debugDraw.renderPass.RenderObjects(
-			cmdBuf,
-			descriptors.sets[imageIndex],
-			debugDraw.pipelineLayout,
-			&debugDraw.mesh
-		);
+		if (debugNormal.render == true)
+		{
+			//cmdBuf.setLineWidth(debugNormal.lineWidth);
+			//debugNormal.renderPass.RenderObjects(
+			//	cmdBuf,
+			//	descriptors.sets[imageIndex],
+			//	debugNormal.pipelineLayout,
+			//	&debugNormal.mesh
+			//);
+		}
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
 		
 	}
+
+	void RecordDebugCollider(uint32_t imageIndex)
+	{
+		auto& cmdBuf = debugCollider.drawBuffers[imageIndex];
+		cmdBuf.Begin();
+
+		debugCollider.renderPass.Begin(
+			cmdBuf,
+			debugCollider.frameBuffers[imageIndex].Get(),
+			debugCollider.pipeline
+		);
+
+		if (debugCollider.render == true)
+		{
+			cmdBuf.setLineWidth(debugCollider.lineWidth);
+			cmdBuf.bindDescriptorSets(
+				vk::PipelineBindPoint::eGraphics,
+				debugCollider.pipelineLayout,
+				0,
+				1,
+				&descriptors.sets[imageIndex],
+				0,
+				nullptr);
+
+			//for (size_t i = 0; i < objects.size(); ++i)
+			//{
+			//	auto& object = objects[i];
+			//	if (object.collider == nullptr) continue;
+
+			//	object.collider->Draw(
+			//		cmdBuf,
+			//		object.GetPosition(),
+			//		object.GetStoredRotation(),
+			//		object.GetScale(),
+			//		debugCollider.pipelineLayout
+			//		);
+			//}
+		}
+		cmdBuf.endRenderPass();
+		cmdBuf.End();
+	}
+
 
 
 
@@ -1476,122 +1813,71 @@ public:
 	void Draw() override
 	{
 		DrawUI();
-		if (device.PrepareFrame(currentFrame))
+		if (RenderQueue::Begin(device, currentFrame))
 			OnSurfaceRecreate();
 
-		UpdateUniformBuffers(dt, device.imageIndex);
+		MapUBO(device.imageIndex);
+
 		RecordDeferred(device.imageIndex);
 		RecordFSQ(device.imageIndex);
 		RecordDepthCopyForward(device.imageIndex);
 		RecordForward(device.imageIndex);
 		RecordDepthCopyDebug(device.imageIndex);
-		RecordDebug(device.imageIndex);
+		RecordDebugNormal(device.imageIndex);
+		RecordDebugCollider(device.imageIndex);
 		overlay.RecordCommandBuffers(device.imageIndex);
 
 		// ----------------------
 		// Deferred Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersDeferred[1] = {
-			gBuffer.drawBuffers[device.imageIndex]
-		};
 		vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-
-		vk::SubmitInfo submitInfo = {};
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = &device.imageAvailable[currentFrame];
-		submitInfo.pWaitDstStageMask = waitStages;
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = &gBuffer.semaphores[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = commandBuffersDeferred;
-
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1,
-										&submitInfo,
-										nullptr),
-			"Failed to submit draw queue"
-		);
-
+		RenderQueue::SetCommandBuffers(&gBuffer.drawBuffers[device.imageIndex]);
+		RenderQueue::SetStageMask(waitStages);
+		RenderQueue::SetSemaphores(&device.imageAvailable[currentFrame], 
+								   &gBuffer.semaphores[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
 		// FSQ Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersFSQ[1] = {
-			fsq.drawBuffers[device.imageIndex]
-		};
-
-		submitInfo.pWaitSemaphores = &gBuffer.semaphores[currentFrame];
-		submitInfo.pSignalSemaphores = &fsq.semaphores[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = commandBuffersFSQ;
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1,
-										&submitInfo,
-										nullptr),
-			"Failed to submit draw queue"
-		);
-
+		RenderQueue::SetCommandBuffers(&fsq.drawBuffers[device.imageIndex]);
+		RenderQueue::SetSyncChain(&fsq.semaphores[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
 		// Depth Copy Forward Pass
 		// ----------------------
-		submitInfo.pWaitSemaphores = &fsq.semaphores[currentFrame];
-		submitInfo.pSignalSemaphores = &depthCopySem1[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &depthCopyCmd1[device.imageIndex];
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1, &submitInfo, nullptr), "Failed to submit draw queue"
-		);
-
+		RenderQueue::SetCommandBuffers(&depthCopyCmd1[device.imageIndex]);
+		RenderQueue::SetSyncChain(&depthCopySem1[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
 		// Forward Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersForward[1] = {
-			device.drawBuffers[device.imageIndex]
-		};
-
-		submitInfo.pWaitSemaphores = &depthCopySem1[currentFrame];
-		submitInfo.pSignalSemaphores = &device.renderFinished[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = commandBuffersForward;
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1,
-										&submitInfo,
-										nullptr),
-			"Failed to submit draw queue"
-		);
-
+		RenderQueue::SetCommandBuffers(&device.drawBuffers[device.imageIndex]);
+		RenderQueue::SetSyncChain(&device.renderFinished[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
 		// Depth Copy Debug Pass
 		// ----------------------
-		submitInfo.pWaitSemaphores = &device.renderFinished[currentFrame];
-		submitInfo.pSignalSemaphores = &depthCopySem2[currentFrame];
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &depthCopyCmd2[device.imageIndex];
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1, &submitInfo, nullptr), "Failed to submit draw queue"
-		);
-
-
+		RenderQueue::SetCommandBuffers(&depthCopyCmd2[device.imageIndex]);
+		RenderQueue::SetSyncChain(&depthCopySem2[currentFrame]);
+		RenderQueue::Submit(device);
 		// ----------------------
-		// Debug Pass
+		// Debug Normal Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersDebug[2] = {
-			debugDraw.drawBuffers[device.imageIndex],
+		RenderQueue::SetCommandBuffers(&debugNormal.drawBuffers[device.imageIndex]);
+		RenderQueue::SetSyncChain(&debugNormal.semaphores[currentFrame]);
+		RenderQueue::Submit(device);
+		// ----------------------
+		// Debug Collider Pass
+		// ----------------------
+		vk::CommandBuffer commandBuffersDebugCollider[2] = {
+			debugCollider.drawBuffers[device.imageIndex],
 			overlay.commandBuffers[device.imageIndex]
 		};
+		RenderQueue::SetCommandBuffers(commandBuffersDebugCollider, 2);
+		RenderQueue::SetSyncChain(&debugCollider.semaphores[currentFrame]);
+		RenderQueue::Submit(device, device.drawFences[currentFrame]);
 
-		submitInfo.pWaitSemaphores = &depthCopySem2[currentFrame];
-		submitInfo.pSignalSemaphores = &debugDraw.semaphores[currentFrame];
-		submitInfo.commandBufferCount = 2;
-		submitInfo.pCommandBuffers = commandBuffersDebug;
-		utils::CheckVkResult(
-			device.graphicsQueue.submit(1,
-										&submitInfo,
-										device.drawFences[currentFrame].Get()),
-			"Failed to submit draw queue"
-		);
-
-
-		if (device.SubmitFrame(currentFrame, debugDraw.semaphores[currentFrame]))
+		if (RenderQueue::End(device, currentFrame))
 			OnSurfaceRecreate();
 
 		currentFrame = (currentFrame + 1) % MAX_FRAME_DRAWS;
@@ -1599,9 +1885,8 @@ public:
 
 
 
-	void UpdateUniformBuffers(float dt, const uint32_t imageIndex)
+	void UpdateObjects(float dt)
 	{
-
 		// UPDATE LIGHTS
 		// White
 		uboComposition.lights[0].position = glm::vec4(0.0f, 10.0f, 1.0f, 0.0f);
@@ -1655,8 +1940,72 @@ public:
 		uboComposition.viewPos = glm::vec4(camera.position, 0.0f) * glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f);
 
 		uboComposition.debugDisplayTarget = debugDisplayTarget;
-		timer += dt;
 
+		uboViewProjection.view = camera.matrices.view;
+
+		//auto& sphere1 = objects[0];
+		//auto& sphere2 = objects[1];
+		//sphere1.SetPosition(glm::vec3(-20.0f, 10.0f * (glm::sin(timer * 2.0f) + 0.5f) * 0.75f, 20.0f));
+		//sphere2.SetPosition(glm::vec3(-20.0f, -10.0f * (glm::sin(timer * 2.5f) + 0.5f) * 0.75f, 20.0f));
+
+		//auto& box1 = objects[2];
+		//auto& sphere3 = objects[3];
+		//box1.SetPosition(glm::vec3(-10.0f, 10.0f * (glm::sin(timer * 2.0f) + 0.5f) * 0.75f, 20.0f));
+		//sphere3.SetPosition(glm::vec3(-10.0f, -10.0f * (glm::sin(timer * 2.5f) + 0.5f) * 0.5f, 20.0f));
+
+		//auto& box2 = objects[4];
+		//auto& box3 = objects[5];
+		//box2.SetPosition(glm::vec3(-0.0f, 10.0f * (glm::sin(timer * 2.0f) + 0.5f) * 0.75f, 20.0f));
+		//box3.SetPosition(glm::vec3(-0.0f, -10.0f * (glm::sin(timer * 2.5f) + 0.5f) * 0.75f, 20.0f));
+
+		//auto& plane1 = objects[6];
+		//auto& box4 = objects[7];
+		//plane1.SetPosition(glm::vec3(10.0f, 5.0f * (glm::sin(timer * 0.75f)), 20.0f));
+		//box4.SetPosition(glm::vec3(10.0f, -10.0f * (glm::sin(timer * 0.5f)), 20.0f));
+		//
+		//auto& plane2 = objects[8];
+		//auto& sphere4 = objects[9];
+		//plane2.SetPosition(glm::vec3(20.0f, 5.0f * (glm::sin(timer * 0.75f)), 20.0f));
+		//sphere4.SetPosition(glm::vec3(20.0f, -10.0f * (glm::sin(timer * 0.5f)), 20.0f));
+
+		//auto& point1 = objects[10];
+		//auto& box5 = objects[11];
+		//point1.SetPosition(glm::vec3(-20.0f, 5.0f * (glm::sin(timer * 0.75f)), 0.0f));
+		//box5.SetPosition(glm::vec3(-20.0f, -10.0f * (glm::sin(timer * 0.5f)), 0.0f));
+
+		//auto& point2 = objects[12];
+		//auto& sphere5 = objects[13];
+		//point2.SetPosition(glm::vec3(-10.0f, 5.0f * (glm::sin(timer * 1.5f)), 0.0f));
+		//sphere5.SetPosition(glm::vec3(-10.0f, -10.0f * (glm::sin(timer * 1.1f)), 0.0f));
+
+		//auto& point3 = objects[14];
+		//auto& plane3 = objects[15];
+		//point3.SetPosition(glm::vec3(0.0f, 5.0f * (glm::sin(timer * 0.75f)), 0.0f));
+		//plane3.SetPosition(glm::vec3(0.0f, -10.0f * (glm::sin(timer * 0.5f)), 0.0f));
+
+		//auto& ray1 = objects[16];
+		//auto& box6 = objects[17];
+		//ray1.SetPosition(glm::vec3(10.0f, 5.0f * (glm::sin(timer * 0.75f)), 0.0f));
+		//box6.SetPosition(glm::vec3(10.0f, -10.0f * (glm::sin(timer * 1.0f)), 0.0f));
+
+		//auto& ray2 = objects[18];
+		//auto& sphere6 = objects[19];
+		//ray2.SetPosition(glm::vec3(20.0f, 5.0f * (glm::sin(timer * 0.75f)), 0.0f));
+		//sphere6.SetPosition(glm::vec3(20.0f, -10.0f * (glm::sin(timer * 1.0f)), 0.0f));
+
+		//auto& ray3 = objects[20];
+		//auto& plane4 = objects[21];
+		//ray3.SetPosition(glm::vec3(-20.0f, 5.0f * (glm::sin(timer * 1.25f)), -10.0f));
+		//plane4.SetPosition(glm::vec3(-20.0f, -10.0f * (glm::sin(timer * 1.0f)), -10.0f));
+
+
+
+
+		timer += dt;
+	}
+
+	void MapUBO(uint32_t imageIndex)
+	{
 		uniformBufferViewProjection[imageIndex].MapToBuffer(&uboViewProjection);
 		uniformBufferComposition[imageIndex].MapToBuffer(&uboComposition);
 	}
@@ -1684,57 +2033,71 @@ public:
 
 	void InitializeDebugMesh()
 	{
-		std::vector<PosVertex> debugVertices;
+		//if (debugNormal.render != true) return;
 
-		size_t vertexCount = 0;
-		for (auto& object : objects)
-		{
-			vertexCount += object.GetVertexCount();
-		}
+		//std::vector<PosVertex> debugVertices;
 
-		debugVertices.resize(vertexCount * 2);
-		size_t vertIndex = 0;
-		for (auto& object : objects)
-		{
-			auto vertices = object.GetVertexBufferData();
+		//size_t vertexCount = 0;
+		//for (auto& object : objects)
+		//{
+		//	vertexCount += object.mesh.GetVertexCount();
+		//}
 
-			for (int i = 0; i < object.vertexBuffer.GetVertexCount(); ++i, vertIndex += 2)
-			{
-				auto worldSpacePosition = (glm::vec3)(object.model * glm::vec4(vertices[i].pos, 0.0f));
-				debugVertices[vertIndex] = worldSpacePosition;
-				debugVertices[vertIndex+1] = worldSpacePosition + vertices[i].normal*debugDraw.debugLineLength;
-			}
-		}
+		//debugVertices.resize(vertexCount * 2);
+		//size_t vertIndex = 0;
+		//for (auto& object : objects)
+		//{
+		//	auto vertices = object.mesh.GetVertexBufferData();
 
-		debugDraw.mesh.UpdateDynamic(debugVertices);
+		//	for (int i = 0; i < object.mesh.vertexBuffer.GetVertexCount(); ++i, vertIndex += 2)
+		//	{
+		//		auto worldSpacePosition = (glm::vec3)(object.GetModel() * glm::vec4(vertices[i].pos, 1.0f));
+		//		debugVertices[vertIndex] = worldSpacePosition;
+		//		debugVertices[vertIndex+1] = worldSpacePosition + vertices[i].normal*debugNormal.lineLength;
+		//	}
+		//}
+
+		//debugNormal.mesh.UpdateDynamic(debugVertices);
 	}
 	void Update() override
 	{
 		RenderingContext::Update();
-		// TODO: MOVE THIS OUT
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
+		overlay.Begin();
+		overlay.Update(dt);
 
+		InitializeDebugMesh();
 		static float speed = 90.0f;
 		UpdateInput(dt);
+		UpdateObjects(dt);
 
-		// const auto& model = objects[0].model;
-		// objects[0].SetModel(glm::rotate(model, glm::radians(speed * dt), { 0.0f, 0.0f,1.0f }));
 
 		camera.Update(dt, !cursorActive);
-		// const auto& model2 = objects[1].model;
-		// objects[1].SetModel(glm::rotate(model2, glm::radians(speed2 * dt), { 0.0f, 1.0f,1.0f }));
 
 
 		ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
-		//ImGui::InputFloat3("Camera Position", &camera.position[0]);
-		//ImGui::InputFloat("Pitch", &camera.pitch);
-		//ImGui::InputFloat("Yaw", &camera.yaw);
-		ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
+		ImGui::InputFloat3("Camera Position", &camera.position[0]);
+		ImGui::InputFloat("Pitch", &camera.pitch);
+		ImGui::InputFloat("Yaw", &camera.yaw);
+		//ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
 		ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
-		ImGui::Checkbox("Copy Depth", &copyDepth);
-		ImGui::SliderFloat("Debug Line Length", &debugDraw.debugLineLength, 0.01f, 5.0f);
+		//ImGui::Checkbox("Copy Depth", &copyDepth);
+		ImGui::Checkbox("Wireframe Toggle", &gBuffer.wireframeEnabled);
+
+		//ImGui::Checkbox("Visualize Normals", &debugNormal.render);
+		//if (debugNormal.render)
+		//{
+		//	ImGui::Indent();
+		//	ImGui::SliderFloat("Line Length##DebugNormal", &debugNormal.lineLength, 0.01f, 5.0f);
+		//	ImGui::SliderFloat("Line Width##DebugNormal", &debugNormal.lineWidth, 0.01f, 5.0f);
+		//	ImGui::Unindent();
+		//}
+		ImGui::Checkbox("Visualize Colliders", &debugCollider.render);
+		if (debugCollider.render)
+		{
+			ImGui::Indent();
+			ImGui::SliderFloat("Line Width##DebugCollider", &debugCollider.lineWidth, 0.01f, 5.0f);
+			ImGui::Unindent();
+		}
 
 		ImGui::Text("Debug Target: ");
 		for (int i = 0; i < 3; ++i)
@@ -1743,15 +2106,47 @@ public:
 			if (i != 4) ImGui::SameLine();
 		}
 
-		uboViewProjection.view = camera.matrices.view;
-		for (size_t j = 0; j < forwardObjects.size(); ++j)
-		{
-			auto& mesh = forwardObjects[j];
-			mesh.model = glm::rotate(mesh.model,
-									 glm::radians(speed * dt * utils::Random(1.0f, 5.0f)),
-									 glm::vec3(utils::Random(), utils::Random(), utils::Random())
-			);
-		}
+
+		//for (size_t j = 0; j < forwardObjects.size(); ++j)
+		//{
+		//	auto& mesh = forwardObjects[j];
+		//	mesh.model = glm::rotate(mesh.model,
+		//							 glm::radians(speed * dt * utils::Random(1.0f, 5.0f)),
+		//							 glm::vec3(utils::Random(), utils::Random(), utils::Random())
+		//	);
+		//}
+
+
+		//for (auto& obj : objects)
+		//{
+		//	if (!obj.collider) return;
+
+		//	obj.collider->colliding = false;
+		//}
+
+		//for (int i = 0; i < objects.size() - 1; ++i)
+		//{
+		//	auto& obj1 = objects[i];
+		//	if (obj1.collider == nullptr) continue;
+		//	auto& collider1 = *obj1.collider;
+
+		//	for (int j = i + 1; j < objects.size(); ++j)
+		//	{
+		//		auto& obj2 = objects[j];
+		//		if (obj2.collider == nullptr) continue;
+		//		auto& collider2 = *obj2.collider;
+
+		//		collider1.TestIntersection(&collider2);
+		//	}
+		//}
+
+		//for (int i = 0; i < objects.size() - 1; i += 2)
+		//{
+		//	auto& obj1 = objects[i];
+		//	auto& obj2 = objects[i + 1];
+
+		//	obj1.collider->TestIntersection(obj2.collider);
+		//}
 	}
 
 

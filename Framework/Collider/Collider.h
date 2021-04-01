@@ -1,4 +1,5 @@
 #pragma once
+#include "Primitives/Primitives.hpp"
 
 class Collider
 {
@@ -11,12 +12,12 @@ public:
 		Sphere,
 		Ray
 	};
-	static Mesh<PosVertex> Box;
-	static Mesh<PosVertex> Sphere;
-	static Mesh<PosVertex> Plane;
-	static Mesh<PosVertex> Point;
-	static Mesh<PosVertex> Triangle;
-	static Mesh<PosVertex> Ray;
+	static Mesh<PosVertex> MeshBox;
+	static Mesh<PosVertex> MeshSphere;
+	static Mesh<PosVertex> MeshPlane;
+	static Mesh<PosVertex> MeshPoint;
+	static Mesh<PosVertex> MeshTriangle;
+	static Mesh<PosVertex> MeshRay;
 
 	static void InitializeMeshes(Device& device);
 
@@ -75,13 +76,9 @@ public:
 			  const glm::vec3& scale,
 			  vk::PipelineLayout layout) const;
 
-	glm::vec3 halfExtent = glm::vec3(0.5f);
-	glm::vec3 center;
-
+	Box world;
 private:
-
-	glm::vec3 _localHalfExtent = glm::vec3(0.5f);
-	glm::vec3 _localCenter;
+	Box local;
 };
 
 
@@ -105,12 +102,9 @@ public:
 
 	void TestIntersection(Collider* other) override;
 
-	float radius;
-	glm::vec3 center;
-
+	Sphere world;
 private:
-	glm::vec3 _localCenter;
-	float _localRadius;
+	Sphere local;
 };
 
 class PlaneCollider : public Collider
@@ -134,13 +128,10 @@ public:
 
 	void TestIntersection(Collider* other) override;
 
-	glm::vec3 normal;
-	glm::vec3 position;
-	float D;
-	float thickness = 0.1f;
-	
+	Plane world;
+
 private:
-	glm::vec3 _localNormal;
+	Plane local;
 
 };
 
@@ -164,14 +155,14 @@ public:
 
 	inline static float visualRadius = 0.3f;
 
-	glm::vec3 position;
+	Point world;
 };
 
 class RayCollider : public Collider
 {
 public:
 	static RayCollider* Create(const Mesh<Vertex>& mesh,
-							   const glm::vec3& direction);
+							   const glm::vec3& direction = { 0.0f, 1.0f, 0.0f });
 
 	void Update(const Mesh<Vertex>& mesh, 
 						const glm::vec3& position,
@@ -186,9 +177,7 @@ public:
 
 	void TestIntersection(Collider* other) override;
 
-	glm::vec3 position;
-	glm::vec3 normalizedDirection;
-	glm::vec3 inverseNormalizedDirection;
+	Ray world;
 };
 
 class TriangleCollider : public Collider
@@ -210,10 +199,9 @@ public:
 
 	void TestIntersection(Collider* other) override;
 
-	glm::vec3 positions[3];
+	Triangle world;
 
 private:
-	glm::vec3 _localPositions[3];
-
+	Triangle local;
 };
 

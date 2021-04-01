@@ -2,6 +2,7 @@
 #include "RenderingContext.h"
 #include <sstream>
 #include "glfw3.h"
+#include "ECS/ECS.h"
 
 
 class Application {
@@ -11,6 +12,7 @@ public:
     Application(const glm::uvec2& windowDimensions, RenderingContext& renderingContext)
         : renderingContext(renderingContext)
     {
+        ECS::CreateSystems();
         window = std::shared_ptr<Window>(new Window(windowDimensions, "Vulkan"));
         renderingContext.Initialize(window);
     }
@@ -19,12 +21,15 @@ public:
         float dt = 0.0f;
         while (window->Update(dt))
         {
+            ECS::UpdateSystems(dt);
             window->SwapBuffer();
             renderingContext.Update();
             dt = renderingContext.dt;
 			renderingContext.Draw();
         }
-
+        
+		renderingContext.Destroy();
+        ECS::DestroySystems();
     }
 
 private:
@@ -43,7 +48,6 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    app.renderingContext.Destroy();
 	return EXIT_SUCCESS;
 }
 

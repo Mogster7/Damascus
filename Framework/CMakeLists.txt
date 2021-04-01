@@ -35,13 +35,19 @@ set(FRAMEWORK_SRC
     Overlay/EditorWindow.cpp 
     Overlay/EditorBlock.cpp 
     Overlay/Blocks/StatsEditorBlock.cpp 
-    Overlay/Blocks/ObjectEditorBlock.cpp
-    Collider/Collider.cpp)
+    Overlay/Blocks/EntityEditorBlock.cpp
+    Collider/Collider.cpp 
+    Primitives/Primitives.hpp 
+    ECS/ECS.cpp 
+    ECS/Components/Transform/TransformComponent.cpp 
+    ECS/Components/Transform/TransformComponentSystem.cpp 
+    ECS/Components/Render/RenderComponent.cpp
+    ECS/Components/Render/RenderComponentSystem.cpp
+    Octree/Octree.hpp )
 
 
 add_library(Framework
-    ${FRAMEWORK_SRC}
-     )
+    ${FRAMEWORK_SRC})
 
 
 set(LIBS

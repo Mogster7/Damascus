@@ -3,6 +3,7 @@
 #include <fstream>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
+#include <entt/single_include/entt/entt.hpp>
 #include <stdexcept>
 #include <cstdlib>
 #include <thread>
@@ -12,6 +13,7 @@
 #include <array>
 #include <algorithm>
 #include <stack>
+#include <tuple>
 #include <string>
 #include <string_view>
 
@@ -41,8 +43,21 @@
 // Other
 #include "Utilities.h"
 
-// RENDERING 
+// Rendering
 #include "RenderingDefines.hpp"
 #include "RenderingStructures.hpp"
 #include "imgui/backends/imgui_impl_vulkan.h"
+#include "Overlay/Overlay.h"
+
+// ECS
+#include "ECS/Components/ComponentSystem.hpp"
+#include "ECS/ECS.h"
+
+#include "ECS/Components/Transform/TransformComponent.h"
+#include "ECS/Components/Transform/TransformComponentSystem.h"
+
+#include "ECS/Components/Render/RenderComponent.h"
+#include "ECS/Components/Render/RenderComponentSystem.h"
+
+
 
