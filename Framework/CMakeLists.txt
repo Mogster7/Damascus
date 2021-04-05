@@ -37,13 +37,13 @@ set(FRAMEWORK_SRC
     Overlay/Blocks/StatsEditorBlock.cpp 
     Overlay/Blocks/EntityEditorBlock.cpp
     Collider/Collider.cpp 
-    Primitives/Primitives.hpp 
+    Primitives/Primitives.cpp
     ECS/ECS.cpp 
     ECS/Components/Transform/TransformComponent.cpp 
     ECS/Components/Transform/TransformComponentSystem.cpp 
     ECS/Components/Render/RenderComponent.cpp
     ECS/Components/Render/RenderComponentSystem.cpp
-    Octree/Octree.hpp )
+)
 
 
 add_library(Framework

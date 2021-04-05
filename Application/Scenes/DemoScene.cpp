@@ -3,12 +3,10 @@
 #include "glfw3.h"
 #include "imgui_impl_glfw.h"
 #include "Camera/Camera.h"
-#include "glm/glm.hpp"
-#include "glm/ext/matrix_clip_space.hpp"
-#include "glm/ext/matrix_transform.hpp"
 #include "Object/Object.h"
 #include "Overlay/Blocks/EntityEditorBlock.h"
-#include "Octree/Octree.hpp"
+#include "SpatialPartitioning/Octree/Octree.hpp"
+#include "SpatialPartitioning/BSP/BSP.hpp"
 
 constexpr glm::uvec2 FB_SIZE = { 1600, 900 }; 
 
@@ -27,8 +25,6 @@ public:
 		0, 1, 2,
 		2, 3, 0
 	};
-
-	Texture testTex;
 
 	Camera camera;
 
@@ -85,8 +81,9 @@ public:
 		RenderPass renderPass;
 		GraphicsPipeline pipeline;
 		GraphicsPipeline wireframePipeline;
-		bool wireframeEnabled = true;
+		bool wireframeEnabled = false;
 		PipelineLayout pipelineLayout;
+		bool render = true;
 
 		std::vector<FrameBuffer> frameBuffers;
 		std::vector<CommandBuffer> drawBuffers;
@@ -112,7 +109,7 @@ public:
 		Mesh<TexVertex> mesh;
 	} fsq;
 
-	struct DebugNormal
+	struct DebugLineList
 	{
 		RenderPass renderPass;
 		GraphicsPipeline pipeline;
@@ -127,9 +124,9 @@ public:
 		float lineWidth = 1.0f;
 
 		bool render = false;
-	} debugNormal;
+	} debugLineList;
 
-	struct DebugCollider
+	struct DebugLineStrip
 	{
 		RenderPass renderPass;
 		GraphicsPipeline pipeline;
@@ -142,7 +139,7 @@ public:
 		float lineWidth = 2.0f;
 
 		bool render = true;
-	} debugCollider;
+	} debugLineStrip;
 
 
 	std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -180,10 +177,10 @@ public:
 		
 		camera.flipY = false;
 		camera.SetPerspective(45.0f, (float)FB_SIZE.x / FB_SIZE.y, 0.1f, 100.0f);
-		camera.SetPosition({ -23.0f, -60.0f, 30.0f });
+		camera.SetPosition({ -0.0f, 0.0f, -5.0f });
 		
-		camera.pitch = 0.9f;
-		camera.yaw = 3.785f;
+		camera.pitch = 0.0f;
+		camera.yaw = 0.0f;
 		// uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
 		uboViewProjection.projection = camera.matrices.perspective;
     
@@ -191,9 +188,8 @@ public:
 		// // its down by default in Vulkan
 		uboViewProjection.projection[1][1] *= -1;
 		std::vector<PosVertex> dummy{ {} };
-		debugNormal.mesh.CreateDynamic(dummy, device);
+		debugLineList.mesh.CreateDynamic(dummy, device);
 
-		octree.Create(glm::vec3(0.0f), 10.0f, 3);
 
 		renderSystem = &ECS::GetSystem<RenderComponentSystem>();
 		auto& reg = ECS::Get();
@@ -226,108 +222,19 @@ public:
 
 
 		InitializeAttachments();
-		//InitializeAssets();
-		//static glm::vec3 ppScale = { .0001f, .0001f, .0001f };
-		//for(auto& object : objects)
-		//	object.SetScale(ppScale);
-
 		
 
-		//// SPHERE SPHERE
 		{
 			auto entity = reg.create();
 			auto& transform1 = reg.emplace<TransformComponent>(entity);
-			transform1.SetScale(glm::vec3(3.0f));
-			reg.emplace<DeferredRenderComponent>(entity, Mesh<Vertex>::UnitCube);
+			transform1.SetScale(glm::vec3(0.56f));
+			//transform1.SetPosition({ -1.0f, -1.0f, -1.0f });
+			const std::string room = std::string(ASSET_DIR) + "Models/teapot.obj";
+			auto& render = reg.emplace<DeferredRenderComponent>(entity);
+			render.mesh.CreateModel(room, false, device);
 
-			entity = reg.create();
-			auto& transform2 = reg.emplace<TransformComponent>(entity);
-			transform2.SetScale(glm::vec3(3.0f));
-			reg.emplace<DeferredRenderComponent>(entity, Mesh<Vertex>::UnitCube);
+			//render.mesh.Create(Mesh<Vertex>::Triangle);
 		}
-
-		//// BOX SPHERE
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Box);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Sphere);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-		//// BOX BOX
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-		//// PLANE BOX
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-		//// PLANE SPHERE
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Sphere);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-		//// POINT BOX
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Point);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Box);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-		//// POINT SPHERE
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Point);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitSphere, Collider::Type::Sphere);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-		//// POINT PLANE
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Point);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-		//// RAY BOX
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Ray);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Box);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-		//// RAY SPHERE
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Ray);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::UnitCube, Collider::Type::Sphere);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-
-		//// RAY PLANE
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Ray);
-		//objects.back().SetScale(glm::vec3(3.0f));
-		//objects.emplace_back();
-		//objects.back().Create(Mesh<Vertex>::Point, Collider::Type::Plane);
-		//objects.back().SetScale(glm::vec3(3.0f));
-
-
 
 		InitializeUniformBuffers();
 		InitializeDescriptorSets();
@@ -343,10 +250,10 @@ public:
 		gBuffer.pipelineLayout.Destroy();
 		fsq.pipeline.Destroy();
 		fsq.pipelineLayout.Destroy();
-		debugNormal.pipeline.Destroy();
-		debugNormal.pipelineLayout.Destroy();
-		debugCollider.pipeline.Destroy();
-		debugCollider.pipelineLayout.Destroy();
+		debugLineList.pipeline.Destroy();
+		debugLineList.pipelineLayout.Destroy();
+		debugLineStrip.pipeline.Destroy();
+		debugLineStrip.pipelineLayout.Destroy();
 	}
 
 	void Destroy() override
@@ -371,23 +278,23 @@ public:
 		fsq.renderPass.Destroy();
 		fsq.mesh.Destroy();
 
-		utils::VectorDestroyer(debugNormal.frameBuffers);
-		utils::VectorDestroyer(debugNormal.semaphores);
-		debugNormal.depth.Destroy();
-		debugNormal.renderPass.Destroy();
-		debugNormal.mesh.Destroy();
+		utils::VectorDestroyer(debugLineList.frameBuffers);
+		utils::VectorDestroyer(debugLineList.semaphores);
+		debugLineList.depth.Destroy();
+		debugLineList.renderPass.Destroy();
+		debugLineList.mesh.Destroy();
 
-		utils::VectorDestroyer(debugCollider.frameBuffers);
-		utils::VectorDestroyer(debugCollider.semaphores);
-		debugCollider.renderPass.Destroy();
+		utils::VectorDestroyer(debugLineStrip.frameBuffers);
+		utils::VectorDestroyer(debugLineStrip.semaphores);
+		debugLineStrip.renderPass.Destroy();
 
 		DestroyPipelines();
 				
 		device.commandPool.FreeCommandBuffers(
 			gBuffer.drawBuffers, 
 			fsq.drawBuffers, 
-			debugNormal.drawBuffers,
-			debugCollider.drawBuffers
+			debugLineList.drawBuffers,
+			debugLineStrip.drawBuffers
 		);
 
 		utils::VectorDestroyer(uniformBufferViewProjection);
@@ -727,7 +634,7 @@ public:
 		{
 			// Render pass & subpass
 			{
-				debugNormal.depth.Create(FrameBufferAttachment::GetDepthFormat(), device.swapchain.extent,
+				debugLineList.depth.Create(FrameBufferAttachment::GetDepthFormat(), device.swapchain.extent,
 						 vk::ImageUsageFlagBits::eDepthStencilAttachment |
 						 vk::ImageUsageFlagBits::eTransferDst,
 						 vk::ImageAspectFlagBits::eDepth,
@@ -752,7 +659,7 @@ public:
 
 
 				vk::AttachmentDescription depthAttachment = {};
-				depthAttachment.format = debugNormal.depth.format;
+				depthAttachment.format = debugLineList.depth.format;
 				depthAttachment.samples = vk::SampleCountFlagBits::e1;
 				depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
 				depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
@@ -813,7 +720,7 @@ public:
 
 				const auto& extent = device.swapchain.extent;
 
-				debugNormal.renderPass.Create(createInfo, device, extent, clearValues);
+				debugLineList.renderPass.Create(createInfo, device, extent, clearValues);
 			}
 
 			// Frame buffers
@@ -821,7 +728,7 @@ public:
 				const auto& imageViews = device.swapchain.imageViews;
 				const auto& extent = device.swapchain.extent;
 				size_t imageViewsSize = imageViews.size();
-				debugNormal.frameBuffers.resize(imageViewsSize);
+				debugLineList.frameBuffers.resize(imageViewsSize);
 
 				vk::FramebufferCreateInfo createInfo;
 				// FB width/height
@@ -829,26 +736,26 @@ public:
 				createInfo.height = extent.height;
 				// FB layers
 				createInfo.layers = 1;
-				createInfo.renderPass = debugNormal.renderPass;
+				createInfo.renderPass = debugLineList.renderPass;
 				createInfo.attachmentCount = 2;
 
 				for (size_t i = 0; i < imageViewsSize; ++i)
 				{
 					std::array<vk::ImageView, 2> attachments = {
 						imageViews[i].Get(),
-						debugNormal.depth.imageView
+						debugLineList.depth.imageView
 					};
 
 					// List of attachments 1 to 1 with render pass
 					createInfo.pAttachments = attachments.data();
 
-					FrameBuffer::Create(&debugNormal.frameBuffers[i], createInfo, device);
+					FrameBuffer::Create(&debugLineList.frameBuffers[i], createInfo, device);
 				}
 			}
 
 			// Command buffers
 			{
-				debugNormal.drawBuffers.resize(imageViewCount);
+				debugLineList.drawBuffers.resize(imageViewCount);
 
 				vk::CommandBufferAllocateInfo cmdInfo = {};
 				cmdInfo.commandPool = device.commandPool.Get();
@@ -856,22 +763,22 @@ public:
 				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
 
 				utils::CheckVkResult(
-					device.allocateCommandBuffers(&cmdInfo, debugNormal.drawBuffers.data()),
+					device.allocateCommandBuffers(&cmdInfo, debugLineList.drawBuffers.data()),
 					"Failed to allocate deferred command buffers"
 				);
 			}
 
 			// Semaphores
-			debugNormal.semaphores.resize(MAX_FRAME_DRAWS);
+			debugLineList.semaphores.resize(MAX_FRAME_DRAWS);
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 			{
-				Semaphore::Create(debugNormal.semaphores[i], semInfo, device);
+				Semaphore::Create(debugLineList.semaphores[i], semInfo, device);
 			}
 		}
 
 		// ----------------------
-		// Debug Collider Render Pass
+		// Debug Line Strip Render Pass
 		// ----------------------
 		{
 			// Render pass & subpass
@@ -893,7 +800,7 @@ public:
 
 				// LOAD FROM DEBUG NORMAL PASS
 				vk::AttachmentDescription depthAttachment = {};
-				depthAttachment.format = debugNormal.depth.format;
+				depthAttachment.format = debugLineList.depth.format;
 				depthAttachment.samples = vk::SampleCountFlagBits::e1;
 				depthAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
 				depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
@@ -953,7 +860,7 @@ public:
 
 				const auto& extent = device.swapchain.extent;
 
-				debugCollider.renderPass.Create(createInfo, device, extent, clearValues);
+				debugLineStrip.renderPass.Create(createInfo, device, extent, clearValues);
 			}
 
 			// Frame buffers
@@ -961,7 +868,7 @@ public:
 				const auto& imageViews = device.swapchain.imageViews;
 				const auto& extent = device.swapchain.extent;
 				size_t imageViewsSize = imageViews.size();
-				debugCollider.frameBuffers.resize(imageViewsSize);
+				debugLineStrip.frameBuffers.resize(imageViewsSize);
 
 				vk::FramebufferCreateInfo createInfo;
 				// FB width/height
@@ -969,26 +876,26 @@ public:
 				createInfo.height = extent.height;
 				// FB layers
 				createInfo.layers = 1;
-				createInfo.renderPass = debugCollider.renderPass;
+				createInfo.renderPass = debugLineStrip.renderPass;
 				createInfo.attachmentCount = 2;
 
 				for (size_t i = 0; i < imageViewsSize; ++i)
 				{
 					std::array<vk::ImageView, 2> attachments = {
 						imageViews[i].Get(),
-						debugNormal.depth.imageView
+						debugLineList.depth.imageView
 					};
 
 					// List of attachments 1 to 1 with render pass
 					createInfo.pAttachments = attachments.data();
 
-					FrameBuffer::Create(&debugCollider.frameBuffers[i], createInfo, device);
+					FrameBuffer::Create(&debugLineStrip.frameBuffers[i], createInfo, device);
 				}
 			}
 
 			// Command buffers
 			{
-				debugCollider.drawBuffers.resize(imageViewCount);
+				debugLineStrip.drawBuffers.resize(imageViewCount);
 
 				vk::CommandBufferAllocateInfo cmdInfo = {};
 				cmdInfo.commandPool = device.commandPool.Get();
@@ -996,17 +903,17 @@ public:
 				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
 
 				utils::CheckVkResult(
-					device.allocateCommandBuffers(&cmdInfo, debugCollider.drawBuffers.data()),
+					device.allocateCommandBuffers(&cmdInfo, debugLineStrip.drawBuffers.data()),
 					"Failed to allocate deferred command buffers"
 				);
 			}
 
 			// Semaphores
-			debugCollider.semaphores.resize(MAX_FRAME_DRAWS);
+			debugLineStrip.semaphores.resize(MAX_FRAME_DRAWS);
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 			{
-				Semaphore::Create(debugCollider.semaphores[i], semInfo, device);
+				Semaphore::Create(debugLineStrip.semaphores[i], semInfo, device);
 			}
 		}
 
@@ -1015,7 +922,7 @@ public:
 
 	void InitializeAssets()
 	{
-		std::vector<std::vector<Mesh<Vertex>::MeshData>> meshData(20);
+		std::vector<std::vector<Mesh<Vertex>::Data>> meshData(20);
 
 		auto loadSection = [&meshData](const std::string& sectionPath,
 									   Device& device, int threadID)
@@ -1024,7 +931,7 @@ public:
 			sectionFile.open(sectionPath);
 			std::string modelsPath = std::string(ASSET_DIR) + "Models/";
 			std::string input;
-			std::vector<Mesh<Vertex>::MeshData> section;
+			std::vector<Mesh<Vertex>::Data> section;
 			while (sectionFile >> input)
 			{
 				std::string combinedPath = modelsPath + input;
@@ -1283,14 +1190,12 @@ public:
 		// ----------------------
 		// Deferred wireframe
 		// ----------------------
-		inputAssembly.setTopology(vk::PrimitiveTopology::eLineStrip);
+		rasterizeState.setPolygonMode(vk::PolygonMode::eLine);
 		GraphicsPipeline::Create(gBuffer.wireframePipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 
-		inputAssembly.setTopology(vk::PrimitiveTopology::eTriangleStrip);
+		rasterizeState.setPolygonMode(vk::PolygonMode::eFill);
 		vertModule.Destroy();
 		fragModule.Destroy();
-
-
 		// ----------------------
 		// FSQ PIPELINE
 		// ----------------------
@@ -1437,13 +1342,13 @@ public:
 		// reuse basically everything from forward
 		vertInfo = ShaderModule::Load(
 			vertModule,
-			"debugNormalVert.spv",
+			"debugLineListVert.spv",
 			vk::ShaderStageFlagBits::eVertex,
 			device
 		);
 		fragInfo = ShaderModule::Load(
 			fragModule,
-			"debugNormalFrag.spv",
+			"debugLineListFrag.spv",
 			vk::ShaderStageFlagBits::eFragment,
 			device
 		);
@@ -1452,9 +1357,9 @@ public:
 		shaderStages[1] = fragInfo;
 
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = debugNormal.renderPass;
+		pipelineInfo.renderPass = debugLineList.renderPass;
 		inputAssembly.topology = vk::PrimitiveTopology::eLineList;
-		rasterizeState.lineWidth = debugNormal.lineWidth;
+		rasterizeState.lineWidth = debugLineList.lineWidth;
 
 		vk::DynamicState dynamicState = vk::DynamicState::eLineWidth;
 		vk::PipelineDynamicStateCreateInfo dsInfo = {};
@@ -1480,27 +1385,28 @@ public:
 		pipelineInfo.pVertexInputState = &vertexInputInfoDebug;
 		
 
-		PipelineLayout::Create(debugNormal.pipelineLayout, layout, device);
-		pipelineInfo.layout = debugNormal.pipelineLayout.Get();
+		PipelineLayout::Create(debugLineList.pipelineLayout, layout, device);
+		pipelineInfo.layout = debugLineList.pipelineLayout.Get();
 
-		GraphicsPipeline::Create(debugNormal.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		GraphicsPipeline::Create(debugLineList.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 		vertModule.Destroy();
 		fragModule.Destroy();
 
 		// ----------------------
-		// COLLIDER DEBUG PIPELINE
+		// DEBUG LINE STRIP PIPELINE
 		// ----------------------
+		// secretly just triangle strip rendered as a line lul
 
 		// reuse basically everything from debug normal
 		vertInfo = ShaderModule::Load(
 			vertModule,
-			"debugColliderVert.spv",
+			"debugLineStripVert.spv",
 			vk::ShaderStageFlagBits::eVertex,
 			device
 		);
 		fragInfo = ShaderModule::Load(
 			fragModule,
-			"debugColliderFrag.spv",
+			"debugLineStripFrag.spv",
 			vk::ShaderStageFlagBits::eFragment,
 			device
 		);
@@ -1509,17 +1415,27 @@ public:
 		shaderStages[1] = fragInfo;
 
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = debugCollider.renderPass;
-		inputAssembly.topology = vk::PrimitiveTopology::eLineStrip;
-		rasterizeState.lineWidth = debugCollider.lineWidth;
+		pipelineInfo.renderPass = debugLineStrip.renderPass;
+		inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
+		rasterizeState.polygonMode = vk::PolygonMode::eLine;
+		rasterizeState.lineWidth = debugLineStrip.lineWidth;
 
-		layout.pPushConstantRanges = &Collider::PushConstant;
+		vk::PushConstantRange pcr[2];
+		// Model
+		pcr[0].setOffset(0);
+		pcr[0].setSize(sizeof(utils::UBOModel));
+		pcr[0].setStageFlags(vk::ShaderStageFlagBits::eVertex);
+		//// Color
+		pcr[1].setOffset(sizeof(glm::mat4));
+		pcr[1].setSize(sizeof(utils::UBOColor));
+		pcr[1].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+		layout.pPushConstantRanges = pcr;
+		layout.pushConstantRangeCount = 2;
 
-		PipelineLayout::Create(debugCollider.pipelineLayout, layout, device);
-		pipelineInfo.layout = debugCollider.pipelineLayout.Get();
+		PipelineLayout::Create(debugLineStrip.pipelineLayout, layout, device);
+		pipelineInfo.layout = debugLineStrip.pipelineLayout.Get();
 
-		GraphicsPipeline::Create(debugCollider.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
-
+		GraphicsPipeline::Create(debugLineStrip.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 	}
 
 	void RecordDeferred(uint32_t imageIndex)
@@ -1532,11 +1448,15 @@ public:
 			gBuffer.frameBuffers[imageIndex].Get(),
 			(gBuffer.wireframeEnabled) ? gBuffer.wireframePipeline.Get() : gBuffer.pipeline.Get()
 		);
-		renderSystem->RenderEntities<DeferredRenderComponent>(
+
+		if (gBuffer.render)
+		{
+			renderSystem->RenderEntities<DeferredRenderComponent>(
 			cmdBuf,
 			descriptors.sets[imageIndex],
 			gBuffer.pipelineLayout.Get()
-		);
+				);
+		}
 
 		gBuffer.renderPass.End(cmdBuf);
 
@@ -1670,7 +1590,7 @@ public:
 			vk::ImageAspectFlagBits::eDepth
 		);
 
-		debugNormal.depth.image.TransitionLayout(
+		debugLineList.depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
 			vk::ImageLayout::eTransferDstOptimal,
@@ -1683,7 +1603,7 @@ public:
 			0, 1, 0, 1
 		);
 		cmdBuf.clearDepthStencilImage(
-			debugNormal.depth.image.Get(),
+			debugLineList.depth.image.Get(),
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ClearDepthStencilValue(1.0f),
 			range
@@ -1705,11 +1625,11 @@ public:
 			);
 			cmdBuf.copyImage(
 				device.depth.image.Get(), vk::ImageLayout::eTransferSrcOptimal,
-				debugNormal.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
+				debugLineList.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
 				imageCopy);
 		}
 
-		debugNormal.depth.image.TransitionLayout(
+		debugLineList.depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
@@ -1727,53 +1647,64 @@ public:
 	}
 
 
-	void RecordDebugNormal(uint32_t imageIndex)
+	void RecordDebugLineList(uint32_t imageIndex)
 	{
-		auto& cmdBuf = debugNormal.drawBuffers[imageIndex];
+		auto& cmdBuf = debugLineList.drawBuffers[imageIndex];
 		cmdBuf.Begin();
 
-		if (debugNormal.render)
-			debugNormal.mesh.StageDynamic(cmdBuf);
+		if (debugLineList.render)
+			debugLineList.mesh.StageDynamic(cmdBuf);
 
-		debugNormal.renderPass.Begin(
+		debugLineList.renderPass.Begin(
 			cmdBuf,
-			debugNormal.frameBuffers[imageIndex].Get(),
-			debugNormal.pipeline
+			debugLineList.frameBuffers[imageIndex].Get(),
+			debugLineList.pipeline
 		);
 
 
-		if (debugNormal.render == true)
+		if (debugLineList.render == true)
 		{
-			//cmdBuf.setLineWidth(debugNormal.lineWidth);
-			//debugNormal.renderPass.RenderObjects(
+			cmdBuf.setLineWidth(debugLineList.lineWidth);
+
+			cmdBuf.bindDescriptorSets(
+				vk::PipelineBindPoint::eGraphics,
+				debugLineList.pipelineLayout,
+				0,
+				1,
+				&descriptors.sets[imageIndex],
+				0,
+				nullptr);
+
+			//debugLineList.renderPass.RenderObjects(
 			//	cmdBuf,
 			//	descriptors.sets[imageIndex],
-			//	debugNormal.pipelineLayout,
-			//	&debugNormal.mesh
+			//	debugLineList.pipelineLayout,
+			//	&debugLineList.mesh
 			//);
+			octree.RenderCells(cmdBuf, debugLineList.pipelineLayout);
 		}
 		cmdBuf.endRenderPass();
 		cmdBuf.end();
 		
 	}
 
-	void RecordDebugCollider(uint32_t imageIndex)
+	void RecordDebugLineStrip(uint32_t imageIndex)
 	{
-		auto& cmdBuf = debugCollider.drawBuffers[imageIndex];
+		auto& cmdBuf = debugLineStrip.drawBuffers[imageIndex];
 		cmdBuf.Begin();
 
-		debugCollider.renderPass.Begin(
+		debugLineStrip.renderPass.Begin(
 			cmdBuf,
-			debugCollider.frameBuffers[imageIndex].Get(),
-			debugCollider.pipeline
+			debugLineStrip.frameBuffers[imageIndex].Get(),
+			debugLineStrip.pipeline
 		);
 
-		if (debugCollider.render == true)
+		if (debugLineStrip.render == true)
 		{
-			cmdBuf.setLineWidth(debugCollider.lineWidth);
+			cmdBuf.setLineWidth(debugLineStrip.lineWidth);
 			cmdBuf.bindDescriptorSets(
 				vk::PipelineBindPoint::eGraphics,
-				debugCollider.pipelineLayout,
+				debugLineStrip.pipelineLayout,
 				0,
 				1,
 				&descriptors.sets[imageIndex],
@@ -1790,9 +1721,20 @@ public:
 			//		object.GetPosition(),
 			//		object.GetStoredRotation(),
 			//		object.GetScale(),
-			//		debugCollider.pipelineLayout
+			//		debugLineStrip.pipelineLayout
 			//		);
 			//}
+			octree.RenderObjects(cmdBuf, debugLineStrip.pipelineLayout);
+			//test.Bind(cmdBuf);
+			//utils::PushIdentityModel(cmdBuf, debugLineStrip.pipelineLayout);
+			//glm::vec4 purple(1.0f, 0.0f, 1.0f, 1.0f);
+			//cmdBuf.pushConstants(
+			//	debugLineStrip.pipelineLayout,
+			//	vk::ShaderStageFlagBits::eFragment,
+			//	sizeof(glm::mat4),
+			//	sizeof(glm::vec4),
+			//	&purple
+			//);
 		}
 		cmdBuf.endRenderPass();
 		cmdBuf.End();
@@ -1823,8 +1765,8 @@ public:
 		RecordDepthCopyForward(device.imageIndex);
 		RecordForward(device.imageIndex);
 		RecordDepthCopyDebug(device.imageIndex);
-		RecordDebugNormal(device.imageIndex);
-		RecordDebugCollider(device.imageIndex);
+		RecordDebugLineList(device.imageIndex);
+		RecordDebugLineStrip(device.imageIndex);
 		overlay.RecordCommandBuffers(device.imageIndex);
 
 		// ----------------------
@@ -1861,20 +1803,20 @@ public:
 		RenderQueue::SetSyncChain(&depthCopySem2[currentFrame]);
 		RenderQueue::Submit(device);
 		// ----------------------
-		// Debug Normal Pass
+		// Debug Line List Pass
 		// ----------------------
-		RenderQueue::SetCommandBuffers(&debugNormal.drawBuffers[device.imageIndex]);
-		RenderQueue::SetSyncChain(&debugNormal.semaphores[currentFrame]);
+		RenderQueue::SetCommandBuffers(&debugLineList.drawBuffers[device.imageIndex]);
+		RenderQueue::SetSyncChain(&debugLineList.semaphores[currentFrame]);
 		RenderQueue::Submit(device);
 		// ----------------------
-		// Debug Collider Pass
+		// Debug Line Strip Pass
 		// ----------------------
-		vk::CommandBuffer commandBuffersDebugCollider[2] = {
-			debugCollider.drawBuffers[device.imageIndex],
+		vk::CommandBuffer commandBuffersDebugLineStrip[2] = {
+			debugLineStrip.drawBuffers[device.imageIndex],
 			overlay.commandBuffers[device.imageIndex]
 		};
-		RenderQueue::SetCommandBuffers(commandBuffersDebugCollider, 2);
-		RenderQueue::SetSyncChain(&debugCollider.semaphores[currentFrame]);
+		RenderQueue::SetCommandBuffers(commandBuffersDebugLineStrip, 2);
+		RenderQueue::SetSyncChain(&debugLineStrip.semaphores[currentFrame]);
 		RenderQueue::Submit(device, device.drawFences[currentFrame]);
 
 		if (RenderQueue::End(device, currentFrame))
@@ -2027,13 +1969,12 @@ public:
 			spaceTimer = 0.0f;
 		}
 		spaceTimer += dt;
-
 	}
 
 
 	void InitializeDebugMesh()
 	{
-		//if (debugNormal.render != true) return;
+		//if (debugLineList.render != true) return;
 
 		//std::vector<PosVertex> debugVertices;
 
@@ -2053,11 +1994,11 @@ public:
 		//	{
 		//		auto worldSpacePosition = (glm::vec3)(object.GetModel() * glm::vec4(vertices[i].pos, 1.0f));
 		//		debugVertices[vertIndex] = worldSpacePosition;
-		//		debugVertices[vertIndex+1] = worldSpacePosition + vertices[i].normal*debugNormal.lineLength;
+		//		debugVertices[vertIndex+1] = worldSpacePosition + vertices[i].normal*debugLineList.lineLength;
 		//	}
 		//}
 
-		//debugNormal.mesh.UpdateDynamic(debugVertices);
+		//debugLineList.mesh.UpdateDynamic(debugVertices);
 	}
 	void Update() override
 	{
@@ -2074,7 +2015,7 @@ public:
 		camera.Update(dt, !cursorActive);
 
 
-		ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
+		//ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
 		ImGui::InputFloat3("Camera Position", &camera.position[0]);
 		ImGui::InputFloat("Pitch", &camera.pitch);
 		ImGui::InputFloat("Yaw", &camera.yaw);
@@ -2083,27 +2024,58 @@ public:
 		//ImGui::Checkbox("Copy Depth", &copyDepth);
 		ImGui::Checkbox("Wireframe Toggle", &gBuffer.wireframeEnabled);
 
-		//ImGui::Checkbox("Visualize Normals", &debugNormal.render);
-		//if (debugNormal.render)
+		ImGui::Checkbox("Debug Line List", &debugLineList.render);
+		//if (debugLineList.render)
 		//{
 		//	ImGui::Indent();
-		//	ImGui::SliderFloat("Line Length##DebugNormal", &debugNormal.lineLength, 0.01f, 5.0f);
-		//	ImGui::SliderFloat("Line Width##DebugNormal", &debugNormal.lineWidth, 0.01f, 5.0f);
+		//	ImGui::SliderFloat("Line Length##DebugLineList", &debugLineList.lineLength, 0.01f, 5.0f);
+		//	ImGui::SliderFloat("Line Width##DebugLineList", &debugLineList.lineWidth, 0.01f, 5.0f);
 		//	ImGui::Unindent();
 		//}
-		ImGui::Checkbox("Visualize Colliders", &debugCollider.render);
-		if (debugCollider.render)
+		ImGui::Checkbox("Visualize Colliders", &debugLineStrip.render);
+		if (debugLineStrip.render)
 		{
 			ImGui::Indent();
-			ImGui::SliderFloat("Line Width##DebugCollider", &debugCollider.lineWidth, 0.01f, 5.0f);
+			ImGui::SliderFloat("Line Width##DebugLineStrip", &debugLineStrip.lineWidth, 0.01f, 5.0f);
 			ImGui::Unindent();
 		}
 
-		ImGui::Text("Debug Target: ");
-		for (int i = 0; i < 3; ++i)
+		ImGui::Checkbox("Render Deferred Pass", &gBuffer.render);
+
+		//ImGui::Text("Debug Target: ");
+		//for (int i = 0; i < 3; ++i)
+		//{
+		//	ImGui::RadioButton(std::to_string(i).c_str(), &debugDisplayTarget, i);
+		//	if (i != 4) ImGui::SameLine();
+		//}
+
+		if(ImGui::TreeNode("Octree Settings"))
 		{
-			ImGui::RadioButton(std::to_string(i).c_str(), &debugDisplayTarget, i);
-			if (i != 4) ImGui::SameLine();
+			static int depth = 1;
+			static glm::vec3 position = glm::vec3(0.0f);
+			static float halfExtent = 2.0f;
+
+			ImGui::InputInt("Minimum Triangles", (int*)&Octree::MinimumTriangles);
+			ImGui::InputInt("Depth", &depth);
+			ImGui::InputFloat3("Position", &position[0]);
+			ImGui::InputFloat("Half-Extent", &halfExtent);
+
+			if (!octree.IsInitialized())
+			{
+				if (ImGui::Button("Create"))
+				{
+					octree.Create(position, halfExtent, depth, device);
+				}
+			}
+			else
+			{
+				if (ImGui::Button("Destroy"))
+				{
+					octree.Destroy();
+				}
+			}
+
+			ImGui::TreePop();
 		}
 
 
@@ -2152,7 +2124,7 @@ public:
 
 	void DrawUI()
 	{
-		//ImGui::ShowDemoWindow();
+		ImGui::ShowDemoWindow();
 		ImGui::Render();
 	}
 };

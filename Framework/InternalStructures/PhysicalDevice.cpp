@@ -82,6 +82,7 @@ void PhysicalDevice::CreateLogicalDevice(Device& device)
 
     vk::PhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.wideLines = VK_TRUE;
+    deviceFeatures.fillModeNonSolid = VK_TRUE;
 
     vk::DeviceCreateInfo createInfo(
         {},

@@ -26,8 +26,7 @@ void RenderingContext::Initialize(std::weak_ptr<Window> winHandle, bool enableOv
     physicalDevice.Create(instance);
     physicalDevice.CreateLogicalDevice(device);
 	enabledOverlay = enableOverlay;
-	Mesh<Vertex>::InitializeStatics(device);
-	Collider::InitializeMeshes(device);
+	InitializeMeshStatics(device);
 	if (enabledOverlay)
 	{
 		overlay.Create(window, instance, physicalDevice, device);

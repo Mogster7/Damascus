@@ -1,5 +1,5 @@
 #pragma once
-#include "Primitives/Primitives.hpp"
+#include "Primitives/Primitives.h"
 
 class Collider
 {
@@ -12,14 +12,6 @@ public:
 		Sphere,
 		Ray
 	};
-	static Mesh<PosVertex> MeshBox;
-	static Mesh<PosVertex> MeshSphere;
-	static Mesh<PosVertex> MeshPlane;
-	static Mesh<PosVertex> MeshPoint;
-	static Mesh<PosVertex> MeshTriangle;
-	static Mesh<PosVertex> MeshRay;
-
-	static void InitializeMeshes(Device& device);
 
 	virtual void Update(const Mesh<Vertex>& mesh, 
 						const glm::vec3& position,
@@ -76,9 +68,9 @@ public:
 			  const glm::vec3& scale,
 			  vk::PipelineLayout layout) const;
 
-	Box world;
+	Primitives::Box world;
 private:
-	Box local;
+	Primitives::Box local;
 };
 
 
@@ -102,9 +94,9 @@ public:
 
 	void TestIntersection(Collider* other) override;
 
-	Sphere world;
+	Primitives::Sphere world;
 private:
-	Sphere local;
+	Primitives::Sphere local;
 };
 
 class PlaneCollider : public Collider
@@ -128,10 +120,10 @@ public:
 
 	void TestIntersection(Collider* other) override;
 
-	Plane world;
+	Primitives::Plane world;
 
 private:
-	Plane local;
+	Primitives::Plane local;
 
 };
 
@@ -155,7 +147,7 @@ public:
 
 	inline static float visualRadius = 0.3f;
 
-	Point world;
+	Primitives::Point world;
 };
 
 class RayCollider : public Collider
@@ -177,7 +169,7 @@ public:
 
 	void TestIntersection(Collider* other) override;
 
-	Ray world;
+	Primitives::Ray world;
 };
 
 class TriangleCollider : public Collider
@@ -199,9 +191,9 @@ public:
 
 	void TestIntersection(Collider* other) override;
 
-	Triangle world;
+	Primitives::Triangle world;
 
 private:
-	Triangle local;
+	Primitives::Triangle local;
 };
 

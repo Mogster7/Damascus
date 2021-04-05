@@ -3,6 +3,7 @@
 #include <fstream>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 #include <entt/single_include/entt/entt.hpp>
 #include <stdexcept>
 #include <cstdlib>
@@ -11,6 +12,7 @@
 #include <memory>
 #include <vector>
 #include <array>
+#include <queue>
 #include <algorithm>
 #include <stack>
 #include <tuple>

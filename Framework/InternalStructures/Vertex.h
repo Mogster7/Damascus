@@ -9,9 +9,7 @@
 
 struct PosVertex
 {
-    PosVertex(glm::vec3 pos = glm::vec3(1.0f)) : pos(pos) {};
-    glm::vec3 pos = {};
-
+    glm::vec3 pos = glm::vec3(0.0f);
     inline static const uint32_t NUM_ATTRIBS = 1;
 };
 

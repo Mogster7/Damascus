@@ -70,6 +70,7 @@ class VertexBuffer : public Buffer
 public:
     void CreateStatic(const std::vector<VertexType>& vertices, Device& owner)
     {
+        ASSERT(vertices.size(), "No vertices contained in mesh creation parameters");
 		CreateStagedPersistent((void*)&vertices[0], vertices.size() * sizeof(VertexType),
 					 vk::BufferUsageFlagBits::eVertexBuffer,
 					 VMA_MEMORY_USAGE_GPU_ONLY,
@@ -80,6 +81,7 @@ public:
 
     void CreateDynamic(const std::vector<VertexType>& vertices, Device& owner)
     {
+        ASSERT(vertices.size(), "No vertices contained in mesh creation parameters");
 		CreateStagedPersistent((void*)&vertices[0], vertices.size() * sizeof(VertexType),
 					 vk::BufferUsageFlagBits::eVertexBuffer,
 					 VMA_MEMORY_USAGE_GPU_ONLY,

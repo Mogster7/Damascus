@@ -11,6 +11,16 @@ constexpr unsigned MAX_OBJECTS = 2;
 
 namespace utils
 {
+    struct UBOModel
+    {
+        glm::mat4 model;
+    };
+
+    struct UBOColor
+    {
+        glm::vec4 color;
+    };
+
 	inline static glm::mat4 identity = glm::mat4(1.0f);
     float Random(float min = 0.0f, float max = 1.0f);
     std::vector<char> ReadFile(const std::string& filename);
@@ -35,6 +45,7 @@ namespace utils
     {
         for (auto& item : vec) item.Destroy();
     }
+
 }
 
 

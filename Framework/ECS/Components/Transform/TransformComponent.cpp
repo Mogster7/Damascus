@@ -22,6 +22,15 @@ void TransformComponent::SetRotation(const glm::vec3& rotation)
 	dirty = true;
 }
 
+void TransformComponent::PushModel(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) const
+{
+	commandBuffer.pushConstants(
+		pipelineLayout,
+		vk::ShaderStageFlagBits::eVertex,
+		0, sizeof(glm::mat4), &model
+	);
+}
+
 void TransformComponent::UpdateModel()
 {
 	if (!dirty) return;

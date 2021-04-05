@@ -8,6 +8,7 @@
 #pragma once
     
 #include <vk_mem_alloc.h>
+#include "Primitives/Primitives.h"
 #include "InternalStructures/Vertex.h"
 #include "InternalStructures/Buffer.h"
 #include "InternalStructures/Mesh.h"
@@ -32,5 +33,4 @@
 #include "InternalStructures/Texture.h"
 #include "InternalStructures/Model.h"
 #include "InternalStructures/RenderQueue.h"
-#include "Primitives/Primitives.hpp"
 

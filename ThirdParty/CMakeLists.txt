@@ -19,8 +19,6 @@ add_library(
     ThirdParty ${SRC}
 )
 
-
-
 set(VULKAN_DIR VulkanSDK)
 set(VULKAN_INCLUDE_DIR VulkanSDK/Include)
 set(VULKAN_LIB_DIR VulkanSDK/Lib)

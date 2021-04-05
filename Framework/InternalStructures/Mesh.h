@@ -22,109 +22,38 @@ template <class VertexType>
 class Mesh
 {
 public:
-	static Mesh<VertexType> UnitSphere;
-	static Mesh<VertexType> UnitCube;
+	static Mesh<VertexType> Sphere;
+	static Mesh<VertexType> Cube;
 	static Mesh<VertexType> Point;
+	static Mesh<VertexType> Plane;
+	static Mesh<VertexType> Triangle;
+	static Mesh<VertexType> Ray;
+
+	// Created using line lists instead of strips
+	static Mesh<VertexType> CubeList;
+
 	Mesh() = default;
 	~Mesh() = default;
 
-	static void InitializeStatics(Device& owner)
-	{
-		std::vector<Vertex> vertices;
-
-		int i;
-#define Band_Power  8  // 2^Band_Power = Total Points in a band.
-#define Band_Points 256 // 16 = 2^Band_Power
-#define Band_Mask (Band_Points-2)
-#define Sections_In_Band ((Band_Points/2)-1)
-#define Total_Points (Sections_In_Band*Band_Points) 
-		// remember - for each section in a band, we have a band
-#define Section_Arc (6.28/Sections_In_Band)
-		const float R = -0.5; // radius of 10
-
-		float x_angle;
-		float y_angle;
-
-		for (i = 0; i < Total_Points; i++)
-		{
-			// using last bit to alternate,+band number (which band)
-			x_angle = (float)(i & 1) + (i >> Band_Power);
-
-			// (i&Band_Mask)>>1 == Local Y value in the band
-			// (i>>Band_Power)*((Band_Points/2)-1) == how many bands
-			//  have we processed?
-			// Remember - we go "right" one value for every 2 points.
-			//  i>>bandpower - tells us our band number
-			y_angle = (float)((i & Band_Mask) >> 1) + ((i >> Band_Power) * (Sections_In_Band));
-
-			x_angle *= (float)Section_Arc / 2.0f; // remember - 180° x rot not 360
-			y_angle *= (float)Section_Arc * -1;
-
-
-			Vertex vertex;
-			vertex.pos = {
-					R * sin(x_angle) * sin(y_angle),
-				   R * cos(x_angle),
-				   R * sin(x_angle) * cos(y_angle)
-			};
-			vertices.emplace_back(vertex);
-		}
-		UnitSphere.CreateStatic(vertices, owner);
-
-
-		std::vector<Vertex> cubeVerts = {
-		{ { -0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
-		{ { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f } , { 0.0f, 0.0f, 1.0f }},
-
-		{ { 0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 1.0f } , { 0.0f, 1.0f, 1.0f } },
-		{ { -0.5f, 0.5f, 0.5f }, { 1.0f, 0.0f, 1.0f } , { 1.0f, 0.0f, 1.0f }},
-
-		{ { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, 0.0f  }, { 0.0f, 0.0f, 0.0f}},
-		{ { 0.5f, -0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f  }},
-
-		{ { 0.5f, 0.5f, -0.5f }, { 1.0f, 1.0f, 0.0f } , { 1.0f, 1.0f, 0.0f }},
-		{ { -0.5f, 0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f  }},
-		};
-
-
-		const std::vector<uint32_t> cubeIndices =
-		{
-			// front
-			0, 1, 2,
-			2, 3, 0,
-			// right
-			1, 5, 6,
-			6, 2, 1,
-			// back
-			7, 6, 5,
-			5, 4, 7,
-			// left
-			4, 0, 3,
-			3, 7, 4,
-			// bottom
-			4, 5, 1,
-			1, 0, 4,
-			// top
-			3, 2, 6,
-			6, 7, 3
-		};
-
-		for (auto& vert : cubeVerts)
-			vert.normal = glm::normalize(vert.pos);
-
-		UnitCube.CreateStatic(cubeVerts, cubeIndices, owner);
-
-		std::vector<Vertex> pt = {
-		{ { 0.0, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } , { 1.0f, 0.0f, 1.0f }}
-		};
-		Point.CreateStatic(pt, owner);
-	}
-
-	struct MeshData
+	struct Data
     {
 		std::vector<VertexType> vertices;
 		std::vector<uint32_t> indices;
     };
+	struct Memory
+	{
+		VertexType* vertices;
+		uint32_t vertexCount;
+		uint32_t* indices;
+		uint32_t indexCount;
+	};
+	struct View
+	{
+		const VertexType* vertices;
+		const uint32_t vertexCount;
+		const uint32_t* indices;
+		const uint32_t indexCount;
+	};
 
 	void Create(Mesh<VertexType>& other)
 	{
@@ -134,19 +63,19 @@ public:
 		if (other.dynamic)
 		{
 			if (indexCount > 0)
-				CreateDynamic(other.GetVertexBufferData<VertexType>(0),
-							  other.GetIndexBufferData(), *other.m_owner);
+				CreateDynamic(other.GetVertexBufferDataCopy<VertexType>(0),
+							  other.GetIndexBufferDataCopy(), *other.m_owner);
 			else
-				CreateDynamic(other.GetVertexBufferData<VertexType>(0),
+				CreateDynamic(other.GetVertexBufferDataCopy<VertexType>(0),
 							  *other.m_owner);
 		}
 		else
 		{
 			if (indexCount > 0)
-				CreateStatic(other.GetVertexBufferData<VertexType>(0),
-							 other.GetIndexBufferData(), *other.m_owner);
+				CreateStatic(other.GetVertexBufferDataCopy<VertexType>(0),
+							 other.GetIndexBufferDataCopy(), *other.m_owner);
 			else
-				CreateStatic(other.GetVertexBufferData<VertexType>(0),
+				CreateStatic(other.GetVertexBufferDataCopy<VertexType>(0),
 							  *other.m_owner);
 		}
 
@@ -208,7 +137,7 @@ public:
 
 
 	template <class T> 
-	std::vector<T> GetVertexBufferData(uint32_t offset) const
+	std::vector<T> GetVertexBufferDataCopy(uint32_t offset) const
 	{
 		std::vector<T> data;
 		const auto* buffer = reinterpret_cast<const char*>(vertexBuffer.GetMappedData());
@@ -222,26 +151,55 @@ public:
 		return std::move(data);
 	}
 
-	std::vector<uint32_t> GetIndexBufferData() const
+	std::vector<VertexType> GetVertexBufferDataCopy() const
 	{
-		std::vector<uint32_t> data;
-		const auto* buffer = reinterpret_cast<const char*>(indexBuffer.GetMappedData());
-		for (int i = 0; i < indexBuffer.GetIndexCount(); ++i)
-		{
-			data.emplace_back(
-				*reinterpret_cast<const uint32_t*>(buffer + sizeof(uint32_t) * i)
-			);
-		}
-
+		std::vector<VertexType> data;
+		const auto* buffer = reinterpret_cast<const char*>(vertexBuffer.GetMappedData());
+		uint32_t vertexCount = GetVertexCount();
+		data.resize(vertexCount);
+		memcpy(data.data(), buffer, sizeof(VertexType) * vertexCount);
 		return std::move(data);
 	}
 
-
-
-	VertexType* GetVertexBufferData()
+	std::vector<uint32_t> GetIndexBufferDataCopy() const
 	{
-		return reinterpret_cast<VertexType*>(vertexBuffer.GetMappedData());
+		std::vector<uint32_t> data;
+		const auto* buffer = reinterpret_cast<const char*>(indexBuffer.GetMappedData());
+		data.resize(GetIndexCount());
+		memcpy(data.data(), buffer, sizeof(uint32_t) * GetIndexCount());
+		return std::move(data);
 	}
+
+	Mesh::Data GetDataCopy() const
+	{
+		return { GetVertexBufferDataCopy(), GetIndexBufferDataCopy() };
+	}
+
+	VertexType* GetVertexBufferData() 
+	{
+		return reinterpret_cast<const VertexType*>(vertexBuffer.GetMappedData());
+	}
+	uint32_t* GetIndexBufferData()
+	{
+		return reinterpret_cast<const uint32_t*>(indexBuffer.GetMappedData());
+	}
+
+	const VertexType* GetVertexBufferData() const
+	{
+		return reinterpret_cast<const VertexType*>(vertexBuffer.GetMappedData());
+	}
+	const uint32_t* GetIndexBufferData() const
+	{
+		return reinterpret_cast<const uint32_t*>(indexBuffer.GetMappedData());
+	}
+
+	const Mesh::View GetDataView() const
+	{
+		return { GetVertexBufferData(), GetVertexCount(),
+				 GetIndexBufferData(), GetIndexCount() };
+	}
+
+
 
 	void StageDynamic(vk::CommandBuffer commandBuffer)
 	{
@@ -251,14 +209,13 @@ public:
 	}
 
 
-	static MeshData LoadModel(const std::string& path)
+	static Mesh::Data LoadModel(const std::string& path)
     {
         ASSERT(false, "There is no template specialization for this model creation.");
     }
     void CreateModel(const std::string& path, bool dynamic, Device& owner)
     {
         ASSERT(false, "There is no template specialization for this model creation.");
-		
     }
 
 	void Bind(vk::CommandBuffer commandBuffer) const
@@ -298,6 +255,86 @@ public:
     uint32_t GetVertexCount() const { return vertexBuffer.GetVertexCount(); }
     const Buffer& GetVertexBuffer() const { return vertexBuffer; }
     void DestroyVertexBuffer() { vertexBuffer.Destroy(); }
+
+	std::vector<glm::vec3> AggregateVertexPositions() const
+	{
+		const uint32_t indexCount = GetIndexCount();
+		const VertexType* vertices = GetVertexBufferData();
+		std::vector<glm::vec3> positions;
+		if (indexCount > 0)
+		{
+			const uint32_t* indices = GetIndexBufferData();
+			positions.resize(indexCount);
+			for (int i = 0; i < indexCount; ++i)
+				positions[i] = vertices[indices[i]].pos;
+		}
+		else
+		{
+			const uint32_t vertexCount = GetVertexCount();
+			positions.resize(vertexCount);
+			for (int i = 0; i < vertexCount; ++i)
+				positions[i] = vertices[i].pos;
+		}
+
+		return positions;
+	}
+
+	std::vector<glm::vec3> GetVertexEdgeListFromTriangleList() const
+	{
+		const uint32_t indexCount = GetIndexCount();
+		const VertexType* vertices = GetVertexBufferData();
+		std::vector<glm::vec3> positions;
+		if (indexCount > 0)
+		{
+			const uint32_t* indices = GetIndexBufferData();
+			for (int i = 0; i < indexCount; ++i)
+			{
+				positions.emplace_back(vertices[indices[i]].pos);
+				if ((i + 1) % 3 == 0)
+				{
+					positions.emplace_back(vertices[indices[i - 2]].pos);
+				}
+				else
+				{
+					positions.emplace_back(vertices[indices[i + 1]].pos);
+				}
+			}
+		}
+		else
+		{
+			const uint32_t vertexCount = GetVertexCount();
+			positions.resize(vertexCount * 4/3);
+			for (int i = 0; i < vertexCount; ++i)
+			{
+				positions[i] = vertices[i].pos;
+				if ((i + 1) % 3 == 0)
+				{
+					positions[++i] = vertices[i-2].pos;
+				}
+			}
+		}
+
+		return positions;
+	}
+
+
+	// -1 if all in the back, 0 if straddling, and 1 if all in front
+	//int IsStraddlingPlane(const Primitives::Plane& plane) const;
+	static int IsStraddlingPlane(const VertexType* vertices,
+								 const uint32_t vertexCount,
+								 const Primitives::Plane& plane);
+
+
+	// Returns front-facing and back-facing mesh relative to the plane respectively
+	std::pair<Mesh<VertexType>, Mesh<VertexType>> Clip(const Primitives::Plane& plane) const;
+
+	static void Clip(
+		const Mesh<VertexType>::Data& data,
+		const Primitives::Plane& plane,
+		Mesh<VertexType>::Data& front,
+		Mesh<VertexType>::Data& back
+	);
+
 	
 
 	bool dynamic = false;
@@ -308,8 +345,290 @@ public:
 		Device* m_owner = nullptr;
 };
 
+
+template <class VertexType>
+int Mesh<VertexType>::IsStraddlingPlane(const VertexType* vertices,
+					  const uint32_t vertexCount,
+					  const Primitives::Plane& plane)
+{
+	uint32_t positive = 0;
+	uint32_t negative = 0;
+
+	//ASSERT(planeDistance.size() == size, "Incorrect size for input bool vector");
+	for (int i = 0; i < vertexCount; ++i)
+	{
+		const glm::vec3& vert = vertices[i].pos;
+		float distance = glm::dot(plane.normal, vert - plane.position);
+		if (distance > Primitives::Plane::thickness)
+		{
+			++positive;
+		}
+		else if (distance < -Primitives::Plane::thickness)
+		{
+			++negative;
+		}
+	}
+
+	if (!negative && !positive) return 1;
+
+	int straddle = 0;
+	straddle += negative == 0;
+	straddle -= positive == 0;
+
+	return straddle;
+}
+
+
+//template <class VertexType>
+//int Mesh<VertexType>::IsStraddlingPlane(const Primitives::Plane& plane) const
+//{
+//	uint32_t positive = 0;
+//	uint32_t negative = 0;
+//
+//	auto vertCount = GetVertexCount();
+//	const VertexType* vertices = GetVertexBufferData();
+//	for (int i = 0; i < vertCount; ++i)
+//	{
+//		const VertexType& vert = vertices[i];
+//		float distance = glm::dot(plane.normal, vert.pos - plane.position);
+//		if (distance > Primitives::Plane::thickness)
+//			++positive;
+//		else if (distance < -Primitives::Plane::thickness)
+//			++negative;
+//	}
+//
+//	int straddle = 0;
+//	straddle += negative == 0;
+//	straddle -= positive == 0;
+//
+//	return straddle;
+//}
+
+void InitializeMeshStatics(Device& device);
+
+
+
+template <class VertexType>
+void Mesh<VertexType>::Clip(
+	const Mesh<VertexType>::Data& data,
+	const Primitives::Plane& plane,
+	Mesh<VertexType>::Data& front,
+	Mesh<VertexType>::Data& back
+)
+{
+	int frontCount = 0, backCount = 0;
+
+	int size = data.indices.size();
+	ASSERT(size % 3 == 0, "Incorrect number of vertices attempted to be split");
+	ASSERT(data.indices.size() != 0, "Non-indexed triangles not supported for octree");
+	std::vector<glm::vec3> frontVerts, backVerts;
+	frontVerts.resize(size * 4/3);
+	backVerts.resize(size * 4/3);
+
+	// Used to store per triangle if it is a quad
+	std::vector<bool> frontQuads(size / 3);
+	std::vector<bool> backQuads(size / 3);
+
+	int currentFrontFaceVertCount = 0;
+	int currentBackFaceVertCount = 0;
+	int frontFaceCount = 0;
+	int backFaceCount = 0;
+
+	bool triCross = false;
+
+	for (int i = 0; i < size; i += 3)
+	{
+		uint32_t indices[3] = {
+			data.indices[i + 0],
+			data.indices[i + 1],
+			data.indices[i + 2],
+		};
+
+		PosVertex tri[3] = {
+			data.vertices[indices[0]],
+			data.vertices[indices[1]],
+			data.vertices[indices[2]]
+		};
+
+		int straddle = IsStraddlingPlane(tri, 3u, plane);
+		if (straddle != 0)
+		{
+			if (straddle == 1)
+			{
+				for (int j = 0; j < 3; ++j)
+					frontVerts[frontCount++] = tri[j].pos;
+				// All on one side, not a quad
+				frontQuads[frontFaceCount++] = false;
+			}
+			else 
+			{
+				for (int j = 0; j < 3; ++j)
+					backVerts[backCount++] = tri[j].pos;
+				// All on one side, not a quad
+				backQuads[backFaceCount++] = false;
+			}
+			continue;
+		}
+		
+		auto SplitTriangle =
+			[&](const glm::vec3& a, const glm::vec3& b)
+		{
+			int aSide = ClassifyPointToPlane(a, plane);
+			int bSide = ClassifyPointToPlane(b, plane);
+			if (bSide == Primitives::PointPlaneStatus::Front) {
+				if (aSide == Primitives::PointPlaneStatus::Back) {
+					Primitives::Ray ray;
+					ray.direction = glm::normalize(b - a);
+					ray.position = a;
+					glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
+					ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar , "Failed validation of clipping");
+					frontVerts[frontCount++] = backVerts[backCount++] = i;
+					++currentFrontFaceVertCount;
+					++currentBackFaceVertCount;
+				}
+				// In all three cases, output b to the front side
+				frontVerts[frontCount++] = b;
+				++currentFrontFaceVertCount;
+			}
+			else if (bSide == Primitives::PointPlaneStatus::Back) {
+				if (aSide == Primitives::PointPlaneStatus::Front) {
+					//float t = da / (da - db);
+					//glm::vec3 i = (1 - t) * a + t * b;
+					Primitives::Ray ray;
+					ray.direction = glm::normalize(b - a);
+					ray.position = a;
+					glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
+
+					// Edge (a, b) straddles plane, output intersection point
+					ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar, "Failed validation of clipping");
+					frontVerts[frontCount++] = backVerts[backCount++] = i;
+					++currentFrontFaceVertCount;
+					++currentBackFaceVertCount;
+				}
+				else if (aSide == Primitives::PointPlaneStatus::Coplanar) {
+					// Output a when edge (a, b) goes from ‘on’ to ‘behind’ plane
+					backVerts[backCount++] = a;
+					++currentBackFaceVertCount;
+				}
+				// In all three cases, output b to the back side
+				backVerts[backCount++] = b;
+				++currentBackFaceVertCount;
+			}
+			else {
+				// b is on the plane. In all three cases output b to the front side
+				frontVerts[frontCount++] = b;
+				++currentFrontFaceVertCount;
+				// In one case, also output b to back side
+				if (aSide == Primitives::PointPlaneStatus::Back)
+				{
+					backVerts[backCount++] = b;
+					++currentBackFaceVertCount;
+				}
+			}
+		};
+
+		SplitTriangle(tri[0].pos, tri[1].pos);
+		SplitTriangle(tri[1].pos, tri[2].pos);
+		SplitTriangle(tri[2].pos, tri[0].pos);
+
+		// We have finished this triangle set, output 
+		// whether or not it is a tri or quad
+		ASSERT(currentFrontFaceVertCount == 3 ||
+			   currentFrontFaceVertCount == 4 ||
+			   currentFrontFaceVertCount == 0, "Invalid number of face points when clipping!");
+		ASSERT(currentBackFaceVertCount == 3 ||
+			   currentBackFaceVertCount == 4 ||
+			   currentBackFaceVertCount == 0, "Invalid number of face points when clipping!");
+		if (currentFrontFaceVertCount > 2)
+		{
+			frontQuads[frontFaceCount++] = (currentFrontFaceVertCount == 4);
+		}
+		if (currentBackFaceVertCount > 2)
+		{
+			backQuads[backFaceCount++] = (currentBackFaceVertCount == 4);
+		}
+
+		currentFrontFaceVertCount = 0;
+		currentBackFaceVertCount = 0;
+	}
+	frontQuads.resize(frontFaceCount);
+	backQuads.resize(backFaceCount);
+
+	auto SplitQuads =
+		[](const std::vector<bool>& quads,
+		   const std::vector<glm::vec3>& input,
+		   const int faceVertCount,
+		   Mesh<VertexType>::Data& out)
+	{
+		int numFaces = quads.size();
+
+		int numOutputVertices = 0;
+		int numOutputIndices = 0;
+		for (int i = 0; i < numFaces; ++i)
+		{
+			numOutputVertices += (quads[i] == true) ? 4 : 3;
+			numOutputIndices += (quads[i] == true) ? 6 : 3;
+		}
+
+		out.vertices.resize(numOutputVertices);
+		out.indices.resize(numOutputIndices);
+
+		for (int i = 0, faceIndex = 0, ii = 0; i < faceVertCount;)
+		{
+			bool isQuad = (quads[faceIndex++] == true);
+
+			for (int j = 0; j < 3; ++j)
+			{
+				out.vertices[i + j].pos = input[i + j];
+				out.indices[ii + j] = i + j;
+			}
+
+			if (isQuad)
+			{
+				out.vertices[i + 3].pos = input[i + 3];
+				// 0 2 3
+				out.indices[ii + 3] = i + 0;
+				out.indices[ii + 4] = i + 2;
+				out.indices[ii + 5] = i + 3;
+				i += 4;
+				ii += 6;
+			}
+			else
+			{
+				i += 3;
+				ii += 3;
+			}
+		}
+	};
+	if (frontCount > 0)
+		SplitQuads(frontQuads, frontVerts, frontCount, front);
+	if (backCount > 0)
+		SplitQuads(backQuads, backVerts, backCount, back);
+
+	//ASSERT(front.vertices.size() % 3 == 0 || 
+	//	   front.vertices.size() % 4 == 0, "Incorrect number of vertices in back output triangles");
+	ASSERT(front.indices.size() % 3 == 0, "Incorrect number of indices in front output triangles");
+
+	//ASSERT(back.vertices.size() % 3 == 0 || 
+	//	   back.vertices.size() % 4 == 0, "Incorrect number of vertices in back output triangles");
+	ASSERT(back.indices.size() % 3 == 0, "Incorrect number of indices in back output triangles");
+}
+
+
+//template <class VertexType>
+//std::pair<Mesh<VertexType>, Mesh<VertexType>> Mesh<VertexType>::Clip(const Primitives::Plane& plane) const
+//{
+//	int indexCount = GetIndexCount();
+//	const bool useIndices = (indexCount != 0);
+//	const uint32_t* indices = (useIndices) ? GetIndexBufferData() : nullptr;
+//	int vertexCount = GetVertexCount();
+//	vertices = GetVertexBufferData();
+//
+//}
+
+
 template<>
-Mesh<Vertex>::MeshData Mesh<Vertex>::LoadModel(const std::string& path)
+Mesh<Vertex>::Data Mesh<Vertex>::LoadModel(const std::string& path)
 {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;

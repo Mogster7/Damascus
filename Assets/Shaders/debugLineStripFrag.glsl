@@ -2,12 +2,16 @@
 #pragma shader_stage(fragment)
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(location = 0) flat in int Colliding;
+layout(push_constant) uniform PushConstant
+{
+	layout(offset = 64) vec4 color;
+} push;
+
 
 layout (location = 0) out vec4 outColor;
 
 
 
 void main() {
-	outColor = vec4((Colliding == 1) ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0), 1.0);
+	outColor = vec4(push.color.rgb, 1.0);
 }

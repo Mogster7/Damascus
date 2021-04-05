@@ -18,14 +18,7 @@ public:
 	bool dirty = false;
 
 	void PushModel(vk::CommandBuffer commandBuffer,
-				   vk::PipelineLayout pipelineLayout) const
-	{
-		commandBuffer.pushConstants(
-			pipelineLayout,
-			vk::ShaderStageFlagBits::eVertex,
-			0, sizeof(glm::mat4), &model
-		);
-	}
+				   vk::PipelineLayout pipelineLayout) const;
 	void UpdateModel();
 
 	inline const glm::vec3& GetPosition() const { return m_position; }

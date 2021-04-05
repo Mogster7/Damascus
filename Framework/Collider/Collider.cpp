@@ -1,58 +1,6 @@
 #include "Collider.h"
 
-Mesh<PosVertex> Collider::MeshBox;
-Mesh<PosVertex> Collider::MeshSphere;
-Mesh<PosVertex> Collider::MeshPlane;
-Mesh<PosVertex> Collider::MeshRay;
-Mesh<PosVertex> Collider::MeshPoint;
-Mesh<PosVertex> Collider::MeshTriangle;
-
-const std::vector<PosVertex> planeVerts = {
-	 PosVertex({ -1.0, 0.0, -1.0 }),	// 0
-	 PosVertex({ -1.0, 0.0, 1.0 }),	    // 1
-	 PosVertex({ 1.0, 0.0, 1.0 }),    // 2
-	 PosVertex({ 1.0, 0.0, -1.0 })   // 3
-};
-
-const std::vector<uint32_t> planeIndices = {
-	0, 1, 2,
-	2, 3, 0
-};
-
-const std::vector<PosVertex> rayVerts = {
-	 PosVertex({ 0.0, 0.0, 0.0 }),	// 0
-	 PosVertex({ 0.0, 0.0, 1.0 })   // 1
-};
-
-const std::vector<PosVertex> triVerts = {
-	 PosVertex({ 0.0, 1.0, 0.0 }),	// 0
-	 PosVertex({ 1.0, 0.0, 0.0 }) ,  // 1
-	 PosVertex({ -1.0, 0.0, 0.0 })   // 2
-};
-
-
-
-void Collider::InitializeMeshes(Device& device)
-{
-	auto cubePositions = Mesh<Vertex>::UnitCube.GetVertexBufferData<glm::vec3>(0);
-	auto cubeIndices2 = Mesh<Vertex>::UnitCube.GetIndexBufferData();
-
-	std::vector<PosVertex> cubePosVertices(cubePositions.begin(), cubePositions.end());
-
-	auto spherePositions2 = Mesh<Vertex>::UnitSphere.GetVertexBufferData<glm::vec3>(0);
-	std::vector<PosVertex> spherePosVertices(spherePositions2.begin(), spherePositions2.end());
-
-	std::vector<PosVertex> point = { PosVertex({ 0.0f, 0.0f, 0.0f }) };
-
-	MeshBox.CreateStatic(cubePosVertices, cubeIndices2, device);
-	MeshSphere.CreateStatic(spherePosVertices, device);
-	MeshPlane.CreateStatic(planeVerts, planeIndices, device);
-	MeshPoint.CreateStatic(point, device);
-	MeshRay.CreateStatic(rayVerts, device);
-	MeshTriangle.CreateStatic(triVerts, device);
-}
-
-
+using namespace Primitives;
 
 void Collider::Push(vk::CommandBuffer cmdBuf, vk::PipelineLayout layout,
 					const glm::mat4& model) const
@@ -76,7 +24,7 @@ SphereCollider* SphereCollider::Create(const Mesh<Vertex>& mesh)
 
 void SphereCollider::UpdateBoundingVolume(const Mesh<Vertex>& mesh)
 {
-	std::vector<glm::vec3> points = mesh.GetVertexBufferData<glm::vec3>(0);
+	std::vector<glm::vec3> points = mesh.GetVertexBufferDataCopy<glm::vec3>(0);
 	for (auto& point : points)
 		point = glm::vec4(point, 0.0f);
 
@@ -150,9 +98,9 @@ void SphereCollider::Draw(vk::CommandBuffer commandBuffer,
 	glm::mat4 scaleMat = glm::scale(utils::identity, glm::vec3(world.radius) * 2.0f);
 	glm::mat4 model = transMat * scaleMat;
 
-	MeshSphere.Bind(commandBuffer);
+	Mesh<PosVertex>::Sphere.Bind(commandBuffer);
 	Push(commandBuffer, layout, model);
-	MeshSphere.Draw(commandBuffer);
+	Mesh<PosVertex>::Sphere.Draw(commandBuffer);
 }
 
 BoxCollider* BoxCollider::Create(const Mesh<Vertex>& mesh)
@@ -165,7 +113,7 @@ BoxCollider* BoxCollider::Create(const Mesh<Vertex>& mesh)
 
 void BoxCollider::UpdateBoundingVolume(const Mesh<Vertex>& mesh)
 {
-	std::vector<glm::vec3> points = mesh.GetVertexBufferData<glm::vec3>(0);
+	std::vector<glm::vec3> points = mesh.GetVertexBufferDataCopy<glm::vec3>(0);
 
 	glm::vec3 minX, minY, minZ;
 	glm::vec3 maxX, maxY, maxZ;
@@ -260,9 +208,9 @@ void BoxCollider::Draw(vk::CommandBuffer commandBuffer,
 
 	glm::mat4 model = transMat * scaleMat;
 	
-	MeshBox.Bind(commandBuffer);
+	Mesh<PosVertex>::Cube.Bind(commandBuffer);
 	Push(commandBuffer, layout, model);
-	MeshBox.Draw(commandBuffer);
+	Mesh<PosVertex>::Cube.Draw(commandBuffer);
 }
 
 PlaneCollider* PlaneCollider::Create(const Mesh<Vertex>& mesh,
@@ -298,9 +246,9 @@ void PlaneCollider::Draw(vk::CommandBuffer commandBuffer,
 	glm::mat4 transMat = glm::translate(utils::identity, position);
 	glm::mat4 scaleMat = glm::scale(utils::identity, scale);
 	
-	MeshPlane.Bind(commandBuffer);
+	Mesh<PosVertex>::Plane.Bind(commandBuffer);
 	Push(commandBuffer, layout, transMat * rotation * scaleMat);
-	MeshPlane.Draw(commandBuffer);
+	Mesh<PosVertex>::Plane.Draw(commandBuffer);
 }
 
 void PlaneCollider::TestIntersection(Collider* other)
@@ -346,9 +294,9 @@ void PointCollider::Draw(vk::CommandBuffer commandBuffer,
 	glm::mat4 transMat = glm::translate(utils::identity, position);
 	glm::mat4 scaleMat = glm::scale(utils::identity, glm::vec3(visualRadius * 2.0f));
 
-	MeshSphere.Bind(commandBuffer);
+	Mesh<PosVertex>::Sphere.Bind(commandBuffer);
 	Push(commandBuffer, layout, transMat * scaleMat);
-	MeshSphere.Draw(commandBuffer);
+	Mesh<PosVertex>::Sphere.Draw(commandBuffer);
 }
 
 void PointCollider::TestIntersection(Collider* other)
@@ -401,9 +349,9 @@ void RayCollider::Draw(vk::CommandBuffer commandBuffer,
 	glm::mat4 scaleMat = glm::scale(utils::identity, scale);
 	glm::mat4 transMat = glm::translate(utils::identity, position);
 
-	MeshRay.Bind(commandBuffer);
+	Mesh<PosVertex>::Ray.Bind(commandBuffer);
 	Push(commandBuffer, layout, transMat * rotation * scaleMat);
-	MeshRay.Draw(commandBuffer);
+	Mesh<PosVertex>::Ray.Draw(commandBuffer);
 }
 
 void RayCollider::TestIntersection(Collider* other)

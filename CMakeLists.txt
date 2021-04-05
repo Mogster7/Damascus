@@ -10,6 +10,7 @@ set(
 
 set(FRAMEWORK_INCLUDE_DIR ${CMAKE_SOURCE_DIR}\\Framework\\)
 set(INCLUDES 
+    .\\Application
     ${CMAKE_SOURCE_DIR} 
     ${GLM_INCLUDE_DIR} 
     ${GLFW_INCLUDE_DIR}
@@ -17,12 +18,17 @@ set(INCLUDES
 set(LINK_DIRS ThirdParty Utilities)
 set(LINK_LIBS ThirdParty Framework Utilities)
 set(POST_COMMAND COMMAND cmd /c ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile.bat
-                   #COMMAND ${CMAKE_COMMAND} -E copy_directory
-                   #    ${CMAKE_SOURCE_DIR}/Assets/Textures $<TARGET_FILE_DIR:DemoScene>/Assets/Textures
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       ${CMAKE_SOURCE_DIR}/Assets/Models $<TARGET_FILE_DIR:DemoScene>/Assets/Models
                     COMMAND ${CMAKE_COMMAND} -E copy_directory
                        ${CMAKE_SOURCE_DIR}/Assets/Shaders $<TARGET_FILE_DIR:DemoScene>/Assets/Shaders)
 
-add_executable(DemoScene ${source_list} "Demos/DemoScene.cpp")
+add_executable(DemoScene ${source_list} 
+    Application/Scenes/DemoScene.cpp
+    Application/SpatialPartitioning/SpatialPartitioning.hpp
+    Application/SpatialPartitioning/BSP/BSP.hpp
+    Application/SpatialPartitioning/Octree/Octree.hpp
+    )
 add_subdirectory(Framework)
 add_subdirectory(Utilities)
 add_subdirectory(ThirdParty)
