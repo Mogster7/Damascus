@@ -136,7 +136,7 @@ public:
 		std::vector<FrameBuffer> frameBuffers;
 		std::vector<CommandBuffer> drawBuffers;
 		std::vector<Semaphore> semaphores;
-		float lineWidth = 2.0f;
+		float lineWidth = 1.0f;
 
 		bool render = true;
 	} debugLineStrip;
@@ -148,6 +148,11 @@ public:
 
 	RenderComponentSystem* renderSystem = nullptr;
 	Octree octree;
+	BSP bsp;
+
+	entt::entity sphere;
+	float sphereSpeed = 1.0f;
+
 
 	void SetInputCallbacks()
 	{
@@ -177,10 +182,10 @@ public:
 		
 		camera.flipY = false;
 		camera.SetPerspective(45.0f, (float)FB_SIZE.x / FB_SIZE.y, 0.1f, 100.0f);
-		camera.SetPosition({ -0.0f, 0.0f, -5.0f });
+		camera.SetPosition({ 10.0f, -10.0f, 16.0f });
 		
 		camera.pitch = 0.0f;
-		camera.yaw = 0.0f;
+		camera.yaw = 180.0f;
 		// uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
 		uboViewProjection.projection = camera.matrices.perspective;
     
@@ -200,42 +205,48 @@ public:
 
 
     
-		//for (int i = 0; i < 30; ++i)
-		//{
-		//	objects.push_back({ });
-		//	auto& obj = objects.back();
-		//	obj.Create(Mesh<Vertex>::UnitSphere, (utils::Random() < 0.5f) ? Collider::Type::Box : Collider::Type::Sphere);
+		srand(133333337);
+		for (int i = 0; i < 10; ++i)
+		{
+			auto entity = reg.create();
+			auto& transform1 = reg.emplace<TransformComponent>(entity);
+			transform1.SetScale(glm::vec3((utils::Random()+0.5f) * 1.0f));
+			transform1.SetPosition(glm::vec3(utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
+			//transform1.SetPosition({ -1.0f, -1.0f, -1.0f });
+			//const std::string room = std::string(ASSET_DIR) + "Models/teapot.obj";
+			transform1.SetRotation(glm::vec3(utils::Random(0.0f, 360.0f), utils::Random(0.0f, 360.0f), utils::Random(0.0f, 360.0f)));
 
-		//	//obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
-		//	//obj.model = glm::rotate(obj.model, utils::Random() * 2.0f * glm::pi<float>(),
-		//	//						glm::vec3(utils::Random(), utils::Random(), utils::Random()));
-		//	//obj.model = glm::translate(obj.model, glm::vec3(
-		//	//	utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
-		//	obj.SetScale(glm::vec3(utils::Random() * 3.0f));
-		//	//obj.SetRotation(glm::vec3(utils::Random(), utils::Random(), utils::Random()));
-		//	obj.SetPosition(glm::vec3(utils::Random(-20.0f, 20.0f), utils::Random(-20.0f, 20.0f), utils::Random(-20.0f, 20.0f)));
-		//}
+			auto& render = reg.emplace<DeferredRenderComponent>(entity);
+			//render.mesh.CreateModel(room, false, device);
+
+			render.mesh.Create(Mesh<Vertex>::Cube);
+
+			//obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
+			//obj.model = glm::translate(obj.model, glm::vec3(
+			//	utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
+			//obj.SetRotation(glm::vec3(utils::Random(), utils::Random(), utils::Random()));
+		}
 		fsq.mesh.CreateStatic(meshVerts, meshIndices, device);
 		auto fsqEntity = reg.create();
 		reg.emplace<TransformComponent>(fsqEntity);
 		reg.emplace<PostRenderComponent>(fsqEntity, fsq.mesh);
 
 
-		InitializeAttachments();
+
 		
 
 		{
 			auto entity = reg.create();
 			auto& transform1 = reg.emplace<TransformComponent>(entity);
-			transform1.SetScale(glm::vec3(0.56f));
-			//transform1.SetPosition({ -1.0f, -1.0f, -1.0f });
-			const std::string room = std::string(ASSET_DIR) + "Models/teapot.obj";
-			auto& render = reg.emplace<DeferredRenderComponent>(entity);
-			render.mesh.CreateModel(room, false, device);
-
-			//render.mesh.Create(Mesh<Vertex>::Triangle);
+			auto& physics = reg.emplace<PhysicsComponent>(entity);
+			// Set off-scene
+			transform1.SetPosition({ 9999.9f, 9999.9f, 9999.9f});
+			auto& render = reg.emplace<DebugRenderComponent>(entity);
+			render.mesh.Create(Mesh<PosVertex>::Sphere);
+			sphere = entity;
 		}
 
+		InitializeAttachments();
 		InitializeUniformBuffers();
 		InitializeDescriptorSets();
 		InitializePipelines();
@@ -307,7 +318,16 @@ public:
 	void InitializeOverlay()
 	{
 		auto entityWindow = new EditorWindow("Entities");
-		entityWindow->AddBlock(new EntityEditorBlock(entities));
+		auto entityEditor = new EntityEditorBlock(entities);
+		auto dims = window.lock()->GetDimensions();
+		entityEditor->updateCallbacks.emplace_back(
+			[dims]()
+		{
+			ImGui::SetWindowPos(ImVec2(0, dims.y - 300));
+			ImGui::SetWindowSize(ImVec2(300, 300));
+		}
+		);
+		entityWindow->AddBlock(entityEditor);
 		overlay.PushEditorWindow(entityWindow);
 	}
 
@@ -920,9 +940,10 @@ public:
 	}
 
 
-	void InitializeAssets()
+	void LoadSection(int section = -1)
 	{
 		std::vector<std::vector<Mesh<Vertex>::Data>> meshData(20);
+		ASSERT(section < 21, "Invalid power plant section index");
 
 		auto loadSection = [&meshData](const std::string& sectionPath,
 									   Device& device, int threadID)
@@ -941,6 +962,22 @@ public:
 			meshData[threadID] = std::move(section);
 		};
 
+		if (section != -1)
+		{
+			loadSection(std::string(ASSET_DIR) + "Models/Section" + std::to_string(section + 1) + ".txt", device, 0);
+			for (auto& data : meshData[0])
+			{
+				auto& reg = ECS::Get();
+				auto entity = reg.create();
+				auto& transform =  reg.emplace<TransformComponent>(entity);
+				transform.SetScale(glm::vec3(0.0001f));
+				auto& render = reg.emplace<DeferredRenderComponent>(entity);
+				render.mesh.CreateStatic(data.vertices, data.indices, device);
+			}
+			return;
+		}
+
+
 		std::vector<std::thread> loadGroup = {};
 		for (int i = 1; i < 21; ++i)
 		{
@@ -953,14 +990,21 @@ public:
 			loader.join();
 		}
 
-		//for (auto& vector : meshData)
-		//{
-		//	for (auto& data : vector)
-		//	{
-		//		objects.emplace_back();
-		//		objects.back().mesh.CreateStatic(data.vertices, data.indices, device);
-		//	}
-		//}
+		for (auto& vector : meshData)
+		{
+			for (auto& data : vector)
+			{
+				auto& reg = ECS::Get();
+				auto entity = reg.create();
+				auto& transform = reg.emplace<TransformComponent>(entity);
+				transform.SetScale(glm::vec3(0.0001f));
+
+				auto& render = reg.emplace<DeferredRenderComponent>(entity);
+				render.mesh.CreateStatic(data.vertices, data.indices, device);
+			}
+		}
+
+		device.waitIdle();
 	}
 
 	void InitializeUniformBuffers()
@@ -1566,6 +1610,10 @@ public:
 			device.pipeline
 		);
 
+		renderSystem->RenderEntities<ForwardRenderComponent>(
+			cmdBuf, descriptors.sets[imageIndex],
+			device.pipelineLayout
+		);
 		//device.renderPass.RenderObjects(
 		//	cmdBuf,
 		//	descriptors.sets[imageIndex],
@@ -1724,7 +1772,23 @@ public:
 			//		debugLineStrip.pipelineLayout
 			//		);
 			//}
-			octree.RenderObjects(cmdBuf, debugLineStrip.pipelineLayout);
+			if (octree.IsInitialized())
+				octree.RenderObjects(cmdBuf, debugLineStrip.pipelineLayout);
+			if (bsp.IsInitialized())
+				bsp.RenderObjects(cmdBuf, debugLineStrip.pipelineLayout);
+
+			auto* sphereRender = &ECS::Get().get<DebugRenderComponent>(sphere);
+			sphereRender->mesh.Bind(cmdBuf);
+
+			static glm::vec3 red = { 1.0f, 0.0f, 0.0f };
+			cmdBuf.pushConstants(
+				debugLineStrip.pipelineLayout,
+				vk::ShaderStageFlagBits::eFragment,
+				sizeof(glm::mat4), sizeof(utils::UBOColor), &red
+			);
+			ECS::Get().get<TransformComponent>(sphere).PushModel(cmdBuf, debugLineStrip.pipelineLayout);
+
+			sphereRender->mesh.Draw(cmdBuf);
 			//test.Bind(cmdBuf);
 			//utils::PushIdentityModel(cmdBuf, debugLineStrip.pipelineLayout);
 			//glm::vec4 purple(1.0f, 0.0f, 1.0f, 1.0f);
@@ -1959,16 +2023,28 @@ public:
 		if (glfwGetKey(win, GLFW_KEY_ESCAPE))
 			glfwSetWindowShouldClose(win, 1);
 
-		static float spaceCooldown = 1.0f;
-		static float spaceTimer = 1.0f;
-		if (glfwGetKey(win, GLFW_KEY_SPACE) && spaceTimer > spaceCooldown)
+		static float lockCooldown = 1.0f;
+		static float lockTimer = 1.0f;
+		if (glfwGetKey(win, GLFW_KEY_F) && lockTimer > lockCooldown)
 		{
 			cursorActive = !cursorActive;
 			glfwSetInputMode(win, GLFW_CURSOR,
 							 cursorActive ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
-			spaceTimer = 0.0f;
+			lockTimer = 0.0f;
 		}
-		spaceTimer += dt;
+		static float sphereCooldown = 1.0f;
+		static float sphereTimer = 1.0f;
+		if (glfwGetKey(win, GLFW_KEY_SPACE) && sphereTimer > sphereCooldown)
+		{
+			auto& reg = ECS::Get();
+			auto& spherePhysics = reg.get<PhysicsComponent>(sphere);
+			auto& sphereTransform = reg.get<TransformComponent>(sphere);
+			spherePhysics.velocity = camera.camFront * glm::vec3(-1.0f, -1.0f, -1.0f) * sphereSpeed;
+			sphereTransform.SetPosition(camera.position * glm::vec3(-1.0f, -1.0f, -1.0f));
+			sphereTimer = 0.0f;
+		}
+		lockTimer += dt;
+		sphereTimer += dt;
 	}
 
 
@@ -2004,61 +2080,77 @@ public:
 	{
 		RenderingContext::Update();
 		overlay.Begin();
-		overlay.Update(dt);
 
 		InitializeDebugMesh();
 		static float speed = 90.0f;
 		UpdateInput(dt);
 		UpdateObjects(dt);
+		bsp.Update(dt);
 
+		static auto sphereBox = ECS::Get().get<DebugRenderComponent>(sphere).mesh.GetBoundingBox();
+		static glm::vec3 localPosition = sphereBox.position;
+		static glm::vec3 localScale = sphereBox.halfExtent;
+		auto* sphereTransform = &ECS::Get().get<TransformComponent>(sphere);
+		auto sphereScale = glm::scale(utils::identity, sphereTransform->GetScale());
+		auto sphereTranslate = glm::translate(utils::identity, sphereTransform->GetPosition());
+
+		sphereBox.position = sphereTranslate * glm::vec4(localPosition, 1.0f);
+		sphereBox.halfExtent = sphereScale * glm::vec4(localScale, 1.0f);
+		if (octree.CollisionTest(sphereBox, sphereTransform->model))
+			ECS::Get().get<PhysicsComponent>(sphere).velocity = glm::vec3(0.0f);
 
 		camera.Update(dt, !cursorActive);
 
 
-		//ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
-		ImGui::InputFloat3("Camera Position", &camera.position[0]);
-		ImGui::InputFloat("Pitch", &camera.pitch);
-		ImGui::InputFloat("Yaw", &camera.yaw);
-		//ImGui::SliderFloat4("Clear Color", clearColor.data(), 0.0f, 1.0f);
-		ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
-		//ImGui::Checkbox("Copy Depth", &copyDepth);
-		ImGui::Checkbox("Wireframe Toggle", &gBuffer.wireframeEnabled);
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::SetNextWindowSize(ImVec2(0, 0));
+		ImGui::Begin("Scene Settings", NULL);
 
-		ImGui::Checkbox("Debug Line List", &debugLineList.render);
-		//if (debugLineList.render)
-		//{
-		//	ImGui::Indent();
-		//	ImGui::SliderFloat("Line Length##DebugLineList", &debugLineList.lineLength, 0.01f, 5.0f);
-		//	ImGui::SliderFloat("Line Width##DebugLineList", &debugLineList.lineWidth, 0.01f, 5.0f);
-		//	ImGui::Unindent();
-		//}
-		ImGui::Checkbox("Visualize Colliders", &debugLineStrip.render);
-		if (debugLineStrip.render)
+		if (ImGui::TreeNode("Camera"))
 		{
-			ImGui::Indent();
-			ImGui::SliderFloat("Line Width##DebugLineStrip", &debugLineStrip.lineWidth, 0.01f, 5.0f);
-			ImGui::Unindent();
+			ImGui::InputFloat3("Camera Position", &camera.position[0]);
+			ImGui::InputFloat("Pitch", &camera.pitch);
+			ImGui::InputFloat("Yaw", &camera.yaw);
+			ImGui::TreePop();
 		}
+		if (ImGui::TreeNode("Lights"))
+		{
+			ImGui::SliderFloat("Light Strength", &uboComposition.globalLightStrength, 0.01f, 5.0f);
+			ImGui::TreePop();
+		}
+		//ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen);
 
-		ImGui::Checkbox("Render Deferred Pass", &gBuffer.render);
+		if (ImGui::TreeNode("Deferred & Forward Targets"))
+		{
+			ImGui::Checkbox("Render Deferred Pass", &gBuffer.render);
+			ImGui::Checkbox("Copy Depth", &copyDepth);
+			ImGui::Checkbox("Wireframe Toggle", &gBuffer.wireframeEnabled);
+			ImGui::Text("Debug Target: ");
+			for (int i = 0; i < 3; ++i)
+			{
+				ImGui::RadioButton(std::to_string(i).c_str(), &debugDisplayTarget, i);
+				if (i != 2) ImGui::SameLine();
+			}
+			//static float color[4];
+			//ImGui::ColorPicker4("Clear Color", color);
+			//for(int i = 0; i < 4; ++i)
+			//	clearColor[i] = color[i] / 255.0f;
 
-		//ImGui::Text("Debug Target: ");
-		//for (int i = 0; i < 3; ++i)
-		//{
-		//	ImGui::RadioButton(std::to_string(i).c_str(), &debugDisplayTarget, i);
-		//	if (i != 4) ImGui::SameLine();
-		//}
+			ImGui::TreePop();
+		}
 
 		if(ImGui::TreeNode("Octree Settings"))
 		{
 			static int depth = 1;
 			static glm::vec3 position = glm::vec3(0.0f);
-			static float halfExtent = 2.0f;
+			static float halfExtent = 10.0f;
 
 			ImGui::InputInt("Minimum Triangles", (int*)&Octree::MinimumTriangles);
-			ImGui::InputInt("Depth", &depth);
+			//ImGui::SliderInt("Depth", &depth, 0, 6);
 			ImGui::InputFloat3("Position", &position[0]);
 			ImGui::InputFloat("Half-Extent", &halfExtent);
+			ImGui::Checkbox("Display Cells", &debugLineList.render);
+			ImGui::Checkbox("Display Objects", &debugLineStrip.render);
 
 			if (!octree.IsInitialized())
 			{
@@ -2078,53 +2170,90 @@ public:
 			ImGui::TreePop();
 		}
 
-
-		//for (size_t j = 0; j < forwardObjects.size(); ++j)
+		//if(ImGui::TreeNode("BSP Settings"))
 		//{
-		//	auto& mesh = forwardObjects[j];
-		//	mesh.model = glm::rotate(mesh.model,
-		//							 glm::radians(speed * dt * utils::Random(1.0f, 5.0f)),
-		//							 glm::vec3(utils::Random(), utils::Random(), utils::Random())
-		//	);
-		//}
+		//	static int depth = 1;
 
+		//	ImGui::InputInt("Minimum Triangles", (int*)&BSP::MinimumTriangles);
+		//	ImGui::SliderFloat("Split Blend", &BSP::SplitBlend, 0.0f, 1.0f);
+		//	ImGui::SliderInt("Plane Samples", (int*)&BSP::PlaneSamples, 1, 32);
+		//	ImGui::Checkbox("Display Objects", &debugLineStrip.render);
 
-		//for (auto& obj : objects)
-		//{
-		//	if (!obj.collider) return;
-
-		//	obj.collider->colliding = false;
-		//}
-
-		//for (int i = 0; i < objects.size() - 1; ++i)
-		//{
-		//	auto& obj1 = objects[i];
-		//	if (obj1.collider == nullptr) continue;
-		//	auto& collider1 = *obj1.collider;
-
-		//	for (int j = i + 1; j < objects.size(); ++j)
+		//	if (!bsp.IsInitialized())
 		//	{
-		//		auto& obj2 = objects[j];
-		//		if (obj2.collider == nullptr) continue;
-		//		auto& collider2 = *obj2.collider;
-
-		//		collider1.TestIntersection(&collider2);
+		//		if (ImGui::Button("Create"))
+		//		{
+		//			bsp.Create(depth, device);
+		//		}
 		//	}
+		//	else
+		//	{
+		//		if (ImGui::Button("Destroy"))
+		//		{
+		//			bsp.Destroy();
+		//		}
+		//	}
+
+		//	ImGui::TreePop();
 		//}
 
-		//for (int i = 0; i < objects.size() - 1; i += 2)
-		//{
-		//	auto& obj1 = objects[i];
-		//	auto& obj2 = objects[i + 1];
+		if(ImGui::TreeNode("Sphere Collider Settings"))
+		{
+			static float scale = 1.0f;
 
-		//	obj1.collider->TestIntersection(obj2.collider);
-		//}
+			ImGui::InputFloat("Scale", &scale);
+			ImGui::InputFloat("Speed", &sphereSpeed);
+			//ImGui::Checkbox("Display Cells", &debugLineList.render);
+			//ImGui::Checkbox("Display Objects", &debugLineStrip.render);
+			ECS::Get().get<TransformComponent>(sphere).SetScale(glm::vec3(scale));
+
+			ImGui::TreePop();
+		}
+
+
+		if (ImGui::TreeNode("Model Loader"))
+		{
+			if(ImGui::TreeNode("Power Plant Sections"))
+			{
+				static bool sectionLoaded[20] = { false };
+				bool fullyLoaded = true;
+				for (bool loaded : sectionLoaded) fullyLoaded &= loaded;
+				if (!fullyLoaded && ImGui::Button("Load All Sections"))
+				{
+					std::memset(sectionLoaded, true, sizeof(bool) * 20);
+					LoadSection(-1);
+				}
+				for (int i = 0; i < 20; ++i)
+				{
+					if (sectionLoaded[i] == false)
+					{
+						if (ImGui::Button(std::string("Load Section" + std::to_string(i + 1)).c_str()))
+						{
+							LoadSection(i);
+							sectionLoaded[i] = true;
+						}
+					}
+				}
+				ImGui::TreePop();
+			}
+
+			ImGui::TreePop();
+		}
+
+
+
+		ImVec2 size = ImGui::GetWindowSize();
+		ImGui::End();
+
+		ImGui::SetNextWindowPos(ImVec2(0, size.y));
+
+		overlay.Update(dt);
 	}
 
 
 	void DrawUI()
 	{
-		ImGui::ShowDemoWindow();
+		//ImGui::ShowDemoWindow();
 		ImGui::Render();
 	}
 };

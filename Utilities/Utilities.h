@@ -22,7 +22,8 @@ namespace utils
     };
 
 	inline static glm::mat4 identity = glm::mat4(1.0f);
-    float Random(float min = 0.0f, float max = 1.0f);
+    float Random(float min = 0.0f, float max = 1.0f, float offset = 0.0f);
+    int RandomInt(int min = 0, int max = 1, int offset = 0);
     std::vector<char> ReadFile(const std::string& filename);
     inline void CheckVkResult(vk::Result result, const std::string& error)
     {

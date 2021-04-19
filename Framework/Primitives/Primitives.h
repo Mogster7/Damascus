@@ -50,6 +50,38 @@ namespace Primitives
 		Coplanar
 	};
 
+	static Primitives::Plane GenerateRandomPlane(Box area)
+	{
+		#define R(axis) utils::Random(-area.halfExtent.axis, area.halfExtent.axis, area.position.axis)
+
+		glm::vec3 p1(R(x), R(y), R(z));
+		glm::vec3 p2(R(x), R(y), R(z));
+		glm::vec3 p3(R(x), R(y), R(z));
+
+		glm::vec3 v1 = p2 - p1;
+		glm::vec3 v2 = p3 - p1;
+
+		return { glm::normalize(glm::cross(v1, v2)), (p1 + p2 + p3) / 3.0f };
+	}
+
+	static Primitives::Plane GeneratePlane(glm::vec3 p[3])
+	{
+		glm::vec3 v1 = glm::normalize(p[1] - p[0]);
+		glm::vec3 v2 = glm::normalize(p[2] - p[0]);
+
+		return { glm::normalize(glm::cross(v1, v2)), (p[0] + p[1] + p[2]) / 3.0f };
+	}
+
+	static Primitives::Plane GeneratePlaneBetweenTwoPoints(glm::vec3& a, glm::vec3& b)
+	{
+		Plane plane;
+		plane.position = (a + b) * 0.5f;
+		plane.normal = glm::normalize(b - a);
+
+		return plane;
+	}
+
+
 
 	static int ClassifyPointToPlane(const glm::vec3& point, const Plane& plane)
 	{
@@ -108,7 +140,8 @@ namespace Primitives
 		return BoxSphere(box, sphere);
 	}
 
-	static bool BoxBox(Box& box1, Box& box2)
+	template <class Box1, class Box2>
+	static bool BoxBox(Box1& box1, Box2& box2)
 	{
 		glm::vec3 aMin = box1.position - box1.halfExtent;
 		glm::vec3 aMax = box1.position + box1.halfExtent;
@@ -118,6 +151,38 @@ namespace Primitives
 		return (aMin.x <= bMax.x && aMax.x >= bMin.x) &&
 			(aMin.y <= bMax.y && aMax.y >= bMin.y) &&
 			(aMin.z <= bMax.z && aMax.z >= bMin.z);
+	}
+
+	static glm::vec3 BoxFurthestPosition(const Box& box, const glm::vec3& direction)
+	{
+		auto& h = box.halfExtent;
+		glm::vec3 furthest;
+		float maxDot = -FLT_MAX;
+		glm::vec3 offsets[8] = {
+			{ -h.x, -h.y, -h.z },
+			{ h.x, -h.y, -h.z },
+			{ -h.x, h.y, -h.z },
+			{ h.x, h.y, -h.z },
+
+			{ -h.x, -h.y, h.z },
+			{ h.x, -h.y, h.z },
+			{ -h.x, h.y, h.z },
+			{ h.x, h.y, h.z }
+		};
+
+		for (int i = 0; i < 8; ++i)
+		{
+			auto pos = box.position + offsets[i];
+
+			float dotProduct = glm::dot(glm::normalize(pos - box.position), direction);
+			if (dotProduct > maxDot)
+			{
+				maxDot = dotProduct;
+				furthest = pos;
+			}
+		}
+
+		return furthest;
 	}
 
 	static bool PlaneBox(Plane& plane, Box& box)

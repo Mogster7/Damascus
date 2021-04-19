@@ -2,9 +2,10 @@
 
 class TransformComponentSystem;
 class RenderComponentSystem;
+class PhysicsComponentSystem;
 
 #define COMPONENTS(x)\
-	TransformComponent##x, RenderComponent##x\
+	TransformComponent##x, RenderComponent##x, PhysicsComponent##x\
 
 
 #define COMPONENT_SYSTEMS COMPONENTS(System)

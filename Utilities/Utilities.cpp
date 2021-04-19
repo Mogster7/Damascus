@@ -12,12 +12,17 @@
 
 namespace utils
 {
-    float Random(float min /* = 0.0f */, float max /* = 1.0f */)
+    float Random(float min /* = 0.0f */, float max /* = 1.0f */, float offset)
     {
-        return min + ((float)rand() / (RAND_MAX)) * (max - min);
+        return min + ((float)rand() / (RAND_MAX)) * (max - min) + offset;
     }
 
-    std::vector<char> ReadFile(const std::string& filename)
+	int RandomInt(int min /*= 0*/, int max /*= 1*/, int offset /*= 0*/)
+	{
+        return static_cast<int>(Random(min, max-1) + offset);
+	}
+
+	std::vector<char> ReadFile(const std::string& filename)
     {
         std::string convertedName = filename.c_str();
         std::ifstream file(convertedName, std::ios::ate | std::ios::binary);

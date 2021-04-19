@@ -61,5 +61,9 @@
 #include "ECS/Components/Render/RenderComponent.h"
 #include "ECS/Components/Render/RenderComponentSystem.h"
 
+#include "ECS/Components/Physics/PhysicsComponent.h"
+#include "ECS/Components/Physics/PhysicsComponentSystem.h"
+
+
 
 

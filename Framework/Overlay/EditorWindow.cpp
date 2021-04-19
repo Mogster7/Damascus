@@ -18,7 +18,11 @@ void EditorWindow::Update(float dt)
 	{
 		ImGui::Begin(m_title.c_str(), &m_showWindow, window_flags);
 		for (auto block : m_blocks)
+		{
+			for (auto& cb : block->updateCallbacks)
+				cb();
 			block->Update(dt);
+		}
 		ImGui::End();
 	}
 }

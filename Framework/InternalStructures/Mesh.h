@@ -100,6 +100,9 @@ public:
 		vertexBuffer.CreateStatic(vertices, device);
 	}
 
+ 
+
+
 	// User is responsible for updating / staging
     void CreateDynamic(
 		std::vector<VertexType>& vertices,
@@ -322,7 +325,8 @@ public:
 	//int IsStraddlingPlane(const Primitives::Plane& plane) const;
 	static int IsStraddlingPlane(const VertexType* vertices,
 								 const uint32_t vertexCount,
-								 const Primitives::Plane& plane);
+								 const Primitives::Plane& plane,
+								float* minDistance = nullptr);
 
 
 	// Returns front-facing and back-facing mesh relative to the plane respectively
@@ -335,7 +339,10 @@ public:
 		Mesh<VertexType>::Data& back
 	);
 
-	
+	static Primitives::Box GetBoundingBox(const VertexType* vertices, const uint32_t vertexCount);
+	Primitives::Box GetBoundingBox() const;
+
+	glm::vec3 GetFurthestVertexPosition(const glm::vec3& direction) const;
 
 	bool dynamic = false;
     VertexBuffer<VertexType> vertexBuffer = {};
@@ -345,14 +352,86 @@ public:
 		Device* m_owner = nullptr;
 };
 
+template <class VertexType>
+glm::vec3 Mesh<VertexType>::GetFurthestVertexPosition(const glm::vec3& direction) const
+{
+	const auto* vertices = GetVertexBufferData();
+	const auto vertexCount = GetVertexCount();
+
+	int maxIndex = 0;
+	float maxDot = -std::numeric_limits<float>::infinity();
+	for (int i = 0; i < vertexCount; ++i)
+	{
+		float dotProduct = glm::dot(vertices[i].pos, direction);
+		if (dotProduct > maxDot)
+		{
+			maxIndex = i;
+			maxDot = dotProduct;
+		}
+	}
+
+	return vertices[maxIndex].pos;
+}
+
+template <class VertexType>
+Primitives::Box Mesh<VertexType>::GetBoundingBox(const VertexType* vertices, const uint32_t vertexCount)
+{
+	glm::vec3 minX, minY, minZ;
+	glm::vec3 maxX, maxY, maxZ;
+
+	auto GetExtremePoints = [vertices, vertexCount](auto& min, auto& max, const auto& dir)
+	{
+		float minProj = FLT_MAX; float maxProj = -FLT_MAX;
+		int indexMin = 0, indexMax = 0;
+
+		for (int i = 0; i < vertexCount; ++i)
+		{
+			float proj = glm::dot(vertices[i].pos, dir);
+
+			if (proj < minProj)
+			{
+				minProj = proj;
+				indexMin = i;
+			}
+			if (proj > maxProj)
+			{
+				maxProj = proj;
+				indexMax = i;
+			}
+		}
+		min = vertices[indexMin].pos;
+		max = vertices[indexMax].pos;
+	};
+
+	GetExtremePoints(minX, maxX, glm::vec3(1.0f, 0.0f, 0.0f));
+	GetExtremePoints(minY, maxY, glm::vec3(0.0f, 1.0f, 0.0f));
+	GetExtremePoints(minZ, maxZ, glm::vec3(0.0f, 0.0f, 1.0f));
+
+
+	Primitives::Box bb;
+	bb.position = glm::vec3(maxX.x + minX.x, maxY.y + minY.y, maxZ.z + minZ.z) * 0.5f;
+	bb.halfExtent = glm::vec3(maxX.x - minX.x, maxY.y - minY.y, maxZ.z - minZ.z) * 0.5f;
+	
+	return bb;
+}
+
+template <class VertexType>
+Primitives::Box Mesh<VertexType>::GetBoundingBox() const
+{
+	return GetBoundingBox(GetVertexBufferData(), GetVertexCount());
+}
+
 
 template <class VertexType>
 int Mesh<VertexType>::IsStraddlingPlane(const VertexType* vertices,
 					  const uint32_t vertexCount,
-					  const Primitives::Plane& plane)
+					  const Primitives::Plane& plane,
+					  float* minDistance)
 {
 	uint32_t positive = 0;
 	uint32_t negative = 0;
+
+	float minDist = std::numeric_limits<float>::max();
 
 	//ASSERT(planeDistance.size() == size, "Incorrect size for input bool vector");
 	for (int i = 0; i < vertexCount; ++i)
@@ -367,7 +446,18 @@ int Mesh<VertexType>::IsStraddlingPlane(const VertexType* vertices,
 		{
 			++negative;
 		}
+
+
+		if (minDistance != nullptr)
+		{
+			float absDist = std::abs(distance);
+			if (absDist < minDist)
+				minDist = absDist;
+		}
 	}
+
+	if (minDistance != nullptr) 
+		*minDistance = minDist;
 
 	if (!negative && !positive) return 1;
 
@@ -481,7 +571,7 @@ void Mesh<VertexType>::Clip(
 					ray.direction = glm::normalize(b - a);
 					ray.position = a;
 					glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
-					ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar , "Failed validation of clipping");
+					//ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar , "Failed validation of clipping");
 					frontVerts[frontCount++] = backVerts[backCount++] = i;
 					++currentFrontFaceVertCount;
 					++currentBackFaceVertCount;
@@ -500,7 +590,7 @@ void Mesh<VertexType>::Clip(
 					glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
 
 					// Edge (a, b) straddles plane, output intersection point
-					ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar, "Failed validation of clipping");
+					//ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar, "Failed validation of clipping");
 					frontVerts[frontCount++] = backVerts[backCount++] = i;
 					++currentFrontFaceVertCount;
 					++currentBackFaceVertCount;
