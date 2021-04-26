@@ -7,6 +7,7 @@
 #include "Overlay/Blocks/EntityEditorBlock.h"
 #include "SpatialPartitioning/Octree/Octree.hpp"
 #include "SpatialPartitioning/BSP/BSP.hpp"
+#include "Job/Job.h"
 
 constexpr glm::uvec2 FB_SIZE = { 1600, 900 }; 
 
@@ -79,8 +80,12 @@ public:
 		FrameBufferAttachment position, normal, albedo;
 		FrameBufferAttachment depth;
 		RenderPass renderPass;
+
 		GraphicsPipeline pipeline;
 		GraphicsPipeline wireframePipeline;
+
+		
+
 		bool wireframeEnabled = false;
 		PipelineLayout pipelineLayout;
 		bool render = true;
@@ -89,6 +94,14 @@ public:
 		std::vector<CommandBuffer> drawBuffers;
 		std::vector<Semaphore> semaphores;
 	} gBuffer;
+
+	struct ThreadData
+	{
+		CommandPool pool;
+		std::vector<CommandBuffer> commandBuffers;
+	};
+
+	std::vector<ThreadData> threadData;
 
 	std::vector<CommandBuffer> depthCopyCmd1;
 	std::vector<Semaphore> depthCopySem1;
@@ -162,13 +175,7 @@ public:
 			auto context = reinterpret_cast<DeferredRenderingContext*>(glfwGetWindowUserPointer(window));
 			context->camera.ProcessMouseInput({ xPos, yPos });
 		};
-		static auto keyCallback = [](GLFWwindow* window, int key, int scancode, int action, int mods)
-		{
-			auto context = reinterpret_cast<DeferredRenderingContext*>(glfwGetWindowUserPointer(window));
-			context->camera.ProcessKeyboardInput(key, action);
-		};
 		glfwSetCursorPosCallback(win, cursorPosCallback);
-		glfwSetKeyCallback(win, keyCallback);
 	}
 
 	void Initialize(std::weak_ptr<Window> winHandle, bool enableOverlay) override
@@ -206,7 +213,7 @@ public:
 
     
 		srand(133333337);
-		for (int i = 0; i < 10; ++i)
+		for (int i = 0; i < 516; ++i)
 		{
 			auto entity = reg.create();
 			auto& transform1 = reg.emplace<TransformComponent>(entity);
@@ -246,6 +253,7 @@ public:
 			sphere = entity;
 		}
 
+		InitializeThreading();
 		InitializeAttachments();
 		InitializeUniformBuffers();
 		InitializeDescriptorSets();
@@ -313,6 +321,35 @@ public:
 		//utils::VectorDestroyer(forwardObjects);
 		
 		RenderingContext::Destroy();
+	}
+
+	void InitializeThreading()
+	{
+		const size_t imageViewCount = device.swapchain.imageViews.size();
+		threadData.resize(JobSystem::ThreadCount);
+		
+		for (uint32_t i = 0; i < JobSystem::ThreadCount; ++i)
+		{
+			ThreadData& data = threadData[i];
+
+			// Command pool for each thread
+			vk::CommandPoolCreateInfo cpCI;
+			cpCI.setQueueFamilyIndex(physicalDevice.GetQueueFamilyIndices().graphics.value());
+			cpCI.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+
+			CommandPool::Create(data.pool, cpCI, device);
+
+			// Secondary command buffer for each thread
+			vk::CommandBufferAllocateInfo cbAI;
+			cbAI.setCommandPool(data.pool);
+			cbAI.setCommandBufferCount(imageViewCount);
+			cbAI.level = vk::CommandBufferLevel::eSecondary;
+
+			data.commandBuffers.resize(imageViewCount);
+
+			utils::CheckVkResult(device.allocateCommandBuffers(&cbAI, data.commandBuffers.data()), 
+								 "Failed to allocate thread command buffers");
+		}
 	}
 
 	void InitializeOverlay()
@@ -1484,28 +1521,109 @@ public:
 
 	void RecordDeferred(uint32_t imageIndex)
 	{
+		std::vector<vk::CommandBuffer> secondary;
+
+		const uint32_t numThreads = threadData.size();
+
 		auto& cmdBuf = gBuffer.drawBuffers[imageIndex];
 		cmdBuf.Begin();
 
+		// Use secondary command buffers for threading
 		gBuffer.renderPass.Begin(
 			cmdBuf,
 			gBuffer.frameBuffers[imageIndex].Get(),
-			(gBuffer.wireframeEnabled) ? gBuffer.wireframePipeline.Get() : gBuffer.pipeline.Get()
+			(gBuffer.wireframeEnabled) ? gBuffer.wireframePipeline.Get() : gBuffer.pipeline.Get(),
+			vk::SubpassContents::eSecondaryCommandBuffers
 		);
+
+		vk::CommandBufferInheritanceInfo inherit = { };
+		inherit.setFramebuffer(gBuffer.frameBuffers[imageIndex].Get());
+		inherit.setRenderPass(gBuffer.renderPass);
 
 		if (gBuffer.render)
 		{
-			renderSystem->RenderEntities<DeferredRenderComponent>(
-			cmdBuf,
-			descriptors.sets[imageIndex],
-			gBuffer.pipelineLayout.Get()
-				);
+			//renderSystem->RenderEntities<DeferredRenderComponent>(
+			//cmdBuf,
+			//descriptors.sets[imageIndex],
+			//gBuffer.pipelineLayout.Get()
+			//	);
+			auto& registry = ECS::Get();
+			registry.prepare<DeferredRenderComponent>();
+			registry.prepare<TransformComponent>();
+
+			const auto view = registry.view<DeferredRenderComponent>();
+			const auto size = view.size();
+
+			uint32_t objectsPerThread = view.size() / numThreads;
+			uint32_t extra = view.size() % numThreads;
+
+			std::vector<Job> jobs;
+
+			for (int i = 0; i < numThreads; ++i)
+			{
+				uint32_t start = objectsPerThread * i;
+				uint32_t end;
+				end = start + (objectsPerThread - 1);
+				if (i == JobSystem::ThreadCount - 1)
+					end += extra;
+
+				jobs.emplace_back(JobSystem::Push(
+					[=]()
+				{
+					const auto& registry = ECS::Get();
+					ThreadData& thread = this->threadData[i];
+					CommandBuffer cmdBuf = thread.commandBuffers[imageIndex];
+
+					vk::CommandBufferBeginInfo beginInfo = {};
+					beginInfo.pInheritanceInfo = &inherit;
+					beginInfo.flags = vk::CommandBufferUsageFlagBits::eRenderPassContinue;
+
+					cmdBuf.Begin(beginInfo);
+
+					cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics,
+										this->gBuffer.pipeline);
+
+					// Bind descriptor sets
+					cmdBuf.bindDescriptorSets(
+						// Point of pipeline and layout
+						vk::PipelineBindPoint::eGraphics,
+						gBuffer.pipelineLayout,
+						0,
+						1,
+						&descriptors.sets[imageIndex], // 1 to 1 with command buffers
+						0,
+						nullptr
+					);
+
+
+					for (auto it = view.begin() + start; it != view.begin() + end; ++it)
+					{
+						auto entity = (*it);
+						const auto& transform = registry.get<TransformComponent>(entity);
+						const auto& render = registry.get<DeferredRenderComponent>(entity);
+						
+						render.mesh.Bind(cmdBuf);
+						transform.PushModel(cmdBuf, this->gBuffer.pipelineLayout);
+						render.mesh.Draw(cmdBuf);
+					}
+					cmdBuf.End();
+				}));
+			}
+			JobSystem::Execute();
+			JobSystem::WaitAll();
+
+			// Aggregate secondary buffers
+			for (int i = 0; i < numThreads; ++i)
+			{
+				secondary.push_back(threadData[i].commandBuffers[imageIndex]);
+			}
+
+			// Execute the secondary buffers
+			cmdBuf.executeCommands(secondary.size(), secondary.data());
 		}
 
 		gBuffer.renderPass.End(cmdBuf);
-
 		cmdBuf.End();
-
 	}
 
 	void RecordFSQ(uint32_t imageIndex)
@@ -1895,40 +2013,40 @@ public:
 	{
 		// UPDATE LIGHTS
 		// White
-		uboComposition.lights[0].position = glm::vec4(0.0f, 10.0f, 1.0f, 0.0f);
+		uboComposition.lights[0].position = glm::vec4(0.0f, 20.0f, 1.0f, 0.0f);
 		// uboComposition.lights[0].color = glm::vec3(1.5f);
 		uboComposition.lights[0].color = glm::vec3(1.0f);
-		uboComposition.lights[0].radius = 15.0f * 0.25f;
-		// Red
-		uboComposition.lights[1].position = glm::vec4(-2.0f, 5.0f, 0.0f, 0.0f);
-		// uboComposition.lights[1].color = glm::vec3(1.0f, 0.0f, 0.0f);
-		uboComposition.lights[1].color = glm::vec3(1.0f, 1.0f, 1.0f);
-		uboComposition.lights[1].radius = 150.0f;
-		// Blue
-		uboComposition.lights[2].position = glm::vec4(2.0f, -10.0f, 0.0f, 0.0f);
-		// uboComposition.lights[2].color = glm::vec3(0.0f, 0.0f, 2.5f);
-		uboComposition.lights[2].color = glm::vec3(1.0f, 1.0f, 1.0f);
-		uboComposition.lights[2].radius = 50.0f;
-		// Yellow
-		uboComposition.lights[3].position = glm::vec4(0.0f, -9.f, 0.5f, 0.0f);
-		// uboComposition.lights[3].color = glm::vec3(1.0f, 1.0f, 0.0f);
-		uboComposition.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
-		uboComposition.lights[3].radius = 20.0f;
-		// Green
-		uboComposition.lights[4].position = glm::vec4(0.0f, 50.0f, 0.0f, 0.0f);
-		// uboComposition.lights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
-		uboComposition.lights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
-		uboComposition.lights[4].radius = 50.0f;
-		// Yellow
-		uboComposition.lights[5].position = glm::vec4(0.0f, 3.0f, 0.0f, 0.0f);
-		// uboComposition.lights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
-		uboComposition.lights[5].color = glm::vec3(1.0f, 1.0f, 1.0f);
-		uboComposition.lights[5].radius = 75.0f;
+		uboComposition.lights[0].radius = 200.0f;
+		//// Red
+		//uboComposition.lights[1].position = glm::vec4(-2.0f, 5.0f, 0.0f, 0.0f);
+		//// uboComposition.lights[1].color = glm::vec3(1.0f, 0.0f, 0.0f);
+		//uboComposition.lights[1].color = glm::vec3(1.0f, 1.0f, 1.0f);
+		//uboComposition.lights[1].radius = 150.0f;
+		//// Blue
+		//uboComposition.lights[2].position = glm::vec4(2.0f, -10.0f, 0.0f, 0.0f);
+		//// uboComposition.lights[2].color = glm::vec3(0.0f, 0.0f, 2.5f);
+		//uboComposition.lights[2].color = glm::vec3(1.0f, 1.0f, 1.0f);
+		//uboComposition.lights[2].radius = 50.0f;
+		//// Yellow
+		//uboComposition.lights[3].position = glm::vec4(0.0f, -9.f, 0.5f, 0.0f);
+		//// uboComposition.lights[3].color = glm::vec3(1.0f, 1.0f, 0.0f);
+		//uboComposition.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
+		//uboComposition.lights[3].radius = 20.0f;
+		//// Green
+		//uboComposition.lights[4].position = glm::vec4(0.0f, 50.0f, 0.0f, 0.0f);
+		//// uboComposition.lights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
+		//uboComposition.lights[4].color = glm::vec3(0.0f, 1.0f, 0.2f);
+		//uboComposition.lights[4].radius = 50.0f;
+		//// Yellow
+		//uboComposition.lights[5].position = glm::vec4(0.0f, 3.0f, 0.0f, 0.0f);
+		//// uboComposition.lights[5].color = glm::vec3(1.0f, 0.7f, 0.3f);
+		//uboComposition.lights[5].color = glm::vec3(1.0f, 1.0f, 1.0f);
+		//uboComposition.lights[5].radius = 75.0f;
 
 		static float timer = 0.0f;
 		float lightMovementMod = 0.2f;
-		uboComposition.lights[0].position.x = sin(glm::radians(360.0f * timer * lightMovementMod)) * 30.0f;
-		uboComposition.lights[0].position.z = cos(glm::radians(360.0f * timer * lightMovementMod)) * 30.0f;
+		//uboComposition.lights[0].position.x = sin(glm::radians(360.0f * timer * lightMovementMod)) * 30.0f;
+		//uboComposition.lights[0].position.z = cos(glm::radians(360.0f * timer * lightMovementMod)) * 30.0f;
 
 		uboComposition.lights[1].position.x = -4.0f + sin(glm::radians(360.0f * timer * lightMovementMod) + 45.0f) * 2.0f;
 		uboComposition.lights[1].position.z = 0.0f + cos(glm::radians(360.0f * timer * lightMovementMod) + 45.0f) * 2.0f;
@@ -2025,7 +2143,7 @@ public:
 
 		static float lockCooldown = 1.0f;
 		static float lockTimer = 1.0f;
-		if (glfwGetKey(win, GLFW_KEY_F) && lockTimer > lockCooldown)
+		if (glfwGetKey(win, GLFW_KEY_SPACE) && lockTimer > lockCooldown)
 		{
 			cursorActive = !cursorActive;
 			glfwSetInputMode(win, GLFW_CURSOR,
@@ -2034,15 +2152,16 @@ public:
 		}
 		static float sphereCooldown = 1.0f;
 		static float sphereTimer = 1.0f;
-		if (glfwGetKey(win, GLFW_KEY_SPACE) && sphereTimer > sphereCooldown)
-		{
-			auto& reg = ECS::Get();
-			auto& spherePhysics = reg.get<PhysicsComponent>(sphere);
-			auto& sphereTransform = reg.get<TransformComponent>(sphere);
-			spherePhysics.velocity = camera.camFront * glm::vec3(-1.0f, -1.0f, -1.0f) * sphereSpeed;
-			sphereTransform.SetPosition(camera.position * glm::vec3(-1.0f, -1.0f, -1.0f));
-			sphereTimer = 0.0f;
-		}
+		camera.ProcessKeyboardInput(win);
+		//if (glfwGetKey(win, GLFW_KEY_SPACE) && sphereTimer > sphereCooldown)
+		//{
+		//	auto& reg = ECS::Get();
+		//	auto& spherePhysics = reg.get<PhysicsComponent>(sphere);
+		//	auto& sphereTransform = reg.get<TransformComponent>(sphere);
+		//	spherePhysics.velocity = camera.camFront * glm::vec3(-1.0f, -1.0f, -1.0f) * sphereSpeed;
+		//	sphereTransform.SetPosition(camera.position * glm::vec3(-1.0f, -1.0f, -1.0f));
+		//	sphereTimer = 0.0f;
+		//}
 		lockTimer += dt;
 		sphereTimer += dt;
 	}

@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <fstream>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -15,6 +14,7 @@
 #include <queue>
 #include <algorithm>
 #include <stack>
+#include <future>
 #include <tuple>
 #include <string>
 #include <string_view>
@@ -28,12 +28,9 @@
             std::terminate(); \
         } \
     } while (false)
+
 #else
-#   define ASSERT(condition, message) do {\
-        if(! (condition))\
-            std::cout << "Assertion `" #condition "` failed in " << __FILE__ \
-                      << " line " << __LINE__ << ": " << message << std::endl; \
- } while (false)
+#   define ASSERT(condition, message) do { } while(false)
 #endif
 
 
@@ -42,8 +39,11 @@
 #define NOMINMAX 1
 #include <vulkan/vulkan.hpp>
 
+
 // Other
 #include "Utilities.h"
+#include "Job/Job.h"
+
 
 // Rendering
 #include "RenderingDefines.hpp"

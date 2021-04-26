@@ -78,50 +78,41 @@ public:
 		bool down = false;
 	} keys;
 
-	void ProcessKeyboardInput(int key, int action)
+	void ProcessKeyboardInput(GLFWwindow* window)
 	{
-		if (action == GLFW_PRESS)
-		{
-			switch (key)
-			{
-			case GLFW_KEY_W:
-				keys.up = true;
-				break;
-			case GLFW_KEY_S:
-				keys.down = true;
-				break;
-			case GLFW_KEY_A:
-				keys.left = true;
-				break;
-			case GLFW_KEY_D:
-				keys.right = true;
-				break;
-			default:
-				break;
-			}
-		}
-		else if (action == GLFW_RELEASE)
-		{
-			switch (key)
-			{
-			case GLFW_KEY_W:
-				keys.up = false;
-				break;
-			case GLFW_KEY_S:
-				keys.down = false;
-				break;
-			case GLFW_KEY_A:
-				keys.left = false;
-				break;
-			case GLFW_KEY_D:
-				keys.right = false;
-				break;
-			default:
-				break;
-			}
-
-		}
+		int action;
+		keys.up = glfwGetKey(window, GLFW_KEY_W);
+		keys.down = glfwGetKey(window, GLFW_KEY_S);
+		keys.left = glfwGetKey(window, GLFW_KEY_A);
+		keys.right = glfwGetKey(window, GLFW_KEY_D);
+		//if (glfwGetKey(window, GLFW_KEY_W))
+		//{
+		//		keys.up = true;
+		//		keys.up = false;
+		//}
+		//if (action = glfwGetKey(window, GLFW_KEY_S))
+		//{
+		//	if (action == GLFW_PRESS)
+		//		keys.down = true;
+		//	else if (action == GLFW_RELEASE)
+		//		keys.down = false;
+		//}
+		//if (action = glfwGetKey(window, GLFW_KEY_A))
+		//{
+		//	if (action == GLFW_PRESS)
+		//		keys.left = true;
+		//	else if (action == GLFW_RELEASE)
+		//		keys.left = false;
+		//}
+		//if (action = glfwGetKey(window, GLFW_KEY_D))
+		//{
+		//	if (action == GLFW_PRESS)
+		//		keys.right = true;
+		//	else if (action == GLFW_RELEASE)
+		//		keys.right = false;
+		//}
 	}
+
 	void ProcessMouseInput(glm::vec2 cursorPos)
 	{
 		static glm::vec2 prevCursorPos = cursorPos;

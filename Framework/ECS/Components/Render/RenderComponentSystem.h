@@ -34,5 +34,14 @@ public:
 		});
 	}
 
+	template <>
+	void RenderEntities<DeferredRenderComponent>(vk::CommandBuffer commandBuffer,
+												 vk::DescriptorSet descriptorSet,
+												 vk::PipelineLayout pipelineLayout)
+	{
+		// Take care of this in the demo scene for now
+	}
+
+
 
 };

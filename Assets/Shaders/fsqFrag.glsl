@@ -55,7 +55,7 @@ void main() {
 	// // Render-target composition
 
 	#define lightCount 6
-	#define ambient 0.4
+	#define ambient 1.0
 	
 	// Ambient part
 	vec3 fragcolor  = vec3(ambient) * albedo.rgb;
@@ -88,7 +88,7 @@ void main() {
 			// Specular map values are stored in alpha of albedo mrt
 			vec3 R = reflect(-L, N);
 			float NdotR = max(0.0, dot(R, V));
-			vec3 spec = uboComposition.lights[i].color * pow(NdotR, 16.0) * atten;
+			vec3 spec = uboComposition.lights[i].color * pow(NdotR, 2.0) * atten;
 
 			fragcolor += (diff + spec) * uboComposition.globalLightStrength;	
 		}	

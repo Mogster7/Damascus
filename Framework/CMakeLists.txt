@@ -45,6 +45,7 @@ set(FRAMEWORK_SRC
     ECS/Components/Render/RenderComponentSystem.cpp
     ECS/Components/Physics/PhysicsComponent.cpp
     ECS/Components/Physics/PhysicsComponentSystem.cpp
+    Job/Job.cpp
 )
 
 

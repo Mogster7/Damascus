@@ -7,8 +7,6 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-constexpr unsigned MAX_OBJECTS = 2;
-
 namespace utils
 {
     struct UBOModel
@@ -20,6 +18,7 @@ namespace utils
     {
         glm::vec4 color;
     };
+
 
 	inline static glm::mat4 identity = glm::mat4(1.0f);
     float Random(float min = 0.0f, float max = 1.0f, float offset = 0.0f);

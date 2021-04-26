@@ -18,7 +18,8 @@ public:
 
 	void Begin(vk::CommandBuffer cmdBuf,
 			   vk::Framebuffer framebuffer,
-			   vk::Pipeline pipeline)
+			   vk::Pipeline pipeline,
+			   vk::SubpassContents subpassContents = vk::SubpassContents::eInline)
 	{
 		vk::RenderPassBeginInfo renderPassInfo;
 		renderPassInfo.renderPass = Get();
@@ -28,8 +29,10 @@ public:
 		renderPassInfo.pClearValues = clearValues.data();
 		renderPassInfo.framebuffer = framebuffer;
 
-		cmdBuf.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+		cmdBuf.beginRenderPass(&renderPassInfo, subpassContents);
+
+		if (subpassContents == vk::SubpassContents::eInline)
+			cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 	}
 	
 	void End(vk::CommandBuffer cmdBuf)

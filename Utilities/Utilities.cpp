@@ -10,8 +10,10 @@
 #include <assert.h>
 
 
+
 namespace utils
 {
+
     float Random(float min /* = 0.0f */, float max /* = 1.0f */, float offset)
     {
         return min + ((float)rand() / (RAND_MAX)) * (max - min) + offset;
