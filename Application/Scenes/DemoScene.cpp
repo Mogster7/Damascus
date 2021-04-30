@@ -19,7 +19,6 @@ public:
 		{ { -1.0, -1.0, 0.5 },{ 0.0f, 0.0f } },	    // 1
 		{ { 1.0, -1.0, 0.5 },{ 1.0f, 0.0f } },    // 2
 		{ { 1.0, 1.0, 0.5 },{ 1.0f, 1.0f } },   // 3
-
 	};
 
 	const std::vector<uint32_t> meshIndices = {
@@ -193,7 +192,6 @@ public:
 		
 		camera.pitch = 0.0f;
 		camera.yaw = 180.0f;
-		// uboViewProjection.projection = glm::perspective(glm::radians(45.0f), (float)extent.width / extent.height, 0.1f, 100.0f);
 		uboViewProjection.projection = camera.matrices.perspective;
     
 		// // Invert up direction so that pos y is up 
@@ -206,14 +204,23 @@ public:
 		renderSystem = &ECS::GetSystem<RenderComponentSystem>();
 		auto& reg = ECS::Get();
 
-		//auto entity = reg.create();
-		//reg.emplace<TransformComponent>(entity);
-		//reg.emplace<DeferredRenderComponent>(entity, Mesh<Vertex>::UnitSphere);
 
+
+		const std::vector<Vertex> quadVerts = {
+		{ { -1.0, 1.0, 0.5 },{ 0.0f, 0.0f, 1.0f} , {1.0f, 0.0f, 0.0f}, { 0.0f, 1.0f } },	// 0
+		{ { -1.0, -1.0, 0.5 },{ 0.0f, 0.0f, 1.0f} , {0.0f, 1.0f, 0.0f}, { 0.0f, 1.0f } },	// 0
+		{ { 1.0, -1.0, 0.5 },{ 0.0f, 0.0f, 1.0f} , {0.0f, 0.0f, 1.0f}, { 0.0f, 1.0f } },	// 0
+		{ { 1.0, 1.0, 0.5 },{ 0.0f, 0.0f, 1.0f} , {1.0f, 1.0f, 0.0f}, { 0.0f, 1.0f } }	// 0
+		};
+
+	const std::vector<uint32_t> quadIndices = {
+		0, 1, 2,
+		2, 3, 0
+	};
 
     
 		srand(133333337);
-		for (int i = 0; i < 516; ++i)
+		for (int i = 0; i < 1000; ++i)
 		{
 			auto entity = reg.create();
 			auto& transform1 = reg.emplace<TransformComponent>(entity);
@@ -226,7 +233,7 @@ public:
 			auto& render = reg.emplace<DeferredRenderComponent>(entity);
 			//render.mesh.CreateModel(room, false, device);
 
-			render.mesh.Create(Mesh<Vertex>::Cube);
+			render.mesh.CreateStatic(quadVerts, quadIndices, device);
 
 			//obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
 			//obj.model = glm::translate(obj.model, glm::vec3(
@@ -238,20 +245,18 @@ public:
 		reg.emplace<TransformComponent>(fsqEntity);
 		reg.emplace<PostRenderComponent>(fsqEntity, fsq.mesh);
 
-
-
 		
 
-		{
-			auto entity = reg.create();
-			auto& transform1 = reg.emplace<TransformComponent>(entity);
-			auto& physics = reg.emplace<PhysicsComponent>(entity);
-			// Set off-scene
-			transform1.SetPosition({ 9999.9f, 9999.9f, 9999.9f});
-			auto& render = reg.emplace<DebugRenderComponent>(entity);
-			render.mesh.Create(Mesh<PosVertex>::Sphere);
-			sphere = entity;
-		}
+		//{
+		//	auto entity = reg.create();
+		//	auto& transform1 = reg.emplace<TransformComponent>(entity);
+		//	auto& physics = reg.emplace<PhysicsComponent>(entity);
+		//	// Set off-scene
+		//	transform1.SetPosition({ 9999.9f, 9999.9f, 9999.9f});
+		//	auto& render = reg.emplace<DebugRenderComponent>(entity);
+		//	render.mesh.Create(Mesh<PosVertex>::Sphere);
+		//	sphere = entity;
+		//}
 
 		InitializeThreading();
 		InitializeAttachments();
@@ -1533,7 +1538,8 @@ public:
 			cmdBuf,
 			gBuffer.frameBuffers[imageIndex].Get(),
 			(gBuffer.wireframeEnabled) ? gBuffer.wireframePipeline.Get() : gBuffer.pipeline.Get(),
-			vk::SubpassContents::eSecondaryCommandBuffers
+			//vk::SubpassContents::eSecondaryCommandBuffers
+			vk::SubpassContents::eInline
 		);
 
 		vk::CommandBufferInheritanceInfo inherit = { };
@@ -1542,84 +1548,87 @@ public:
 
 		if (gBuffer.render)
 		{
-			//renderSystem->RenderEntities<DeferredRenderComponent>(
-			//cmdBuf,
-			//descriptors.sets[imageIndex],
-			//gBuffer.pipelineLayout.Get()
-			//	);
-			auto& registry = ECS::Get();
-			registry.prepare<DeferredRenderComponent>();
-			registry.prepare<TransformComponent>();
+			renderSystem->RenderEntities<DeferredRenderComponent>(
+			cmdBuf,
+			descriptors.sets[imageIndex],
+			gBuffer.pipelineLayout.Get()
+				);
+			//auto& registry = ECS::Get();
+			//registry.prepare<DeferredRenderComponent>();
+			//registry.prepare<TransformComponent>();
 
-			const auto view = registry.view<DeferredRenderComponent>();
-			const auto size = view.size();
+			//const auto view = registry.view<DeferredRenderComponent>();
+			//const auto size = view.size();
 
-			uint32_t objectsPerThread = view.size() / numThreads;
-			uint32_t extra = view.size() % numThreads;
+			//uint32_t objectsPerThread = view.size() / numThreads;
+			//uint32_t extra = view.size() % numThreads;
 
-			std::vector<Job> jobs;
+			//std::vector<Job> jobs;
 
-			for (int i = 0; i < numThreads; ++i)
-			{
-				uint32_t start = objectsPerThread * i;
-				uint32_t end;
-				end = start + (objectsPerThread - 1);
-				if (i == JobSystem::ThreadCount - 1)
-					end += extra;
+			//for (int i = 0; i < numThreads; ++i)
+			//{
+			//	uint32_t start = objectsPerThread * i;
+			//	uint32_t end;
+			//	end = start + (objectsPerThread - 1);
+			//	if (i == JobSystem::ThreadCount - 1)
+			//		end += extra;
 
-				jobs.emplace_back(JobSystem::Push(
-					[=]()
-				{
-					const auto& registry = ECS::Get();
-					ThreadData& thread = this->threadData[i];
-					CommandBuffer cmdBuf = thread.commandBuffers[imageIndex];
+			//	jobs.emplace_back(JobSystem::Push(
+			//		[=]()
+			//	{
+			//		auto& registry = ECS::Get();
+			//		ThreadData& thread = this->threadData[i];
+			//		CommandBuffer cmdBuf = thread.commandBuffers[imageIndex];
 
-					vk::CommandBufferBeginInfo beginInfo = {};
-					beginInfo.pInheritanceInfo = &inherit;
-					beginInfo.flags = vk::CommandBufferUsageFlagBits::eRenderPassContinue;
+			//		vk::CommandBufferBeginInfo beginInfo = {};
+			//		beginInfo.pInheritanceInfo = &inherit;
+			//		beginInfo.flags = vk::CommandBufferUsageFlagBits::eRenderPassContinue;
 
-					cmdBuf.Begin(beginInfo);
+			//		cmdBuf.Begin(beginInfo);
 
-					cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics,
-										this->gBuffer.pipeline);
+			//		cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics,
+			//							this->gBuffer.pipeline);
 
-					// Bind descriptor sets
-					cmdBuf.bindDescriptorSets(
-						// Point of pipeline and layout
-						vk::PipelineBindPoint::eGraphics,
-						gBuffer.pipelineLayout,
-						0,
-						1,
-						&descriptors.sets[imageIndex], // 1 to 1 with command buffers
-						0,
-						nullptr
-					);
+			//		// Bind descriptor sets
+			//		cmdBuf.bindDescriptorSets(
+			//			// Point of pipeline and layout
+			//			vk::PipelineBindPoint::eGraphics,
+			//			gBuffer.pipelineLayout,
+			//			0,
+			//			1,
+			//			&descriptors.sets[imageIndex], // 1 to 1 with command buffers
+			//			0,
+			//			nullptr
+			//		);
 
+			//		int32_t lol = i;
 
-					for (auto it = view.begin() + start; it != view.begin() + end; ++it)
-					{
-						auto entity = (*it);
-						const auto& transform = registry.get<TransformComponent>(entity);
-						const auto& render = registry.get<DeferredRenderComponent>(entity);
-						
-						render.mesh.Bind(cmdBuf);
-						transform.PushModel(cmdBuf, this->gBuffer.pipelineLayout);
-						render.mesh.Draw(cmdBuf);
-					}
-					cmdBuf.End();
-				}));
-			}
-			JobSystem::Execute();
-			JobSystem::WaitAll();
+			//		for (auto it = view.begin() + start; it != view.begin() + end; ++it)
+			//		{
+			//			auto entity = (*it);
+			//			auto& transform = registry.get<TransformComponent>(entity);
+			//			const auto& render = registry.get<DeferredRenderComponent>(entity);
 
-			// Aggregate secondary buffers
-			for (int i = 0; i < numThreads; ++i)
-			{
-				secondary.push_back(threadData[i].commandBuffers[imageIndex]);
-			}
+			//			
+			//			render.mesh.Bind(cmdBuf);
+			//			transform.PushModel(cmdBuf, this->gBuffer.pipelineLayout);
+			//			render.mesh.Draw(cmdBuf);
+			//		}
+			//		
+			//		cmdBuf.End();
+			//	}));
+			//}
+			//JobSystem::Execute();
+			//JobSystem::WaitAll();
 
-			// Execute the secondary buffers
-			cmdBuf.executeCommands(secondary.size(), secondary.data());
+			//// Aggregate secondary buffers
+			//for (int i = 0; i < numThreads; ++i)
+			//{
+			//	secondary.push_back(threadData[i].commandBuffers[imageIndex]);
+			//}
+
+			//// Execute the secondary buffers
+			//cmdBuf.executeCommands(secondary.size(), secondary.data());
 		}
 
 		gBuffer.renderPass.End(cmdBuf);
