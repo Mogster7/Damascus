@@ -13,7 +13,7 @@ public:
 	void Create(int depth, Device& owner)
 	{
 		m_owner = &owner;
-		auto& view = ECS::Get().view<TransformComponent,
+		auto view = ECS::Get().view<TransformComponent,
 			DeferredRenderComponent>();
 
 		std::vector<Mesh<PosVertex>::Data> meshData;

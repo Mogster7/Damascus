@@ -24,7 +24,7 @@ public:
 	{
 		m_owner = &owner;
 		//head = CreateTree(position, halfExtent, stopDepth);
-		auto& view = ECS::Get().view<TransformComponent, 
+		auto view = ECS::Get().view<TransformComponent, 
 			DeferredRenderComponent>();
 
 		head = new Node();

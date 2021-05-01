@@ -5,19 +5,30 @@
 // Date:		6/8/2020
 //
 //------------------------------------------------------------------------------
-Mesh<Vertex> Mesh<Vertex>::Sphere;
-Mesh<Vertex> Mesh<Vertex>::Cube;
-Mesh<Vertex> Mesh<Vertex>::Point;
-Mesh<Vertex> Mesh<Vertex>::Triangle;
-
-Mesh<PosVertex> Mesh<PosVertex>::Sphere;
-Mesh<PosVertex> Mesh<PosVertex>::Cube;
-Mesh<PosVertex> Mesh<PosVertex>::Point;
-Mesh<PosVertex> Mesh<PosVertex>::Plane;
-Mesh<PosVertex> Mesh<PosVertex>::Triangle;
-Mesh<PosVertex> Mesh<PosVertex>::Ray;
-
-Mesh<PosVertex> Mesh<PosVertex>::CubeList;
+//template<>
+//Mesh<Vertex> Mesh<Vertex>::Sphere;
+//template<>
+//Mesh<Vertex> Mesh<Vertex>::Cube;
+//template<>
+//Mesh<Vertex> Mesh<Vertex>::Point;
+//template<>
+//Mesh<Vertex> Mesh<Vertex>::Triangle;
+//
+//template<>
+//Mesh<PosVertex> Mesh<PosVertex>::Sphere;
+//template<>
+//Mesh<PosVertex> Mesh<PosVertex>::Cube;
+//template<>
+//Mesh<PosVertex> Mesh<PosVertex>::Point;
+//template<>
+//Mesh<PosVertex> Mesh<PosVertex>::Plane;
+//template<>
+//Mesh<PosVertex> Mesh<PosVertex>::Triangle;
+//template<>
+//Mesh<PosVertex> Mesh<PosVertex>::Ray;
+//
+//template<>
+//Mesh<PosVertex> Mesh<PosVertex>::CubeList;
 
 const std::vector<PosVertex> planeVerts = {
 	 { {-1.0, 0.0, -1.0 } },	// 0

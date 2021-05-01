@@ -513,9 +513,11 @@ bool Device::PrepareFrame(const uint32_t frameIndex)
                                       imageAvailable[frameIndex].Get(),
                                       nullptr, &imageIndex);
     // Freeze until previous image is drawn
-    waitForFences(1, &drawFences[frameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());
+    utils::CheckVkResult(waitForFences(1, &drawFences[frameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max()),
+                         "Failed on waiting for fences");
     // Close the fence for this current frame again
-    resetFences(1, &drawFences[frameIndex]);
+    utils::CheckVkResult(resetFences(1, &drawFences[frameIndex]),
+                         "Failed to reset fences");
     // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
     if ((result == vk::Result::eErrorOutOfDateKHR) || (result == vk::Result::eSuboptimalKHR)) {
 

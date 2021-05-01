@@ -17,6 +17,7 @@ void RenderPass::Create(const vk::RenderPassCreateInfo& info,
 	m_owner = &owner;
 	this->extent = extent;
 	this->clearValues = clearValues;
-	owner.createRenderPass(&info, nullptr, &m_object);
+	utils::CheckVkResult(owner.createRenderPass(&info, nullptr, &m_object),
+						 "Failed to create render pass");
 }
 

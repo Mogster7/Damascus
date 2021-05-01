@@ -118,7 +118,8 @@ void Buffer::StageTransferSingleSubmit(Buffer& src, Buffer& dst, Device& device,
     allocInfo.commandBufferCount = 1;
 
     // Allocate command buffer from pool
-    device.allocateCommandBuffers(&allocInfo, &transferCmdBuffer);
+    utils::CheckVkResult(device.allocateCommandBuffers(&allocInfo, &transferCmdBuffer),
+                         "Failed to allocate command buffer");
 
     // Create begin info for command buffer recording
     vk::CommandBufferBeginInfo beginInfo;
@@ -126,7 +127,8 @@ void Buffer::StageTransferSingleSubmit(Buffer& src, Buffer& dst, Device& device,
     beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
 
     // Begin recording transfer commands
-    transferCmdBuffer.begin(&beginInfo);
+    utils::CheckVkResult(transferCmdBuffer.begin(&beginInfo),
+                         "Failed to begin command buffer");
 
     // Create copy region for command buffer
     vk::BufferCopy copyRegion;
@@ -146,7 +148,8 @@ void Buffer::StageTransferSingleSubmit(Buffer& src, Buffer& dst, Device& device,
     submitInfo.pCommandBuffers = &transferCmdBuffer;
     
     // Submit transfer command to transfer queue and wait until done (not optimal)
-    transferQueue.submit(1, &submitInfo, {});
+    utils::CheckVkResult(transferQueue.submit(1, &submitInfo, {}),
+                         "Failed to submit transfer command");
     transferQueue.waitIdle();
 
     // Free temporary command buffer back to pool

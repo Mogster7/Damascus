@@ -23,7 +23,7 @@ public:
 		);
 
 		auto& registry = ECS::Get();
-		auto& view = registry.view<TransformComponent, ComponentType>();
+		auto view = registry.view<TransformComponent, ComponentType>();
 
 		view.each(
 			[=](const TransformComponent& transform, const ComponentType& render)

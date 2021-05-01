@@ -22,15 +22,15 @@ template <class VertexType>
 class Mesh
 {
 public:
-	static Mesh<VertexType> Sphere;
-	static Mesh<VertexType> Cube;
-	static Mesh<VertexType> Point;
-	static Mesh<VertexType> Plane;
-	static Mesh<VertexType> Triangle;
-	static Mesh<VertexType> Ray;
+	inline static Mesh<VertexType> Sphere;
+	inline static Mesh<VertexType> Cube;
+	inline static Mesh<VertexType> Point;
+	inline static Mesh<VertexType> Plane;
+	inline static Mesh<VertexType> Triangle;
+	inline static Mesh<VertexType> Ray;
 
 	// Created using line lists instead of strips
-	static Mesh<VertexType> CubeList;
+	inline static Mesh<VertexType> CubeList;
 
 	Mesh() = default;
 	~Mesh() = default;
@@ -212,10 +212,7 @@ public:
 	}
 
 
-	static Mesh::Data LoadModel(const std::string& path)
-    {
-        ASSERT(false, "There is no template specialization for this model creation.");
-    }
+	static Mesh::Data LoadModel(const std::string& path);
     void CreateModel(const std::string& path, bool dynamic, Device& owner)
     {
         ASSERT(false, "There is no template specialization for this model creation.");
@@ -717,8 +714,14 @@ void Mesh<VertexType>::Clip(
 //}
 
 
+template <class VertexType>
+inline typename Mesh<VertexType>::Data Mesh<VertexType>::LoadModel(const std::string& path)
+{
+	static_assert(false, "No template specialization for loading a model with this vertex type");
+}
+
 template<>
-Mesh<Vertex>::Data Mesh<Vertex>::LoadModel(const std::string& path)
+inline typename Mesh<Vertex>::Data Mesh<Vertex>::LoadModel(const std::string& path)
 {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;

@@ -3,7 +3,6 @@
 #include "glfw3.h"
 #include "imgui_impl_glfw.h"
 #include "Camera/Camera.h"
-#include "Object/Object.h"
 #include "Overlay/Blocks/EntityEditorBlock.h"
 #include "SpatialPartitioning/Octree/Octree.hpp"
 #include "SpatialPartitioning/BSP/BSP.hpp"
@@ -1006,7 +1005,8 @@ public:
 
 		if (section != -1)
 		{
-			loadSection(std::string(ASSET_DIR) + "Models/Section" + std::to_string(section + 1) + ".txt", device, 0);
+			const std::string sectionString = std::string(ASSET_DIR) + "Models/Section" + std::to_string(section + 1) + ".txt";
+			loadSection(sectionString, std::ref(device), 0);
 			for (auto& data : meshData[0])
 			{
 				auto& reg = ECS::Get();
@@ -1023,8 +1023,8 @@ public:
 		std::vector<std::thread> loadGroup = {};
 		for (int i = 1; i < 21; ++i)
 		{
-			loadGroup.emplace_back(loadSection,
-								   std::string(ASSET_DIR) + "Models/Section" + std::to_string(i) + ".txt", device, i - 1);
+			const std::string sectionString = std::string(ASSET_DIR) + "Models/Section" + std::to_string(section + 1) + ".txt";
+			loadGroup.emplace_back(loadSection, sectionString, std::ref(device), i - 1);
 		}
 
 		for (auto& loader : loadGroup)
@@ -1112,7 +1112,7 @@ public:
 				compositionDescInfos),
 		};
 
-		descriptors.Create(
+		descriptors.Create<5>(
 			descriptorInfos,
 			device.swapchain.images.size(),
 			device
@@ -1904,18 +1904,18 @@ public:
 			if (bsp.IsInitialized())
 				bsp.RenderObjects(cmdBuf, debugLineStrip.pipelineLayout);
 
-			auto* sphereRender = &ECS::Get().get<DebugRenderComponent>(sphere);
-			sphereRender->mesh.Bind(cmdBuf);
+			//auto* sphereRender = &ECS::Get().get<DebugRenderComponent>(sphere);
+			//sphereRender->mesh.Bind(cmdBuf);
 
-			static glm::vec3 red = { 1.0f, 0.0f, 0.0f };
-			cmdBuf.pushConstants(
-				debugLineStrip.pipelineLayout,
-				vk::ShaderStageFlagBits::eFragment,
-				sizeof(glm::mat4), sizeof(utils::UBOColor), &red
-			);
-			ECS::Get().get<TransformComponent>(sphere).PushModel(cmdBuf, debugLineStrip.pipelineLayout);
+			//static glm::vec3 red = { 1.0f, 0.0f, 0.0f };
+			//cmdBuf.pushConstants(
+			//	debugLineStrip.pipelineLayout,
+			//	vk::ShaderStageFlagBits::eFragment,
+			//	sizeof(glm::mat4), sizeof(utils::UBOColor), &red
+			//);
+			//ECS::Get().get<TransformComponent>(sphere).PushModel(cmdBuf, debugLineStrip.pipelineLayout);
 
-			sphereRender->mesh.Draw(cmdBuf);
+			//sphereRender->mesh.Draw(cmdBuf);
 			//test.Bind(cmdBuf);
 			//utils::PushIdentityModel(cmdBuf, debugLineStrip.pipelineLayout);
 			//glm::vec4 purple(1.0f, 0.0f, 1.0f, 1.0f);
@@ -2215,17 +2215,17 @@ public:
 		UpdateObjects(dt);
 		bsp.Update(dt);
 
-		static auto sphereBox = ECS::Get().get<DebugRenderComponent>(sphere).mesh.GetBoundingBox();
-		static glm::vec3 localPosition = sphereBox.position;
-		static glm::vec3 localScale = sphereBox.halfExtent;
-		auto* sphereTransform = &ECS::Get().get<TransformComponent>(sphere);
-		auto sphereScale = glm::scale(utils::identity, sphereTransform->GetScale());
-		auto sphereTranslate = glm::translate(utils::identity, sphereTransform->GetPosition());
+		//static auto sphereBox = ECS::Get().get<DebugRenderComponent>(sphere).mesh.GetBoundingBox();
+		//static glm::vec3 localPosition = sphereBox.position;
+		//static glm::vec3 localScale = sphereBox.halfExtent;
+		//auto* sphereTransform = &ECS::Get().get<TransformComponent>(sphere);
+		//auto sphereScale = glm::scale(utils::identity, sphereTransform->GetScale());
+		//auto sphereTranslate = glm::translate(utils::identity, sphereTransform->GetPosition());
 
-		sphereBox.position = sphereTranslate * glm::vec4(localPosition, 1.0f);
-		sphereBox.halfExtent = sphereScale * glm::vec4(localScale, 1.0f);
-		if (octree.CollisionTest(sphereBox, sphereTransform->model))
-			ECS::Get().get<PhysicsComponent>(sphere).velocity = glm::vec3(0.0f);
+		//sphereBox.position = sphereTranslate * glm::vec4(localPosition, 1.0f);
+		//sphereBox.halfExtent = sphereScale * glm::vec4(localScale, 1.0f);
+		//if (octree.CollisionTest(sphereBox, sphereTransform->model))
+		//	ECS::Get().get<PhysicsComponent>(sphere).velocity = glm::vec3(0.0f);
 
 		camera.Update(dt, !cursorActive);
 
