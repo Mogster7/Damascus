@@ -31,6 +31,8 @@ public:
     void Destroy();
     ~Instance() = default;
 
+
+
     vk::SurfaceKHR GetSurface() const { return surface; }
     std::weak_ptr<Window> GetWindow() const { return window; }
 

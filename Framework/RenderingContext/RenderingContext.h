@@ -72,7 +72,7 @@ protected:
 	void CreateSync();
 	void CreateFramebuffers(bool recreate = false);
 	void CreateDepthBuffer(bool recreate = false);
-	void CreateCommandBuffers(bool recreate);
+	void CreateCommandBuffers(bool recreate = false);
 	void CreateCommandPool();
 
 

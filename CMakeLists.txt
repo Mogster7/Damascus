@@ -10,18 +10,26 @@ set(
 
 set(FRAMEWORK_INCLUDE_DIR ${CMAKE_SOURCE_DIR}\\Framework\\)
 set(INCLUDES 
-    .\\Application
+    .\\Application Assets Assets\\Shaders Assets\\Models
     ${CMAKE_SOURCE_DIR} 
     ${GLM_INCLUDE_DIR} 
     ${GLFW_INCLUDE_DIR}
     Utilities)
 set(LINK_DIRS ThirdParty Utilities)
 set(LINK_LIBS ThirdParty Framework Utilities)
-set(POST_COMMAND COMMAND cmd /c ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile.bat
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       ${CMAKE_SOURCE_DIR}/Assets/Models $<TARGET_FILE_DIR:DemoScene>/Assets/Models
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       ${CMAKE_SOURCE_DIR}/Assets/Shaders $<TARGET_FILE_DIR:DemoScene>/Assets/Shaders)
+if(WIN32)
+   # set(POST_COMMAND COMMAND cmd /c ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile.bat
+                    #COMMAND ${CMAKE_COMMAND} -E copy_directory
+                     #  ${CMAKE_SOURCE_DIR}/Assets/Models $<TARGET_FILE_DIR:DemoScene>/Assets/Models
+                    #COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    #   ${CMAKE_SOURCE_DIR}/Assets/Shaders $<TARGET_FILE_DIR:DemoScene>/Assets/Shaders)
+else()
+   set(POST_COMMAND COMMAND ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile_linux.sh
+            #COMMAND ${CMAKE_COMMAND} -E copy_directory
+            # ${CMAKE_SOURCE_DIR}/Assets/Models $<TARGET_FILE_DIR:DemoScene>/Assets/Models
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/Assets/Shaders $<TARGET_FILE_DIR:DemoScene>/Assets/Shaders)
+endif()
 
 add_executable(DemoScene ${source_list} 
     Application/Scenes/DemoScene.cpp

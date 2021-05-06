@@ -26,8 +26,13 @@ void RenderingContext::Initialize(std::weak_ptr<Window> winHandle, bool enableOv
     physicalDevice.CreateLogicalDevice(device);
 
     // Initialize context variables
-    CreateRenderPass();
+    CreateCommandPool();
     CreateSwapchain();
+    CreateDepthBuffer();
+    CreateRenderPass();
+    CreateFramebuffers();
+    CreateCommandBuffers();
+    CreateSync();
 
 
 	enabledOverlay = enableOverlay;
