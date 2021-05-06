@@ -210,7 +210,7 @@ void RenderingContext::CreateFramebuffers(bool recreate /*= false*/)
 	createInfo.attachmentCount = 2;
 
 
-	vk::ImageView depthView = depth.imageView;
+	vk::ImageView depthView = depth.imageView.Get();
 	for (size_t i = 0; i < imageViewsSize; ++i)
 	{
 		std::array<vk::ImageView, 2> attachments = {
@@ -269,7 +269,7 @@ void RenderingContext::CreateCommandPool()
 	poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 	poolInfo.queueFamilyIndex = indices.graphics.value();
 
-	commandPool.Create(commandPool, poolInfo, device);
+	CommandPool::Create(commandPool, poolInfo, device);
 }
 
 void RenderingContext::CreateSwapchain(bool recreate)
@@ -330,7 +330,7 @@ void RenderingContext::CreateSwapchain(bool recreate)
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
     // Old swap chain is default
-    swapchain.Create(swapchain, createInfo, device,
+    Swapchain::Create(swapchain, createInfo, device,
                      format.format, extent);
 }
 
