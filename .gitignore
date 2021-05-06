@@ -10,3 +10,7 @@ Debug/
 CMakeFiles/
 
 Assets/Models/
+
+cmake-build-debug/
+
+.idea/

@@ -10,6 +10,8 @@
 #include <glfw3.h>
 #include <vector>
 
+
+
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
@@ -67,7 +69,7 @@ void Instance::Create()
     if (enableValidationLayers && !checkValidationLayerSupport())
         throw std::runtime_error("Validation layers requested, but not available");
 
-    vk::ApplicationInfo appInfo("Hello Triangle", VK_MAKE_VERSION(1, 0, 0), "No Engine", VK_MAKE_VERSION(1, 2, 0), VK_API_VERSION_1_2);
+    vk::ApplicationInfo appInfo("Hello Triangle", VK_MAKE_VERSION(1, 0, 0), "No Engine", VK_MAKE_VERSION(1, 2, 76), VK_API_VERSION_1_2);
     vk::InstanceCreateInfo createInfo({}, &appInfo);
 
     auto requiredExtensions = GetRequiredExtensions();

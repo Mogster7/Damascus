@@ -9,7 +9,6 @@
 
 constexpr std::string_view ASSET_DIR = "Assets/";
 constexpr size_t MAX_FRAME_DRAWS = 2;
-constexpr size_t MAX_DEBUG_VERTICES = (1 << 16);
 
 
 const std::vector<const char*> deviceExtensions = {
