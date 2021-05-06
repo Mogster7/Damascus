@@ -20,38 +20,11 @@ public:
     void DrawFrame(const uint32_t frameIndex);
     void Initialization();
 
-    uint32_t imageIndex;
-
     VmaAllocator allocator = {};
-    Swapchain swapchain = {};
-
     vk::Queue graphicsQueue = {};
     vk::Queue presentQueue = {};
 
-    RenderPass renderPass = {};
-
-    PipelineLayout pipelineLayout = {};
-    GraphicsPipeline pipeline = {};
-
-    std::vector<FrameBuffer> frameBuffers = {};
-    std::vector<CommandBuffer> drawBuffers = {};
-
-    CommandPool commandPool = {};
-
-    std::vector<Semaphore> imageAvailable = {};
-    std::vector<Semaphore> renderFinished = {};
-    std::vector<Fence> drawFences = {};
-
-
-    FrameBufferAttachment depth;
-
-    //size_t modelUniformAlignment;
-    //vk::DeviceSize minUniformBufferOffset;
-    //Model* modelTransferSpace;
-
-
-    void AllocateDynamicBufferTransferSpace();
-    const PhysicalDevice& GetPhysicalDevice() const {
+const PhysicalDevice& GetPhysicalDevice() const {
         return *m_owner;
     }
 
@@ -61,13 +34,6 @@ public:
 
 private:
     void CreateAllocator();
-    void CreateSwapchain(bool recreate = false);
-    void CreateRenderPass();
-    void CreateDescriptorSetLayout();
-    void CreatePushConstantRange();
-    void CreateGraphicsPipeline();
-    void CreateDepthBuffer(bool recreate = false);
-    void CreateFramebuffers(bool recreate = false);
     void CreateCommandPool();
     void CreateCommandBuffers(bool recreate = false);
     void CreateSync();

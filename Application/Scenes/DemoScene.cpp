@@ -313,7 +313,7 @@ public:
 
 		DestroyPipelines();
 				
-		device.commandPool.FreeCommandBuffers(
+		commandPool.FreeCommandBuffers(
 			gBuffer.drawBuffers, 
 			fsq.drawBuffers, 
 			debugLineList.drawBuffers,
@@ -329,7 +329,7 @@ public:
 
 	void InitializeThreading()
 	{
-		const size_t imageViewCount = device.swapchain.imageViews.size();
+		const size_t imageViewCount = swapchain.imageViews.size();
 		threadData.resize(JobSystem::ThreadCount);
 		
 		for (uint32_t i = 0; i < JobSystem::ThreadCount; ++i)
@@ -369,13 +369,13 @@ public:
 		}
 		);
 		entityWindow->AddBlock(entityEditor);
-		overlay.PushEditorWindow(entityWindow);
+		overlay->PushEditorWindow(entityWindow);
 	}
 
 	
 	void InitializeAttachments()
 	{
-		const size_t imageViewCount = device.swapchain.imageViews.size();
+		const size_t imageViewCount = swapchain.imageViews.size();
 		// ----------------------
 		// Deferred Render Pass
 		// ----------------------
@@ -531,7 +531,7 @@ public:
 			depthCopyCmd2.resize(imageViewCount);
 
 			vk::CommandBufferAllocateInfo cmdInfo = {};
-			cmdInfo.commandPool = device.commandPool.Get();
+			cmdInfo.commandPool = commandPool.Get();
 			cmdInfo.level = vk::CommandBufferLevel::ePrimary;
 			cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
 
@@ -573,7 +573,7 @@ public:
 
 				// ATTACHMENTS
 				vk::AttachmentDescription colorAttachment;
-				colorAttachment.format = device.swapchain.imageFormat;
+				colorAttachment.format = swapchain.imageFormat;
 				colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
 				colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;				// Describes what to do with attachment before rendering
 				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
@@ -633,13 +633,13 @@ public:
 				std::vector<vk::ClearValue> clearValues(1);
 				clearValues[0].color = vk::ClearColorValue(clearColor);
 
-				fsq.renderPass.Create(createInfo, device, device.swapchain.extent, clearValues);
+				fsq.renderPass.Create(createInfo, device, swapchain.extent, clearValues);
 			}
 
 			// Frame buffers
 			{
-				const auto& imageViews = device.swapchain.imageViews;
-				const auto& extent = device.swapchain.extent;
+				const auto& imageViews = swapchain.imageViews;
+				const auto& extent = swapchain.extent;
 				size_t imageViewsSize = imageViews.size();
 				fsq.frameBuffers.resize(imageViewsSize);
 
@@ -670,7 +670,7 @@ public:
 				fsq.drawBuffers.resize(imageViewCount);
 
 				vk::CommandBufferAllocateInfo cmdInfo = {};
-				cmdInfo.commandPool = device.commandPool.Get();
+				cmdInfo.commandPool = commandPool.Get();
 				cmdInfo.level = vk::CommandBufferLevel::ePrimary;
 				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
 
@@ -695,7 +695,7 @@ public:
 		{
 			// Render pass & subpass
 			{
-				debugLineList.depth.Create(FrameBufferAttachment::GetDepthFormat(), device.swapchain.extent,
+				debugLineList.depth.Create(FrameBufferAttachment::GetDepthFormat(), swapchain.extent,
 						 vk::ImageUsageFlagBits::eDepthStencilAttachment |
 						 vk::ImageUsageFlagBits::eTransferDst,
 						 vk::ImageAspectFlagBits::eDepth,
@@ -705,7 +705,7 @@ public:
 
 				// ATTACHMENTS
 				vk::AttachmentDescription colorAttachment;
-				colorAttachment.format = device.swapchain.imageFormat;
+				colorAttachment.format = swapchain.imageFormat;
 				colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
 				colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;				// Describes what to do with attachment before rendering
 				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
@@ -779,15 +779,15 @@ public:
 				clearValues[0].color = vk::ClearColorValue(clearColor);
 				clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
 
-				const auto& extent = device.swapchain.extent;
+				const auto& extent = swapchain.extent;
 
 				debugLineList.renderPass.Create(createInfo, device, extent, clearValues);
 			}
 
 			// Frame buffers
 			{
-				const auto& imageViews = device.swapchain.imageViews;
-				const auto& extent = device.swapchain.extent;
+				const auto& imageViews = swapchain.imageViews;
+				const auto& extent = swapchain.extent;
 				size_t imageViewsSize = imageViews.size();
 				debugLineList.frameBuffers.resize(imageViewsSize);
 
@@ -819,7 +819,7 @@ public:
 				debugLineList.drawBuffers.resize(imageViewCount);
 
 				vk::CommandBufferAllocateInfo cmdInfo = {};
-				cmdInfo.commandPool = device.commandPool.Get();
+				cmdInfo.commandPool = commandPool.Get();
 				cmdInfo.level = vk::CommandBufferLevel::ePrimary;
 				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
 
@@ -846,7 +846,7 @@ public:
 			{
 				// ATTACHMENTS
 				vk::AttachmentDescription colorAttachment;
-				colorAttachment.format = device.swapchain.imageFormat;
+				colorAttachment.format = swapchain.imageFormat;
 				colorAttachment.samples = vk::SampleCountFlagBits::e1;					// Number of samples to write for multisampling
 				colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;				// Describes what to do with attachment before rendering
 				colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;			// Describes what to do with attachment after rendering
@@ -919,15 +919,15 @@ public:
 				clearValues[0].color = vk::ClearColorValue(clearColor);
 				clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f);
 
-				const auto& extent = device.swapchain.extent;
+				const auto& extent = swapchain.extent;
 
 				debugLineStrip.renderPass.Create(createInfo, device, extent, clearValues);
 			}
 
 			// Frame buffers
 			{
-				const auto& imageViews = device.swapchain.imageViews;
-				const auto& extent = device.swapchain.extent;
+				const auto& imageViews = swapchain.imageViews;
+				const auto& extent = swapchain.extent;
 				size_t imageViewsSize = imageViews.size();
 				debugLineStrip.frameBuffers.resize(imageViewsSize);
 
@@ -959,7 +959,7 @@ public:
 				debugLineStrip.drawBuffers.resize(imageViewCount);
 
 				vk::CommandBufferAllocateInfo cmdInfo = {};
-				cmdInfo.commandPool = device.commandPool.Get();
+				cmdInfo.commandPool = commandPool.Get();
 				cmdInfo.level = vk::CommandBufferLevel::ePrimary;
 				cmdInfo.commandBufferCount = static_cast<uint32_t>(imageViewCount);
 
@@ -1053,7 +1053,7 @@ public:
 	{
 		vk::DeviceSize vpBufferSize = sizeof(UboViewProjection);
 
-		const auto& images = device.swapchain.images;
+		const auto& images = swapchain.images;
 		// One uniform buffer for each image
 		uniformBufferViewProjection.resize(images.size());
 		uniformBufferComposition.resize(images.size());
@@ -1114,7 +1114,7 @@ public:
 
 		descriptors.Create<5>(
 			descriptorInfos,
-			device.swapchain.images.size(),
+			swapchain.images.size(),
 			device
 		);
 
@@ -1366,8 +1366,8 @@ public:
 		pipelineInfo.pColorBlendState = &colorBlendStateFSQ;
 		pipelineInfo.pDepthStencilState = nullptr;
 
-		viewport.width = (float)device.swapchain.extent.width;
-		viewport.height = (float)device.swapchain.extent.height;
+		viewport.width = (float)swapchain.extent.width;
+		viewport.height = (float)swapchain.extent.height;
 		viewportState.pViewports = &viewport;
 
 		pipelineInfo.pViewportState = &viewportState;
@@ -1400,10 +1400,10 @@ public:
 		shaderStages[1] = fragInfo;
 
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = device.renderPass;
+		pipelineInfo.renderPass = renderPass;
 
-		PipelineLayout::Create(device.pipelineLayout, layout, device);
-		pipelineInfo.layout = device.pipelineLayout.Get();
+		PipelineLayout::Create(pipelineLayout, layout, device);
+		pipelineInfo.layout = pipelineLayout.Get();
 
 		// Reuse vertex input from deferred
 		pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -1412,12 +1412,12 @@ public:
 		// Reuse depth state from deferred
 		pipelineInfo.pDepthStencilState = &depthStencilState;
 
-		viewport.width = (float)device.swapchain.extent.width;
-		viewport.height = (float)device.swapchain.extent.height;
+		viewport.width = (float)swapchain.extent.width;
+		viewport.height = (float)swapchain.extent.height;
 		viewportState.pViewports = &viewport;
 		pipelineInfo.pViewportState = &viewportState;
 
-		GraphicsPipeline::Create(device.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		GraphicsPipeline::Create(pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
 		vertModule.Destroy();
 		fragModule.Destroy();
 
@@ -1670,7 +1670,7 @@ public:
 		);
 
 		// Transition to read from gBuffer
-		device.depth.image.TransitionLayout(
+		depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
 			vk::ImageLayout::eTransferDstOptimal,
@@ -1683,7 +1683,7 @@ public:
 			0, 1, 0, 1
 		);
 		cmdBuf.clearDepthStencilImage(
-			device.depth.image.Get(),
+			depth.image.Get(),
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ClearDepthStencilValue(1.0f),
 			range
@@ -1701,15 +1701,15 @@ public:
 				{},
 				imageSubresource,
 				{},
-				{ device.swapchain.extent.width, device.swapchain.extent.height, 1 }
+				{ swapchain.extent.width, swapchain.extent.height, 1 }
 			);
 			cmdBuf.copyImage(
 				gBuffer.depth.image.Get(), vk::ImageLayout::eTransferSrcOptimal,
-				device.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
+				depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
 				imageCopy);
 		}
 
-		device.depth.image.TransitionLayout(
+		depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eTransferDstOptimal,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
@@ -1728,23 +1728,23 @@ public:
 
 	void RecordForward(uint32_t imageIndex)
 	{
-		auto& cmdBuf = device.drawBuffers[imageIndex];
+		auto& cmdBuf = drawBuffers[imageIndex];
 		cmdBuf.Begin();
 
-		device.renderPass.Begin(
+		renderPass.Begin(
 			cmdBuf,
-			device.frameBuffers[imageIndex].Get(),
-			device.pipeline
+			frameBuffers[imageIndex].Get(),
+			pipeline
 		);
 
 		renderSystem->RenderEntities<ForwardRenderComponent>(
 			cmdBuf, descriptors.sets[imageIndex],
-			device.pipelineLayout
+			pipelineLayout
 		);
-		//device.renderPass.RenderObjects(
+		//renderPass.RenderObjects(
 		//	cmdBuf,
 		//	descriptors.sets[imageIndex],
-		//	device.pipelineLayout,
+		//	pipelineLayout,
 		//	forwardObjects.data(),
 		//	forwardObjects.size()
 		//);
@@ -1758,7 +1758,7 @@ public:
 		auto& cmdBuf = depthCopyCmd2[imageIndex];
 		cmdBuf.Begin();
 
-		device.depth.image.TransitionLayout(
+		depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
 			vk::ImageLayout::eTransferSrcOptimal,
@@ -1796,10 +1796,10 @@ public:
 				{},
 				imageSubresource,
 				{},
-				{ device.swapchain.extent.width, device.swapchain.extent.height, 1 }
+				{ swapchain.extent.width, swapchain.extent.height, 1 }
 			);
 			cmdBuf.copyImage(
-				device.depth.image.Get(), vk::ImageLayout::eTransferSrcOptimal,
+				depth.image.Get(), vk::ImageLayout::eTransferSrcOptimal,
 				debugLineList.depth.image.Get(), vk::ImageLayout::eTransferDstOptimal,
 				imageCopy);
 		}
@@ -1811,7 +1811,7 @@ public:
 			vk::ImageAspectFlagBits::eDepth
 		);
 
-		device.depth.image.TransitionLayout(
+		depth.image.TransitionLayout(
 			cmdBuf,
 			vk::ImageLayout::eTransferSrcOptimal,
 			vk::ImageLayout::eDepthStencilAttachmentOptimal,
@@ -1936,7 +1936,7 @@ public:
 
 	void OnSurfaceRecreate()
 	{
-		const auto& extent = device.swapchain.extent;
+		const auto& extent = swapchain.extent;
 		camera.SetPerspective(45.0f, (float)extent.width / extent.height, 0.1f, 100.0f);
 		uboViewProjection.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		// ImGui_ImplVulkan_SetMinImageCount()
@@ -1949,66 +1949,66 @@ public:
 		if (RenderQueue::Begin(device, currentFrame))
 			OnSurfaceRecreate();
 
-		MapUBO(device.imageIndex);
+		MapUBO(imageIndex);
 
-		RecordDeferred(device.imageIndex);
-		RecordFSQ(device.imageIndex);
-		RecordDepthCopyForward(device.imageIndex);
-		RecordForward(device.imageIndex);
-		RecordDepthCopyDebug(device.imageIndex);
-		RecordDebugLineList(device.imageIndex);
-		RecordDebugLineStrip(device.imageIndex);
-		overlay.RecordCommandBuffers(device.imageIndex);
+		RecordDeferred(imageIndex);
+		RecordFSQ(imageIndex);
+		RecordDepthCopyForward(imageIndex);
+		RecordForward(imageIndex);
+		RecordDepthCopyDebug(imageIndex);
+		RecordDebugLineList(imageIndex);
+		RecordDebugLineStrip(imageIndex);
+		overlay->RecordCommandBuffers(imageIndex);
 
 		// ----------------------
 		// Deferred Pass
 		// ----------------------
 		vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-		RenderQueue::SetCommandBuffers(&gBuffer.drawBuffers[device.imageIndex]);
+		RenderQueue::SetCommandBuffers(&gBuffer.drawBuffers[imageIndex]);
 		RenderQueue::SetStageMask(waitStages);
-		RenderQueue::SetSemaphores(&device.imageAvailable[currentFrame], 
+		RenderQueue::SetSemaphores(&imageAvailable[currentFrame], 
 								   &gBuffer.semaphores[currentFrame]);
 		RenderQueue::Submit(device);
 		// ----------------------
 		// FSQ Pass
 		// ----------------------
-		RenderQueue::SetCommandBuffers(&fsq.drawBuffers[device.imageIndex]);
+		RenderQueue::SetCommandBuffers(&fsq.drawBuffers[imageIndex]);
 		RenderQueue::SetSyncChain(&fsq.semaphores[currentFrame]);
 		RenderQueue::Submit(device);
 		// ----------------------
 		// Depth Copy Forward Pass
 		// ----------------------
-		RenderQueue::SetCommandBuffers(&depthCopyCmd1[device.imageIndex]);
+		RenderQueue::SetCommandBuffers(&depthCopyCmd1[imageIndex]);
 		RenderQueue::SetSyncChain(&depthCopySem1[currentFrame]);
 		RenderQueue::Submit(device);
 		// ----------------------
 		// Forward Pass
 		// ----------------------
-		RenderQueue::SetCommandBuffers(&device.drawBuffers[device.imageIndex]);
-		RenderQueue::SetSyncChain(&device.renderFinished[currentFrame]);
+		RenderQueue::SetCommandBuffers(&drawBuffers[imageIndex]);
+		RenderQueue::SetSyncChain(&renderFinished[currentFrame]);
 		RenderQueue::Submit(device);
 		// ----------------------
 		// Depth Copy Debug Pass
 		// ----------------------
-		RenderQueue::SetCommandBuffers(&depthCopyCmd2[device.imageIndex]);
+		RenderQueue::SetCommandBuffers(&depthCopyCmd2[imageIndex]);
 		RenderQueue::SetSyncChain(&depthCopySem2[currentFrame]);
 		RenderQueue::Submit(device);
 		// ----------------------
 		// Debug Line List Pass
 		// ----------------------
-		RenderQueue::SetCommandBuffers(&debugLineList.drawBuffers[device.imageIndex]);
+		RenderQueue::SetCommandBuffers(&debugLineList.drawBuffers[imageIndex]);
 		RenderQueue::SetSyncChain(&debugLineList.semaphores[currentFrame]);
 		RenderQueue::Submit(device);
 		// ----------------------
 		// Debug Line Strip Pass
 		// ----------------------
 		vk::CommandBuffer commandBuffersDebugLineStrip[2] = {
-			debugLineStrip.drawBuffers[device.imageIndex],
-			overlay.commandBuffers[device.imageIndex]
+			debugLineStrip.drawBuffers[imageIndex],
+			overlay->commandBuffers[imageIndex]
 		};
 		RenderQueue::SetCommandBuffers(commandBuffersDebugLineStrip, 2);
 		RenderQueue::SetSyncChain(&debugLineStrip.semaphores[currentFrame]);
-		RenderQueue::Submit(device, device.drawFences[currentFrame]);
+		RenderQueue::Submit(device, drawFences[currentFrame]);
 
 		if (RenderQueue::End(device, currentFrame))
 			OnSurfaceRecreate();
@@ -2207,7 +2207,7 @@ public:
 	void Update() override
 	{
 		RenderingContext::Update();
-		overlay.Begin();
+		overlay->Begin();
 
 		InitializeDebugMesh();
 		static float speed = 90.0f;
@@ -2375,7 +2375,7 @@ public:
 
 		ImGui::SetNextWindowPos(ImVec2(0, size.y));
 
-		overlay.Update(dt);
+		overlay->Update(dt);
 	}
 
 

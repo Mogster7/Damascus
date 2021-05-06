@@ -7,8 +7,9 @@
 
 void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalDevice& physicalDevice, Device& device)
 {
+	auto& rc = RenderingContext::Get();
 	// Allocate descriptor pools for ImGui
-	uint32_t imageCount = device.swapchain.images.size();
+	uint32_t imageCount = rc.swapchain.images.size();
 	// How many descriptors, not descriptor sets
 
 	vk::DescriptorPoolSize pool_sizes[] =
@@ -53,12 +54,12 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 	initInfo.PipelineCache = VK_NULL_HANDLE;
 	initInfo.DescriptorPool = descriptorPool;
 	initInfo.Allocator = nullptr;
-	initInfo.MinImageCount = device.swapchain.images.size();
-	initInfo.ImageCount = device.swapchain.images.size();
+	initInfo.MinImageCount = rc.swapchain.images.size();
+	initInfo.ImageCount = rc.swapchain.images.size();
 	initInfo.CheckVkResultFn = utils::AssertVkBase;
 
 	vk::AttachmentDescription attachment = {};
-	attachment.format = device.swapchain.imageFormat;
+	attachment.format = rc.swapchain.imageFormat;
 	attachment.samples = vk::SampleCountFlagBits::e1;
 	attachment.loadOp = vk::AttachmentLoadOp::eLoad;
 	attachment.storeOp = vk::AttachmentStoreOp::eStore;
@@ -103,7 +104,7 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 	commandPool.Create(commandPool, poolInfo, device);
 
 	// COMMAND BUFFER
-	commandBuffers.resize(device.swapchain.imageViews.size());
+	commandBuffers.resize(rc.swapchain.imageViews.size());
 
 	vk::CommandBufferAllocateInfo bufferInfo = {};
 	bufferInfo.level = vk::CommandBufferLevel::ePrimary;
@@ -116,7 +117,7 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 
 	auto cmdBuf = commandPool.BeginCommandBuffer();
 	ImGui_ImplVulkan_CreateFontsTexture(cmdBuf.get());
-	device.commandPool.EndCommandBuffer(cmdBuf.get());
+	commandPool.EndCommandBuffer(cmdBuf.get());
 
 	{
 		vk::ImageView attachment[1];
@@ -124,16 +125,16 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 		info.renderPass = renderPass;
 		info.attachmentCount = 1;
 		info.pAttachments = attachment;
-		auto extent = device.swapchain.GetExtentDimensions();
+		auto extent = rc.swapchain.GetExtentDimensions();
 		info.width = extent.x;
 		info.height = extent.y;
 		info.layers = 1;
 
-		framebuffers.resize(device.swapchain.images.size());
+		framebuffers.resize(rc.swapchain.images.size());
 
-		for (uint32_t i = 0; i < device.swapchain.images.size(); ++i)
+		for (uint32_t i = 0; i < rc.swapchain.images.size(); ++i)
 		{
-			auto view = device.swapchain.imageViews[i];
+			auto view = rc.swapchain.imageViews[i];
 			attachment[0] = view.Get();
 			framebuffers[i].Create(framebuffers[i], info, device);
 		}
@@ -171,7 +172,7 @@ void Overlay::Begin()
 
 void Overlay::RecordCommandBuffers(uint32_t imageIndex)
 {
-	auto extent = m_owner->swapchain.extent;
+	auto extent = RenderingContext::Get().swapchain.extent;
 
 	vk::RenderPassBeginInfo info = { };
 	info.renderPass = renderPass;

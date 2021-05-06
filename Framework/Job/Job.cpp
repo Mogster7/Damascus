@@ -163,7 +163,7 @@ bool JobSystem::IsFutureReady(const std::future<void>& future)
 	return future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 }
 
-bool JobSystem::AccessJobData(std::unordered_map<const uint32_t, JobData>::iterator& it)
+bool JobSystem::AccessJobData(std::unordered_map<uint32_t, JobData>::iterator& it)
 {
 	bool toRemove = it->second.accessCount == 2;
 	// If we have updated it in 2 places

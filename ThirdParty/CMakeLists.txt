@@ -1,11 +1,21 @@
 cmake_minimum_required(VERSION 3.16)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 
-set(LIBS
-    glfw3
-    vulkan-1
-    )
+if(MINGW)
+    set(LIBS
+            -L -lglfw3
+            -L -lopengl32
+            -L -lgdi32
+            -L -lvulkan-1
+            )
+else(MINGW)
+    set(LIBS
+            glfw3
+            vulkan-1
+            )
+endif(MINGW)
+
 set(SRC
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
@@ -41,6 +51,7 @@ target_include_directories(ThirdParty PUBLIC
 target_link_directories(ThirdParty PUBLIC
     ${GLFW_LIB_DIR}
     ${VULKAN_LIB_DIR}
+        C:\\msys64\\mingw64\\include
     )
-target_link_libraries(ThirdParty PUBLIC ${LIBS})
+#target_link_libraries(ThirdParty PUBLIC ${LIBS})
 

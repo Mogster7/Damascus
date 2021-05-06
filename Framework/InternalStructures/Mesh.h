@@ -178,13 +178,13 @@ public:
 		return { GetVertexBufferDataCopy(), GetIndexBufferDataCopy() };
 	}
 
-	VertexType* GetVertexBufferData() 
+	VertexType* GetVertexBufferData()
 	{
-		return reinterpret_cast<const VertexType*>(vertexBuffer.GetMappedData());
+		return reinterpret_cast<VertexType*>(vertexBuffer.GetMappedData());
 	}
 	uint32_t* GetIndexBufferData()
 	{
-		return reinterpret_cast<const uint32_t*>(indexBuffer.GetMappedData());
+		return reinterpret_cast<uint32_t*>(indexBuffer.GetMappedData());
 	}
 
 	const VertexType* GetVertexBufferData() const
@@ -593,7 +593,7 @@ void Mesh<VertexType>::Clip(
 					++currentBackFaceVertCount;
 				}
 				else if (aSide == Primitives::PointPlaneStatus::Coplanar) {
-					// Output a when edge (a, b) goes from ‘on’ to ‘behind’ plane
+					// Output a when edge (a, b) goes from ï¿½onï¿½ to ï¿½behindï¿½ plane
 					backVerts[backCount++] = a;
 					++currentBackFaceVertCount;
 				}
@@ -717,7 +717,7 @@ void Mesh<VertexType>::Clip(
 template <class VertexType>
 inline typename Mesh<VertexType>::Data Mesh<VertexType>::LoadModel(const std::string& path)
 {
-	static_assert(false, "No template specialization for loading a model with this vertex type");
+	ASSERT(false, "No template specialization for loading a model with this vertex type");
 }
 
 template<>
@@ -792,7 +792,7 @@ inline typename Mesh<Vertex>::Data Mesh<Vertex>::LoadModel(const std::string& pa
 }
 
 template <>
-void Mesh<Vertex>::CreateModel(const std::string& path, bool dynamic, Device& owner)
+inline void Mesh<Vertex>::CreateModel(const std::string& path, bool dynamic, Device& owner)
 {
 	auto data = LoadModel(path);
 	if (dynamic)

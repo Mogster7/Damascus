@@ -46,7 +46,7 @@ constexpr void CheckInitialization(T& obj)
     { \
     public:\
         myName() = default;\
-        ~##myName() = default;\
+        ~myName() = default;\
         void Destroy();\
         operator vk::vkName##EXT &() { return Get(); }\
         operator const vk::vkName##EXT &() const { return Get(); }\
@@ -54,7 +54,6 @@ constexpr void CheckInitialization(T& obj)
     protected:\
         ownerName* m_owner = {};\
     private:
-
 
 
 #define CUSTOM_VK_CREATE(myName, vkName, ownerName, EXT) \
@@ -117,13 +116,13 @@ private:
     CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, , KHR) CUSTOM_VK_CREATE(myName, vkName, ownerName, KHR) MEMBER_GETTER(myName, vkName, KHR)
 
 #define CUSTOM_VK_DECLARE_DERIVE(myName, vkName, ownerName) \
-    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::##vkName , ) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, ) DERIVED_GETTER(myName, vkName, )
+    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::vkName , ) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, ) DERIVED_GETTER(myName, vkName, )
 
 #define CUSTOM_VK_DECLARE_DERIVE_NO_CREATE(myName, vkName, ownerName) \
-    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::##vkName , ) DERIVED_GETTER(myName, vkName, ) 
+    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::vkName , ) DERIVED_GETTER(myName, vkName, ) 
 
 #define CUSTOM_VK_DECLARE_DERIVE_KHR(myName, vkName, ownerName) \
-    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::##vkName##KHR , KHR) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, KHR) DERIVED_GETTER(myName, vkName, KHR)
+    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::vkName##KHR , KHR) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, KHR) DERIVED_GETTER(myName, vkName, KHR)
 
 #define CUSTOM_VK_DEFINE_FULL(myName, vkName, ownerName, EXT)\
     void myName::Destroy()\

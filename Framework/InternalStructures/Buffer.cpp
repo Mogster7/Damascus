@@ -105,55 +105,12 @@ const void* Buffer::GetMappedData() const
 
 void Buffer::StageTransferSingleSubmit(Buffer& src, Buffer& dst, Device& device, vk::DeviceSize size)
 {
-    vk::Queue transferQueue = device.graphicsQueue;
-    vk::CommandPool transferCmdPool = device.commandPool;
+    auto& commandPool = RenderingContext::Get().commandPool;
+    auto cmdBuf = commandPool.BeginCommandBuffer();
 
-    // Command buffer to hold transfer commands
-    vk::CommandBuffer transferCmdBuffer;
+    StageTransfer(src, dst, device, size, cmdBuf.get());
 
-    // Command Buffer details
-    vk::CommandBufferAllocateInfo allocInfo = {};
-    allocInfo.level = vk::CommandBufferLevel::ePrimary;
-    allocInfo.commandPool = transferCmdPool;
-    allocInfo.commandBufferCount = 1;
-
-    // Allocate command buffer from pool
-    utils::CheckVkResult(device.allocateCommandBuffers(&allocInfo, &transferCmdBuffer),
-                         "Failed to allocate command buffer");
-
-    // Create begin info for command buffer recording
-    vk::CommandBufferBeginInfo beginInfo;
-    // We're only using the command buffer once
-    beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-
-    // Begin recording transfer commands
-    utils::CheckVkResult(transferCmdBuffer.begin(&beginInfo),
-                         "Failed to begin command buffer");
-
-    // Create copy region for command buffer
-    vk::BufferCopy copyRegion;
-    copyRegion.srcOffset = 0;
-    copyRegion.dstOffset = 0;
-    copyRegion.size = size;
-
-    // Command to copy src to dst
-    transferCmdBuffer.copyBuffer(src, dst, 1, &copyRegion);
-    
-    transferCmdBuffer.end();
-
-    // Queue submission info
-    vk::SubmitInfo submitInfo;
-
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &transferCmdBuffer;
-    
-    // Submit transfer command to transfer queue and wait until done (not optimal)
-    utils::CheckVkResult(transferQueue.submit(1, &submitInfo, {}),
-                         "Failed to submit transfer command");
-    transferQueue.waitIdle();
-
-    // Free temporary command buffer back to pool
-    device.freeCommandBuffers(transferCmdPool, transferCmdBuffer);
+    commandPool.EndCommandBuffer(cmdBuf.get());
 }
 
 void Buffer::StageTransfer(

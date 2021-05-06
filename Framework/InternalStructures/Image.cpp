@@ -77,14 +77,14 @@ void Image::TransitionLayout(vk::ImageLayout oldLayout,
 							 vk::ImageAspectFlags aspectMask,
                              uint32_t mipLevels) 
 {
-
-	auto cmdBuf = m_owner->commandPool.BeginCommandBuffer();
+	auto& rc = RenderingContext::Get();
+	auto cmdBuf = rc.commandPool.BeginCommandBuffer();
 
 	TransitionLayout(cmdBuf.get(),
 					 oldLayout, newLayout,
 					 aspectMask, mipLevels);
 
-	m_owner->commandPool.EndCommandBuffer(cmdBuf.get());
+	rc.commandPool.EndCommandBuffer(cmdBuf.get());
 }
 
 

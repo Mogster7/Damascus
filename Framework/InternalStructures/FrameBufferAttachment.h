@@ -14,14 +14,14 @@ class FrameBufferAttachment
 
 
 public:
-	void FrameBufferAttachment::Create(vk::Format format,
+	void Create(vk::Format format,
 									   vk::Extent2D extent,
 									   vk::ImageUsageFlags usage,
 									   vk::ImageAspectFlags aspectMask,
 									   vk::ImageLayout destinationLayout,
 									   Device& owner);
 
-	void FrameBufferAttachment::Create(
+	void Create(
 		vk::Format format,
 		vk::Extent2D extent,
 		vk::ImageUsageFlags usage,

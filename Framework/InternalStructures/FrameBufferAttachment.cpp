@@ -56,12 +56,11 @@ void FrameBufferAttachment::Create(
 void FrameBufferAttachment::CreateDepth(Device& owner)
 {
 	format = GetDepthFormat();
-	Create(format, owner.swapchain.extent,
+	Create(format, RenderingContext::Get().swapchain.extent,
 		   vk::ImageUsageFlagBits::eDepthStencilAttachment,
 		   vk::ImageAspectFlagBits::eDepth,
 		   vk::ImageLayout::eDepthStencilAttachmentOptimal,
 		   owner);
-
 }
 
 vk::DescriptorImageInfo FrameBufferAttachment::GetDescriptor(

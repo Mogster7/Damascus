@@ -91,7 +91,7 @@ private:
 
 	// Determines deletion case
 	static bool AccessJobData(JobData& data);
-	static bool AccessJobData(std::unordered_map<const uint32_t, JobData>::iterator& it);
+	static bool AccessJobData(std::unordered_map<uint32_t, JobData>::iterator& it);
 
 	// Worker thread dispatcher function
 	static void Dispatch();

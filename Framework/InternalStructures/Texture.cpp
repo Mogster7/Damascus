@@ -65,7 +65,8 @@ void Texture::Create(const std::string& filepath, Device& owner)
 		0,                               // Base array layer
 		1 };                              // Layer count
 
-	vk::UniqueCommandBuffer cmdBuf = m_owner->commandPool.BeginCommandBuffer();
+	auto& commandPool = RenderingContext::Get().commandPool;
+	vk::UniqueCommandBuffer cmdBuf = commandPool.BeginCommandBuffer();
 	
 	vk::Extent3D imageExtent{
 		static_cast<uint32_t>(width),  // Width
@@ -91,7 +92,7 @@ void Texture::Create(const std::string& filepath, Device& owner)
 							  1,
 							  &bufferImageCopy);
 
-	m_owner->commandPool.EndCommandBuffer(cmdBuf.get());
+	commandPool.EndCommandBuffer(cmdBuf.get());
 
 	// Transition to shader resource
 	image.TransitionLayout(vk::ImageLayout::eTransferDstOptimal, 
