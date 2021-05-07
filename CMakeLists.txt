@@ -4,25 +4,29 @@ project(Vulkan)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-set(
-    source_list
-    main.cpp)
+set(    source_list
+        Application/Scenes/DemoScene.cpp
+        Application/SpatialPartitioning/SpatialPartitioning.hpp
+        Application/SpatialPartitioning/BSP/BSP.hpp
+        Application/SpatialPartitioning/Octree/Octree.hpp
+        main.cpp)
 
 set(FRAMEWORK_INCLUDE_DIR ${CMAKE_SOURCE_DIR}\\Framework\\)
-set(INCLUDES 
-    .\\Application Assets Assets\\Shaders Assets\\Models
+set(INCLUDES
+        .\\Application Assets Assets\\Shaders Assets\\Models
     ${CMAKE_SOURCE_DIR} 
     ${GLM_INCLUDE_DIR} 
     ${GLFW_INCLUDE_DIR}
     Utilities)
+
 set(LINK_DIRS ThirdParty Utilities)
 set(LINK_LIBS ThirdParty Framework Utilities)
 if(WIN32)
-   # set(POST_COMMAND COMMAND cmd /c ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile.bat
-                    #COMMAND ${CMAKE_COMMAND} -E copy_directory
-                     #  ${CMAKE_SOURCE_DIR}/Assets/Models $<TARGET_FILE_DIR:DemoScene>/Assets/Models
-                    #COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    #   ${CMAKE_SOURCE_DIR}/Assets/Shaders $<TARGET_FILE_DIR:DemoScene>/Assets/Shaders)
+    set(POST_COMMAND COMMAND cmd /c ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile_win.bat
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       ${CMAKE_SOURCE_DIR}/Assets/Models $<TARGET_FILE_DIR:DemoScene>/Assets/Models
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       ${CMAKE_SOURCE_DIR}/Assets/Shaders $<TARGET_FILE_DIR:DemoScene>/Assets/Shaders)
 else()
    set(POST_COMMAND COMMAND ${CMAKE_SOURCE_DIR}/Assets/Shaders/compile_linux.sh
             #COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -31,12 +35,8 @@ else()
             ${CMAKE_SOURCE_DIR}/Assets/Shaders $<TARGET_FILE_DIR:DemoScene>/Assets/Shaders)
 endif()
 
-add_executable(DemoScene ${source_list} 
-    Application/Scenes/DemoScene.cpp
-    Application/SpatialPartitioning/SpatialPartitioning.hpp
-    Application/SpatialPartitioning/BSP/BSP.hpp
-    Application/SpatialPartitioning/Octree/Octree.hpp
-    )
+add_executable(DemoScene ${source_list})
+
 add_subdirectory(Framework)
 add_subdirectory(Utilities)
 add_subdirectory(ThirdParty)

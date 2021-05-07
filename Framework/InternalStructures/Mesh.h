@@ -22,18 +22,10 @@ template <class VertexType>
 class Mesh
 {
 public:
-	inline static Mesh<VertexType> Sphere;
-	inline static Mesh<VertexType> Cube;
-	inline static Mesh<VertexType> Point;
-	inline static Mesh<VertexType> Plane;
-	inline static Mesh<VertexType> Triangle;
-	inline static Mesh<VertexType> Ray;
-
-	// Created using line lists instead of strips
-	inline static Mesh<VertexType> CubeList;
-
 	Mesh() = default;
 	~Mesh() = default;
+
+
 
 	struct Data
     {
@@ -700,6 +692,20 @@ void Mesh<VertexType>::Clip(
 	//	   back.vertices.size() % 4 == 0, "Incorrect number of vertices in back output triangles");
 	ASSERT(back.indices.size() % 3 == 0, "Incorrect number of indices in back output triangles");
 }
+
+template <class VertexType>
+struct SimpleMesh
+{
+	inline static Mesh<VertexType> Sphere;
+	inline static Mesh<VertexType> Cube;
+	inline static Mesh<VertexType> Point;
+	inline static Mesh<VertexType> Plane;
+	inline static Mesh<VertexType> Triangle;
+	inline static Mesh<VertexType> Ray;
+
+	// Created using line lists instead of strips
+	inline static Mesh<VertexType> CubeList;
+};
 
 
 //template <class VertexType>

@@ -65,7 +65,7 @@ public:
 				vk::PipelineLayout pipelineLayout)
 	{
 		if (head == nullptr) return;
-		Mesh<PosVertex>::CubeList.Bind(commandBuffer);
+		SimpleMesh<PosVertex>::CubeList.Bind(commandBuffer);
 		RenderCellsRecursively(commandBuffer, pipelineLayout, head);
 	}
 
@@ -359,7 +359,7 @@ private:
 			vk::ShaderStageFlagBits::eVertex,
 			0, sizeof(glm::mat4), &model
 		);
-		Mesh<PosVertex>::CubeList.Draw(commandBuffer);
+		SimpleMesh<PosVertex>::CubeList.Draw(commandBuffer);
 		return true;
 	}
 
@@ -391,7 +391,7 @@ private:
 			//transform.PushModel(commandBuffer, pipelineLayout);
 			obj.mesh.Draw(commandBuffer);
 
-			Mesh<PosVertex>::Cube.Bind(commandBuffer);
+			SimpleMesh<PosVertex>::Cube.Bind(commandBuffer);
 			Primitives::Box& objBox = obj.bb;
 			glm::mat4 boxModel = glm::scale(glm::translate(utils::identity, objBox.position), objBox.halfExtent*2.0f);
 			commandBuffer.pushConstants(
@@ -409,7 +409,7 @@ private:
 			);
 
 			obj.colliding = false;
-			Mesh<PosVertex>::Cube.Draw(commandBuffer);
+			SimpleMesh<PosVertex>::Cube.Draw(commandBuffer);
 		}
 	}
 

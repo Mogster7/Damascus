@@ -95,7 +95,7 @@ void InitializeMeshStatics(Device& device)
 		};
 		vertices.emplace_back(vertex);
 	}
-	Mesh<Vertex>::Sphere.CreateStatic(vertices, device);
+	SimpleMesh<Vertex>::Sphere.CreateStatic(vertices, device);
 
 
 	std::vector<Vertex> cubeVerts = {
@@ -138,20 +138,20 @@ void InitializeMeshStatics(Device& device)
 	for (auto& vert : cubeVerts)
 		vert.normal = glm::normalize(vert.pos);
 
-	Mesh<Vertex>::Cube.CreateStatic(cubeVerts, cubeIndices, device);
+	SimpleMesh<Vertex>::Cube.CreateStatic(cubeVerts, cubeIndices, device);
 
 	std::vector<Vertex> pt = {
 	{ { 0.0, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } , { 1.0f, 0.0f, 1.0f }}
 	};
-	Mesh<Vertex>::Point.CreateStatic(pt, device);
+	SimpleMesh<Vertex>::Point.CreateStatic(pt, device);
 
 	// POS VERTEX
-	auto cubePositions = Mesh<Vertex>::Cube.GetVertexBufferDataCopy<glm::vec3>(0);
+	auto cubePositions = SimpleMesh<Vertex>::Cube.GetVertexBufferDataCopy<glm::vec3>(0);
 	std::vector<PosVertex> cubePosVertices;
 	cubePosVertices.resize(cubePositions.size());
 	std::memcpy(cubePosVertices.data(), cubePositions.data(), sizeof(glm::vec3) * cubePositions.size());
 
-	auto spherePositions2 = Mesh<Vertex>::Sphere.GetVertexBufferDataCopy<glm::vec3>(0);
+	auto spherePositions2 = SimpleMesh<Vertex>::Sphere.GetVertexBufferDataCopy<glm::vec3>(0);
 	std::vector<PosVertex> spherePosVertices;
 	spherePosVertices.resize(spherePositions2.size());
 	std::memcpy(spherePosVertices.data(), spherePositions2.data(), sizeof(glm::vec3) * spherePositions2.size());
@@ -161,12 +161,12 @@ void InitializeMeshStatics(Device& device)
 		{ { 0.0f, 0.0f, 0.0f } }
 	};
 
-	Mesh<PosVertex>::Cube.CreateStatic(cubePosVertices, cubeIndices, device);
-	Mesh<PosVertex>::Sphere.CreateStatic(spherePosVertices, device);
-	Mesh<PosVertex>::Plane.CreateStatic(planeVerts, planeIndices, device);
-	Mesh<PosVertex>::Point.CreateStatic(point, device);
-	Mesh<PosVertex>::Ray.CreateStatic(rayVerts, device);
-	Mesh<PosVertex>::Triangle.CreateStatic(triVerts, device);
+	SimpleMesh<PosVertex>::Cube.CreateStatic(cubePosVertices, cubeIndices, device);
+	SimpleMesh<PosVertex>::Sphere.CreateStatic(spherePosVertices, device);
+	SimpleMesh<PosVertex>::Plane.CreateStatic(planeVerts, planeIndices, device);
+	SimpleMesh<PosVertex>::Point.CreateStatic(point, device);
+	SimpleMesh<PosVertex>::Ray.CreateStatic(rayVerts, device);
+	SimpleMesh<PosVertex>::Triangle.CreateStatic(triVerts, device);
 
 	const std::vector<uint32_t> cubeListIndices =
 	{
@@ -201,7 +201,7 @@ void InitializeMeshStatics(Device& device)
 		5, 6
 	};
 
-	Mesh<PosVertex>::CubeList.CreateStatic(cubePosVertices, cubeListIndices, device);
+	SimpleMesh<PosVertex>::CubeList.CreateStatic(cubePosVertices, cubeListIndices, device);
 	std::vector<Vertex> triangleVertices;
 	triangleVertices.resize(triVerts.size());
 	for (int i = 0; i < triVerts.size(); ++i)
@@ -209,5 +209,5 @@ void InitializeMeshStatics(Device& device)
 		triangleVertices[i].pos = triVerts[i].pos;
 	}
 	std::vector<uint32_t> triIndices = { 0, 1, 2 };
-	Mesh<Vertex>::Triangle.CreateStatic(triangleVertices, triIndices, device);
+	SimpleMesh<Vertex>::Triangle.CreateStatic(triangleVertices, triIndices, device);
 }
