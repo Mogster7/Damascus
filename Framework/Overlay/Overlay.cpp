@@ -46,13 +46,13 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 	ImGui_ImplGlfw_InitForVulkan(static_cast<Window*>(window.lock().get())->GetHandle(), true);
 	ImGui_ImplVulkan_InitInfo initInfo = {};
 
-	initInfo.Instance = instance;
-	initInfo.PhysicalDevice = physicalDevice;
-	initInfo.Device = device;
+	initInfo.Instance = (VkInstance)instance;
+	initInfo.PhysicalDevice = (VkPhysicalDevice)physicalDevice;
+	initInfo.Device = (VkDevice)device;
 	initInfo.QueueFamily = 0;
-	initInfo.Queue = device.graphicsQueue;
+	initInfo.Queue = (VkQueue)device.graphicsQueue;
 	initInfo.PipelineCache = VK_NULL_HANDLE;
-	initInfo.DescriptorPool = descriptorPool;
+	initInfo.DescriptorPool = (VkDescriptorPool)descriptorPool;
 	initInfo.Allocator = nullptr;
 	initInfo.MinImageCount = rc.swapchain.images.size();
 	initInfo.ImageCount = rc.swapchain.images.size();
@@ -94,7 +94,7 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 	createInfo.pDependencies = &dependency;
 	renderPass.Create(createInfo, device, {}, {});
 
-	ImGui_ImplVulkan_Init(&initInfo, renderPass.Get());
+	ImGui_ImplVulkan_Init(&initInfo, (VkRenderPass)renderPass.Get());
 
 
 	// COMMAND POOL 
@@ -116,7 +116,7 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 
 
 	auto cmdBuf = commandPool.BeginCommandBuffer();
-	ImGui_ImplVulkan_CreateFontsTexture(cmdBuf.get());
+	ImGui_ImplVulkan_CreateFontsTexture((VkCommandBuffer)cmdBuf.get());
 	commandPool.EndCommandBuffer(cmdBuf.get());
 
 	{
@@ -193,7 +193,7 @@ void Overlay::RecordCommandBuffers(uint32_t imageIndex)
 	auto cmdBuf = commandBuffers[imageIndex];
 	cmdBuf.begin(cmdBufBeginInfo);
 	cmdBuf.beginRenderPass(info, vk::SubpassContents::eInline);
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdBuf);
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), (VkCommandBuffer)cmdBuf);
 	cmdBuf.endRenderPass();
 	cmdBuf.end();
 }

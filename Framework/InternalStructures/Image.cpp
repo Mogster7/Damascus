@@ -213,5 +213,5 @@ void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
 
 void Image::Destroy()
 {
-	vmaDestroyImage(allocator, m_object, allocation);
+	vmaDestroyImage(allocator, (VkImage)m_object, allocation);
 }

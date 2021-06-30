@@ -27,9 +27,9 @@ void Device::CreateAllocator()
 {
     ASSERT(allocator == nullptr, "Creating an existing member");
     VmaAllocatorCreateInfo info = {};
-    info.instance = GetInstance();
-    info.physicalDevice = *m_owner;
-    info.device = *this;
+    info.instance = (VkInstance) GetInstance().Get();
+    info.physicalDevice = (VkPhysicalDevice) m_owner->Get();
+    info.device = (VkDevice) Get();
 
     vmaCreateAllocator(&info, &allocator);
 }

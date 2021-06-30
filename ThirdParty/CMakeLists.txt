@@ -34,6 +34,7 @@ set(GLFW_INCLUDE_DIR glfw/include/GLFW)
 set(IMGUI_INCLUDE_DIR imgui)
 set(IMGUI_INCLUDE_BACKENDS_DIR imgui/backends)
 
+
 target_include_directories(ThirdParty PUBLIC
         VulkanMemoryAllocator/src
         ${Vulkan_INCLUDE_DIRS}
@@ -41,6 +42,7 @@ target_include_directories(ThirdParty PUBLIC
         ${IMGUI_INCLUDE_DIR}
         ${IMGUI_INCLUDE_BACKENDS_DIR}
         ${GLFW_INCLUDE_DIR}
+        ${VULKAN_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
         )
 
@@ -51,7 +53,7 @@ target_link_directories(ThirdParty PUBLIC
 
 if (WIN32)
     target_link_libraries(ThirdParty PUBLIC glfw ${Vulkan_LIBRARIES} imm32)
-else()
+else(WIN32)
     target_link_libraries(ThirdParty PUBLIC glfw ${Vulkan_LIBRARIES})
-endif()
+endif(WIN32)
 

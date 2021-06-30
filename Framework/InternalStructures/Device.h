@@ -24,15 +24,16 @@ public:
     vk::Queue graphicsQueue = {};
     vk::Queue presentQueue = {};
 
-const PhysicalDevice& GetPhysicalDevice() const {
+    PhysicalDevice& GetPhysicalDevice() {
         return *m_owner;
     }
 
-    const Instance& GetInstance() const {
+    Instance& GetInstance() {
         return m_owner->GetInstance();
     }
 
 private:
+
     void CreateAllocator();
     void CreateCommandPool();
     void CreateCommandBuffers(bool recreate = false);

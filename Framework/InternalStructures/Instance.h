@@ -30,8 +30,8 @@ public:
     void CreateSurface(std::weak_ptr<Window> winHandle);
     void Destroy();
     ~Instance() = default;
-
-
+    UNDERLYING_CONVERSION(Instance,)
+    DERIVED_GETTER(Instance, Instance,)
 
     vk::SurfaceKHR GetSurface() const { return surface; }
     std::weak_ptr<Window> GetWindow() const { return window; }

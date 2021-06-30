@@ -38,6 +38,9 @@ constexpr void CheckInitialization(T& obj)
         obj.Initialization();
 }
 
+#define UNDERLYING_CONVERSION(vkName, EXT) \
+    operator vk::vkName##EXT &() { return Get(); }\
+    operator const vk::vkName##EXT &() const { return Get(); }\
 
 #define CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, derived, EXT) \
     class ownerName;\
@@ -46,34 +49,20 @@ constexpr void CheckInitialization(T& obj)
     public:\
         myName() = default;\
         ~myName() = default;\
-        void Destroy();\
-        operator vk::vkName##EXT &() { return Get(); }\
-        operator const vk::vkName##EXT &() const { return Get(); }\
-    \
+        void Destroy();                                                 \
+        UNDERLYING_CONVERSION(vkName, EXT)\
     protected:\
         ownerName* m_owner = {};\
     private:
 
 
-#define CUSTOM_VK_CREATE(myName, vkName, ownerName, EXT) \
-    public:\
-        template <class ...Args>\
-        void Create(const vk::vkName##CreateInfo##EXT & createInfo, ownerName& owner, Args&&... args)\
-        {\
-            m_owner = &owner; \
-            utils::CheckVkResult(m_owner->create##vkName##EXT(args... , &createInfo, nullptr, &m_object), \
-                std::string("Failed to construct ") + #vkName );\
-            CheckInitialization<myName>(*this);\
-        }\
-    private:\
-
 #define CUSTOM_VK_DERIVED_CREATE_FULL(myName, vkName, ownerName, EXT, createName, constructName) \
     public:\
         template <class ...Args>\
-        static void Create(myName& obj, const vk::createName##CreateInfo##EXT & createInfo, \
+        void Create(const vk::createName##CreateInfo##EXT & createInfo, \
             ownerName& owner, Args&&... args)\
         {\
-            utils::CheckVkResult(owner.create##constructName##EXT(args... , &createInfo, nullptr, &obj), \
+            utils::CheckVkResult(owner.create##constructName##EXT(args... , &createInfo, nullptr, *this), \
                 std::string("Failed to construct ") + #vkName );\
             obj.m_owner = &owner; \
             CheckInitialization<myName>(obj);\
@@ -95,13 +84,13 @@ public:\
     inline const vk::vkName##EXT& Get() const { return (m_object); }\
     inline vk::vkName##EXT& Get() { return (m_object); }\
 private:\
-    vk::vkName##EXT m_object = {};
+    vk::vkName##EXT m_object = {};        \
+public:
 
 #define DERIVED_GETTER(myName, vkName, EXT)\
 public:\
     inline vk::vkName##EXT  &Get() { return *this; }\
     inline const vk::vkName##EXT & Get() const { return *this; }\
-private:
 
 #define CONCAT_COMMA(name) ,##name
 

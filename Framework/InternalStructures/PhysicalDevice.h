@@ -40,12 +40,19 @@ public:
     vk::PhysicalDeviceProperties GetProperties() const { return properties; }
     vk::DeviceSize GetMinimumUniformBufferOffset() const;
 
+    Instance& GetInstance()
+    {
+        return *instance;
+    }
 
-    const Instance& GetInstance() const { return *instance; }
-
+    UNDERLYING_CONVERSION(PhysicalDevice,)
+    DERIVED_GETTER(PhysicalDevice, PhysicalDevice,)
 
 private:
     Instance* instance;
+
+
+
     static QueueFamilyIndices FindQueueFamilies(vk::PhysicalDevice pd);
     bool IsDeviceSuitable(vk::PhysicalDevice) const;
     bool CheckDeviceExtensionSupport(vk::PhysicalDevice) const;
