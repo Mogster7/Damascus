@@ -216,7 +216,7 @@ public:
 		commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer.Get(), &offset);
 		bool hasIndex = GetIndexCount() > 0;
 		if (hasIndex)
-			commandBuffer.bindIndexBuffer(GetIndexBuffer(), 0, vk::IndexType::eUint32);
+			commandBuffer.bindIndexBuffer(GetIndexBuffer().Get(), 0, vk::IndexType::eUint32);
 	}
 
 	void Draw(vk::CommandBuffer commandBuffer) const

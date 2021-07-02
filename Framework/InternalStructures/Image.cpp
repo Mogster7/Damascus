@@ -13,7 +13,7 @@ void Image::Create(vk::ImageCreateInfo& imageCreateInfo,
 	this->allocator = m_owner->allocator;
 	
 	utils::CheckVkResult((vk::Result)vmaCreateImage(allocator, (VkImageCreateInfo*)&imageCreateInfo, &allocCreateInfo,
-													(VkImage*)&m_object, &allocation, &allocationInfo),
+													(VkImage*)&Get(), &allocation, &allocationInfo),
 						 "Failed to allocate image");
 }
 
@@ -213,5 +213,5 @@ void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
 
 void Image::Destroy()
 {
-	vmaDestroyImage(allocator, (VkImage)m_object, allocation);
+	vmaDestroyImage(allocator, (VkImage)Get(), allocation);
 }

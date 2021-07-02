@@ -33,7 +33,7 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 	pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
 	pool_info.pPoolSizes = pool_sizes;
 
-	DescriptorPool::Create(descriptorPool, pool_info, device);
+	descriptorPool.Create(pool_info, device);
 
 
 	// Make the actual IMGUI
@@ -101,7 +101,7 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 	vk::CommandPoolCreateInfo poolInfo = {};
 	poolInfo.queueFamilyIndex = physicalDevice.GetQueueFamilyIndices().graphics.value();
 	poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
-	commandPool.Create(commandPool, poolInfo, device);
+	commandPool.Create(poolInfo, device);
 
 	// COMMAND BUFFER
 	commandBuffers.resize(rc.swapchain.imageViews.size());
@@ -122,7 +122,7 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 	{
 		vk::ImageView attachment[1];
 		vk::FramebufferCreateInfo info = {};
-		info.renderPass = renderPass;
+		info.renderPass = renderPass.Get();
 		info.attachmentCount = 1;
 		info.pAttachments = attachment;
 		auto extent = rc.swapchain.GetExtentDimensions();
@@ -136,7 +136,7 @@ void Overlay::Create(std::weak_ptr<Window> window, Instance& instance, PhysicalD
 		{
 			auto view = rc.swapchain.imageViews[i];
 			attachment[0] = view.Get();
-			framebuffers[i].Create(framebuffers[i], info, device);
+			framebuffers[i].Create(info, device);
 		}
 	}
 
@@ -175,7 +175,7 @@ void Overlay::RecordCommandBuffers(uint32_t imageIndex)
 	auto extent = RenderingContext::Get().swapchain.extent;
 
 	vk::RenderPassBeginInfo info = { };
-	info.renderPass = renderPass;
+	info.renderPass = renderPass.Get();
 	info.framebuffer = framebuffers[imageIndex].Get();
 	info.renderArea.extent = extent;
 	info.clearValueCount = 1;

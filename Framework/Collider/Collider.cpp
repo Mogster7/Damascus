@@ -14,7 +14,7 @@
 //}
 //
 //
-//SphereCollider* SphereCollider::Create(const Mesh<Vertex>& mesh)
+//const Mesh<Vertex>& mesh)
 //{
 //	auto* collider = new SphereCollider();
 //	collider->type = Collider::Type::Sphere;
@@ -26,7 +26,7 @@
 //{
 //	std::vector<glm::vec3> points = mesh.GetVertexBufferDataCopy<glm::vec3>(0);
 //	for (auto& point : points)
-//		point = glm::vec4(point, 0.0f);
+//		point = glm::vec4(point.Create(0.0f);
 //
 //
 //	glm::vec3 x = points[0];
@@ -106,7 +106,7 @@
 //	Mesh<PosVertex>::Sphere.Draw(commandBuffer);
 //}
 //
-//BoxCollider* BoxCollider::Create(const Mesh<Vertex>& mesh)
+//const Mesh<Vertex>& mesh)
 //{
 //	auto* collider = new BoxCollider();
 //	collider->type = Collider::Type::Box;
@@ -118,7 +118,7 @@
 //{
 //	std::vector<glm::vec3> points = mesh.GetVertexBufferDataCopy<glm::vec3>(0);
 //
-//	glm::vec3 minX, minY, minZ;
+//	glm::vec3 minX.Create(minY, minZ;
 //	glm::vec3 maxX, maxY, maxZ;
 //
 //	auto GetExtremePoints = [&points](auto& min, auto& max, const auto& dir)
@@ -283,7 +283,7 @@
 //	return collider;
 //}
 //
-//void PointCollider::Update(const Mesh<Vertex>& mesh, 
+//void PointCollider::Update(const Mesh<Vertex>& mesh,
 //						   const glm::vec3& position, 
 //						   const glm::mat4& rotation, 
 //						   const glm::vec3& scale)
@@ -325,7 +325,7 @@
 //
 //}
 //
-//RayCollider* RayCollider::Create(const Mesh<Vertex>& mesh, 
+//RayCollider* RayCollider::Create(const Mesh<Vertex>& mesh,
 //								 const glm::vec3& direction)
 //{
 //	auto* collider = new RayCollider();
@@ -384,7 +384,7 @@
 //	return new TriangleCollider();
 //}
 //
-//void TriangleCollider::Update(const Mesh<Vertex>& mesh, 
+//void TriangleCollider::Update(const Mesh<Vertex>& mesh,
 //							  const glm::vec3& position, 
 //							  const glm::mat4& rotation, 
 //							  const glm::vec3& scale)

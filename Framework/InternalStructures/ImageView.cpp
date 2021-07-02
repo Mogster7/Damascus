@@ -20,7 +20,7 @@ void ImageView::CreateTexture2DView(vk::Image image, Device& owner)
 	CI.subresourceRange.baseArrayLayer = 0;
 	CI.subresourceRange.layerCount = 1;
 
-	Create(*this, CI, owner);
+	Create(CI, owner);
 }
 
 

@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-CUSTOM_VK_DECLARE_NO_CREATE(Image, Image, Device)
+CUSTOM_VK_DECLARE_DERIVE(Image, Image, Device)
 public:
 	void Create(vk::ImageCreateInfo& imageCreateInfo, 
 				VmaAllocationCreateInfo& allocCreateInfo,

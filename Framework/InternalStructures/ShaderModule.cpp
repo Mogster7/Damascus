@@ -19,7 +19,7 @@ vk::PipelineShaderStageCreateInfo ShaderModule::Load(
 	vk::ShaderModuleCreateInfo shaderInfo;
 	shaderInfo.codeSize = src.size();
 	shaderInfo.pCode = reinterpret_cast<const uint32_t*>(src.data());
-	ShaderModule::Create(module, shaderInfo, owner);
+	module.Create(shaderInfo, owner);
 	module.stage = stageFlags;
 
 	return vk::PipelineShaderStageCreateInfo(

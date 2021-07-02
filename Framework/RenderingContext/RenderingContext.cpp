@@ -181,9 +181,9 @@ void RenderingContext::CreateSync()
 
     for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
     {
-        imageAvailable[i].Create(imageAvailable[i], semInfo, device);
-        renderFinished[i].Create(renderFinished[i], semInfo, device);
-        drawFences[i].Create(drawFences[i], fenceInfo, device);
+        imageAvailable[i].Create(semInfo, device);
+        renderFinished[i].Create(semInfo, device);
+        drawFences[i].Create(fenceInfo, device);
     }
 }
 
@@ -221,7 +221,7 @@ void RenderingContext::CreateFramebuffers(bool recreate /*= false*/)
 		// List of attachments 1 to 1 with render pass
 		createInfo.pAttachments = attachments.data();
 
-		frameBuffers[i].Create(&frameBuffers[i], createInfo, device);
+		frameBuffers[i].Create(createInfo, device);
 	}
 }
 
@@ -269,7 +269,7 @@ void RenderingContext::CreateCommandPool()
 	poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 	poolInfo.queueFamilyIndex = indices.graphics.value();
 
-	CommandPool::Create(commandPool, poolInfo, device);
+	commandPool.Create(poolInfo, device);
 }
 
 void RenderingContext::CreateSwapchain(bool recreate)
@@ -330,7 +330,7 @@ void RenderingContext::CreateSwapchain(bool recreate)
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
     // Old swap chain is default
-    Swapchain::Create(swapchain, createInfo, device,
+    swapchain.Create(createInfo, device,
                      format.format, extent);
 }
 

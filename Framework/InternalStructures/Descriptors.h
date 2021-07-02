@@ -145,13 +145,13 @@ public:
 		poolInfo.maxSets = imageCount;
 		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		poolInfo.pPoolSizes = poolSizes.data();
-		DescriptorPool::Create(pool, poolInfo, owner);
+		pool.Create(poolInfo, owner);
 
 		// Create descriptor set layouts
 		vk::DescriptorSetLayoutCreateInfo dslInfo = {};
 		dslInfo.bindingCount = SetCount;
 		dslInfo.pBindings = bindings.data();
-		DescriptorSetLayout::Create(layout, dslInfo, owner);
+		layout.Create(dslInfo, owner);
 
 		// Copy set layout for each image 
 		std::vector<vk::DescriptorSetLayout> setLayouts(imageCount, layout.Get());

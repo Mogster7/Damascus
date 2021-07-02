@@ -71,6 +71,7 @@ public:
     std::vector<Buffer> uniformBufferComposition;
     std::vector<Buffer> uniformBufferCollider;
 
+
 	// Deferred Data
 	struct GBuffer
 	{
@@ -341,7 +342,7 @@ public:
 			cpCI.setQueueFamilyIndex(physicalDevice.GetQueueFamilyIndices().graphics.value());
 			cpCI.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 
-			CommandPool::Create(data.pool, cpCI, device);
+			data.pool.Create(cpCI, device);
 
 			// Secondary command buffer for each thread
 			vk::CommandBufferAllocateInfo cbAI;
@@ -512,7 +513,7 @@ public:
 			attachments[3] = gBuffer.depth.imageView.Get();
 
 			vk::FramebufferCreateInfo fbInfo = {};
-			fbInfo.renderPass = gBuffer.renderPass;
+			fbInfo.renderPass = gBuffer.renderPass.Get();
 			fbInfo.attachmentCount = attachments.size();
 			fbInfo.pAttachments = attachments.data();
 			fbInfo.width = gBuffer.width;
@@ -522,7 +523,7 @@ public:
 			gBuffer.frameBuffers.resize(imageViewCount);
 
 			for (size_t i = 0; i < imageViewCount; ++i)
-				FrameBuffer::Create(gBuffer.frameBuffers[i], fbInfo, device);
+				gBuffer.frameBuffers[i].Create(fbInfo, device);
 		}
 		// Command Buffers
 		{
@@ -557,9 +558,9 @@ public:
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 			{
-				Semaphore::Create(gBuffer.semaphores[i], semInfo, device);
-				Semaphore::Create(depthCopySem1[i], semInfo, device);
-				Semaphore::Create(depthCopySem2[i], semInfo, device);
+				gBuffer.semaphores[i].Create(semInfo, device);
+				depthCopySem1[i].Create(semInfo, device);
+				depthCopySem2[i].Create(semInfo, device);
 			}
 		}
 
@@ -649,7 +650,7 @@ public:
 				createInfo.height = extent.height;
 				// FB layers
 				createInfo.layers = 1;
-				createInfo.renderPass = fsq.renderPass;
+				createInfo.renderPass = fsq.renderPass.Get();
 				createInfo.attachmentCount = 1;
 
 				for (size_t i = 0; i < imageViewsSize; ++i)
@@ -661,7 +662,7 @@ public:
 					// List of attachments 1 to 1 with render pass
 					createInfo.pAttachments = attachments.data();
 
-					FrameBuffer::Create(&fsq.frameBuffers[i], createInfo, device);
+					fsq.frameBuffers[i].Create(createInfo, device);
 				}
 			}
 
@@ -685,7 +686,7 @@ public:
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 			{
-				Semaphore::Create(fsq.semaphores[i], semInfo, device);
+				fsq.semaphores[i].Create(semInfo, device);
 			}
 		}
 
@@ -797,7 +798,7 @@ public:
 				createInfo.height = extent.height;
 				// FB layers
 				createInfo.layers = 1;
-				createInfo.renderPass = debugLineList.renderPass;
+				createInfo.renderPass = debugLineList.renderPass.Get();
 				createInfo.attachmentCount = 2;
 
 				for (size_t i = 0; i < imageViewsSize; ++i)
@@ -810,7 +811,7 @@ public:
 					// List of attachments 1 to 1 with render pass
 					createInfo.pAttachments = attachments.data();
 
-					FrameBuffer::Create(&debugLineList.frameBuffers[i], createInfo, device);
+					debugLineList.frameBuffers[i].Create(createInfo, device);
 				}
 			}
 
@@ -834,7 +835,7 @@ public:
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 			{
-				Semaphore::Create(debugLineList.semaphores[i], semInfo, device);
+				debugLineList.semaphores[i].Create(semInfo, device);
 			}
 		}
 
@@ -937,7 +938,7 @@ public:
 				createInfo.height = extent.height;
 				// FB layers
 				createInfo.layers = 1;
-				createInfo.renderPass = debugLineStrip.renderPass;
+				createInfo.renderPass = debugLineStrip.renderPass.Get();
 				createInfo.attachmentCount = 2;
 
 				for (size_t i = 0; i < imageViewsSize; ++i)
@@ -950,7 +951,7 @@ public:
 					// List of attachments 1 to 1 with render pass
 					createInfo.pAttachments = attachments.data();
 
-					FrameBuffer::Create(&debugLineStrip.frameBuffers[i], createInfo, device);
+					debugLineStrip.frameBuffers[i].Create(createInfo, device);
 				}
 			}
 
@@ -974,7 +975,7 @@ public:
 			vk::SemaphoreCreateInfo semInfo = {};
 			for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 			{
-				Semaphore::Create(debugLineStrip.semaphores[i], semInfo, device);
+				debugLineStrip.semaphores[i].Create(semInfo, device);
 			}
 		}
 
@@ -1244,7 +1245,7 @@ public:
 		layout.pushConstantRangeCount = 1;
 		layout.pPushConstantRanges = &pushRange;
 
-		PipelineLayout::Create(gBuffer.pipelineLayout, layout, device);
+		gBuffer.pipelineLayout.Create(layout, device);
 
 		// Depth testing
 		vk::PipelineDepthStencilStateCreateInfo depthStencilState = {};
@@ -1268,16 +1269,16 @@ public:
 		pipelineInfo.pColorBlendState = &colorBlendState;
 		pipelineInfo.pDepthStencilState = &depthStencilState;
 		pipelineInfo.layout = (gBuffer.pipelineLayout).Get();							// Pipeline Layout pipeline should use
-		pipelineInfo.renderPass = gBuffer.renderPass;							// Render pass description the pipeline is compatible with
+		pipelineInfo.renderPass = gBuffer.renderPass.Get();							// Render pass description the pipeline is compatible with
 		pipelineInfo.subpass = 0;										// Subpass of render pass to use with pipeline
 
-		GraphicsPipeline::Create(gBuffer.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		gBuffer.pipeline.Create(pipelineInfo, device, vk::PipelineCache(), 1);
 
 		// ----------------------
 		// Deferred wireframe
 		// ----------------------
 		rasterizeState.setPolygonMode(vk::PolygonMode::eLine);
-		GraphicsPipeline::Create(gBuffer.wireframePipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		gBuffer.wireframePipeline.Create(pipelineInfo, device, vk::PipelineCache(), 1);
 
 		rasterizeState.setPolygonMode(vk::PolygonMode::eFill);
 		vertModule.Destroy();
@@ -1302,9 +1303,9 @@ public:
 		shaderStages[1] = fragInfo;
 
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = fsq.renderPass;
+		pipelineInfo.renderPass = fsq.renderPass.Get();
 
-		PipelineLayout::Create(fsq.pipelineLayout, layout, device);
+		fsq.pipelineLayout.Create(layout, device);
 		pipelineInfo.layout = fsq.pipelineLayout.Get();
 
 		// VERTEX BINDING DATA
@@ -1372,7 +1373,7 @@ public:
 
 		pipelineInfo.pViewportState = &viewportState;
 
-		GraphicsPipeline::Create(fsq.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		fsq.pipeline.Create(pipelineInfo, device, vk::PipelineCache(), 1);
 		vertModule.Destroy();
 		fragModule.Destroy();
 
@@ -1400,9 +1401,9 @@ public:
 		shaderStages[1] = fragInfo;
 
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = renderPass;
+		pipelineInfo.renderPass = renderPass.Get();
 
-		PipelineLayout::Create(pipelineLayout, layout, device);
+		pipelineLayout.Create(layout, device);
 		pipelineInfo.layout = pipelineLayout.Get();
 
 		// Reuse vertex input from deferred
@@ -1417,7 +1418,7 @@ public:
 		viewportState.pViewports = &viewport;
 		pipelineInfo.pViewportState = &viewportState;
 
-		GraphicsPipeline::Create(pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		pipeline.Create(pipelineInfo, device, vk::PipelineCache(), 1);
 		vertModule.Destroy();
 		fragModule.Destroy();
 
@@ -1443,7 +1444,7 @@ public:
 		shaderStages[1] = fragInfo;
 
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = debugLineList.renderPass;
+		pipelineInfo.renderPass = debugLineList.renderPass.Get();
 		inputAssembly.topology = vk::PrimitiveTopology::eLineList;
 		rasterizeState.lineWidth = debugLineList.lineWidth;
 
@@ -1471,10 +1472,10 @@ public:
 		pipelineInfo.pVertexInputState = &vertexInputInfoDebug;
 		
 
-		PipelineLayout::Create(debugLineList.pipelineLayout, layout, device);
+		debugLineList.pipelineLayout.Create(layout, device);
 		pipelineInfo.layout = debugLineList.pipelineLayout.Get();
 
-		GraphicsPipeline::Create(debugLineList.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		debugLineList.pipeline.Create(pipelineInfo, device, vk::PipelineCache(), 1);
 		vertModule.Destroy();
 		fragModule.Destroy();
 
@@ -1501,7 +1502,7 @@ public:
 		shaderStages[1] = fragInfo;
 
 		pipelineInfo.pStages = shaderStages;
-		pipelineInfo.renderPass = debugLineStrip.renderPass;
+		pipelineInfo.renderPass = debugLineStrip.renderPass.Get();
 		inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
 		rasterizeState.polygonMode = vk::PolygonMode::eLine;
 		rasterizeState.lineWidth = debugLineStrip.lineWidth;
@@ -1518,10 +1519,10 @@ public:
 		layout.pPushConstantRanges = pcr;
 		layout.pushConstantRangeCount = 2;
 
-		PipelineLayout::Create(debugLineStrip.pipelineLayout, layout, device);
+		debugLineStrip.pipelineLayout.Create(layout, device);
 		pipelineInfo.layout = debugLineStrip.pipelineLayout.Get();
 
-		GraphicsPipeline::Create(debugLineStrip.pipeline, pipelineInfo, device, vk::PipelineCache(), 1);
+		debugLineStrip.pipeline.Create(pipelineInfo, device, vk::PipelineCache(), 1);
 	}
 
 	void RecordDeferred(uint32_t imageIndex)
@@ -1544,7 +1545,7 @@ public:
 
 		vk::CommandBufferInheritanceInfo inherit = { };
 		inherit.setFramebuffer(gBuffer.frameBuffers[imageIndex].Get());
-		inherit.setRenderPass(gBuffer.renderPass);
+		inherit.setRenderPass(gBuffer.renderPass.Get());
 
 		if (gBuffer.render)
 		{

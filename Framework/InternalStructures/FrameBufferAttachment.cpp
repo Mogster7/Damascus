@@ -8,7 +8,7 @@
 #include "RenderingContext.h"
 
 
-void FrameBufferAttachment::Create(vk::Format format, 
+void FrameBufferAttachment::Create(vk::Format format,
 								   vk::Extent2D extent, 
 								   vk::ImageUsageFlags usage, 
 								   vk::ImageAspectFlags aspectMask,
@@ -23,7 +23,7 @@ void FrameBufferAttachment::Create(vk::Format format,
 
 	this->format = format;
 	vk::ImageViewCreateInfo viewCreateInfo = {};
-	viewCreateInfo.image = image;											// Image to create view for
+	viewCreateInfo.image = image.Get();											// Image to create view for
 	viewCreateInfo.viewType = vk::ImageViewType::e2D;						// Type of image (1D, 2D, 3D, Cube, etc)
 	viewCreateInfo.format = format;											// Format of image data
 	// Subresources allow the view to view only a part of an image
@@ -33,7 +33,7 @@ void FrameBufferAttachment::Create(vk::Format format,
 	viewCreateInfo.subresourceRange.baseArrayLayer = 0;						// Start array level to view from
 	viewCreateInfo.subresourceRange.layerCount = 1;					// Number of array levels to view
 
-	ImageView::Create(imageView, viewCreateInfo, owner);
+	imageView.Create(viewCreateInfo, owner);
 }
 
 void FrameBufferAttachment::Create(

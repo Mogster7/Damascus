@@ -9,14 +9,14 @@
 #include "Instance.h"
 #include "Window.h"
 
-void Swapchain::Create(Swapchain& obj, const vk::SwapchainCreateInfoKHR& createInfo,
+void Swapchain::Create(const vk::SwapchainCreateInfoKHR& createInfo,
     Device& owner, vk::Format imageFormat, vk::Extent2D extent)
 {
-    Create(obj, createInfo, owner);
-    obj.imageFormat = imageFormat;
-    obj.extent = extent;
-    obj.images = owner.getSwapchainImagesKHR(obj);
-    obj.CreateImageViews();
+    Create(createInfo, owner);
+    this->imageFormat = imageFormat;
+    this->extent = extent;
+    this->images = owner.getSwapchainImagesKHR(Get());
+    CreateImageViews();
 }
 
 
@@ -89,7 +89,7 @@ void Swapchain::CreateImageViews()
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
         );
 
-        imageViews[i].Create(imageViews[i], createInfo, *m_owner);
+        imageViews[i].Create(createInfo, *m_owner);
 
         if (bool(imageViews[i]) == false)
             throw std::runtime_error("Failed to create image views");

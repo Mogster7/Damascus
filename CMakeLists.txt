@@ -20,6 +20,7 @@ set(INCLUDES
         ${CMAKE_SOURCE_DIR}
         ${GLM_INCLUDE_DIR}
         ${GLFW_INCLUDE_DIR}
+        ThirdParty
         Utilities)
 
 set(LINK_DIRS ThirdParty Utilities)

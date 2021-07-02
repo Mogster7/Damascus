@@ -100,7 +100,7 @@ void Texture::Create(const std::string& filepath, Device& owner)
 						   vk::ImageAspectFlagBits::eColor,
 						   mipLevels);
 
-	imageView.CreateTexture2DView(image, *m_owner);
+	imageView.CreateTexture2DView(image.Get(), *m_owner);
 
 	auto physicalDevice = m_owner->GetPhysicalDevice();
 	vk::PhysicalDeviceProperties physicalProps = physicalDevice.GetProperties();

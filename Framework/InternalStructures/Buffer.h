@@ -7,66 +7,67 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-CUSTOM_VK_DECLARE_NO_CREATE(Buffer, Buffer, Device)
+BK_TYPE(Buffer)
+class Buffer : public IVulkanType<vk::Buffer>, IOwned<Device>
+{
 public:
-    void Create(vk::BufferCreateInfo &bufferCreateInfo,
-                VmaAllocationCreateInfo &allocCreateInfo,
-                Device &owner);
+	Buffer(vk::BufferCreateInfo& bufferCreateInfo,
+		   VmaAllocationCreateInfo& allocCreateInfo,
+		   const Device& owner);
 
-    void CreateStaged(void *data,
-                      vk::DeviceSize size,
-                      vk::BufferUsageFlags bufferUsage,
-                      VmaMemoryUsage memoryUsage,
-                      bool submitToGPU,
-                      Device &owner);
+	Buffer& operator=(Buffer&& other) noexcept;
 
-    void CreateStagedPersistent(void *data,
-                                vk::DeviceSize size,
-                                vk::BufferUsageFlags bufferUsage,
-                                VmaMemoryUsage memoryUsage,
-                                bool submitToGPU,
-                                Device &owner);
+	Buffer(void *data,
+		   vk::DeviceSize size,
+		   vk::BufferUsageFlags bufferUsage,
+		   VmaMemoryUsage memoryUsage,
+		   bool submitToGPU,
+		   bool persistentMapped,
+		   const Device& owner);
 
-    void MapToBuffer(void *data);
 
-    void MapToStagingBuffer(void *data);
+	~Buffer();
 
-    void *GetMappedData();
+	void MapToBuffer(void *data);
 
-    const void *GetMappedData() const;
+	void MapToStagingBuffer(void *data);
 
-    static void StageTransferSingleSubmit(
-            Buffer &src,
-            Buffer &dst,
-            Device &device,
-            vk::DeviceSize size
-    );
+	void *GetMappedData();
 
-    static void StageTransfer(
-            Buffer &src,
-            Buffer &dst,
-            Device &device,
-            vk::DeviceSize size,
-            vk::CommandBuffer commandBuffer
-    );
+	const void *GetMappedData() const;
 
-    void UpdateData(void *data, vk::DeviceSize size, bool submitToGPU);
+	static void StageTransferSingleSubmit(
+		Buffer& src,
+		Buffer& dst,
+		vk::DeviceSize size,
+		const Device& device
+	);
 
-    void StageTransferDynamic(vk::CommandBuffer commandBuffer);
+	static void StageTransfer(
+		Buffer& src,
+		Buffer& dst,
+		vk::DeviceSize size,
+		vk::CommandBuffer commandBuffer,
+		const Device& device
+	);
 
-    static std::vector<vk::DescriptorBufferInfo *> AggregateDescriptorInfo(std::vector<Buffer> &buffers);
+	void UpdateData(void *data, vk::DeviceSize size, bool submitToGPU);
 
-    VmaAllocator allocator = {};
-    VmaAllocation allocation = {};
-    bool persistentMapped = false;
-    VmaAllocationInfo allocationInfo = {};
-    vk::BufferUsageFlags bufferUsage = {};
-    VmaMemoryUsage memoryUsage = {};
-    vk::DeviceSize size = {};
-    vk::DescriptorBufferInfo descriptorInfo = {};
-    Buffer *stagingBuffer = {};
+	void StageTransferDynamic(vk::CommandBuffer commandBuffer);
 
-    static void Map(Buffer &buffer, void *data);
+	static std::vector<vk::DescriptorBufferInfo *> AggregateDescriptorInfo(std::vector <Buffer>& buffers);
+
+	VmaAllocator allocator = {};
+	VmaAllocation allocation = {};
+	bool persistentMapped = false;
+	VmaAllocationInfo allocationInfo = {};
+	vk::BufferUsageFlags bufferUsage = {};
+	VmaMemoryUsage memoryUsage = {};
+	vk::DeviceSize size = {};
+	vk::DescriptorBufferInfo descriptorInfo = {};
+	UBuffer stagingBuffer = {};
+
+	static void Map(Buffer& buffer, void *data);
 };
 
 
@@ -74,82 +75,84 @@ template<class VertexType>
 class VertexBuffer : public Buffer
 {
 public:
-    void CreateStatic(const std::vector<VertexType> &vertices, Device &owner)
-    {
-        ASSERT(vertices.size(), "No vertices contained in mesh creation parameters");
-        CreateStagedPersistent(
-                (void *) &vertices[0], vertices.size() * sizeof(VertexType),
-                vk::BufferUsageFlagBits::eVertexBuffer,
-                VMA_MEMORY_USAGE_GPU_ONLY,
-                true,
-                owner
-        );
-        vertexCount = vertices.size();
-    }
+	void CreateStatic(const std::vector <VertexType>& vertices, Device& owner)
+	{
+		ASSERT(vertices.size(), "No vertices contained in mesh creation parameters");
+		CreateStagedPersistent(
+			(void *) &vertices[0], vertices.size() * sizeof(VertexType),
+			vk::BufferUsageFlagBits::eVertexBuffer,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			true,
+			owner
+		);
+		vertexCount = vertices.size();
+	}
 
-    void CreateDynamic(const std::vector<VertexType> &vertices, Device &owner)
-    {
-        ASSERT(vertices.size(), "No vertices contained in mesh creation parameters");
-        CreateStagedPersistent(
-                (void *) &vertices[0], vertices.size() * sizeof(VertexType),
-                vk::BufferUsageFlagBits::eVertexBuffer,
-                VMA_MEMORY_USAGE_GPU_ONLY,
-                false,
-                owner
-                );
-        vertexCount = vertices.size();
-    }
+	void CreateDynamic(const std::vector <VertexType>& vertices, Device& owner)
+	{
+		ASSERT(vertices.size(), "No vertices contained in mesh creation parameters");
+		CreateStagedPersistent(
+			(void *) &vertices[0], vertices.size() * sizeof(VertexType),
+			vk::BufferUsageFlagBits::eVertexBuffer,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			false,
+			owner
+		);
+		vertexCount = vertices.size();
+	}
 
-    void UpdateData(void *data, vk::DeviceSize size, uint32_t newVertexCount, bool submitToGPU)
-    {
-        vertexCount = newVertexCount;
-        Buffer::UpdateData(data, size, submitToGPU);
-    }
+	void UpdateData(void *data, vk::DeviceSize size, uint32_t newVertexCount, bool submitToGPU)
+	{
+		vertexCount = newVertexCount;
+		Buffer::UpdateData(data, size, submitToGPU);
+	}
 
-    uint32_t GetVertexCount() const
-    { return vertexCount; }
+	uint32_t GetVertexCount() const
+	{ return vertexCount; }
 
 private:
-    uint32_t vertexCount = 0;
+	uint32_t vertexCount = 0;
 };
 
 class IndexBuffer : public Buffer
 {
 public:
 
-    void CreateStatic(const std::vector<uint32_t> &indices, Device &owner)
-    {
-        CreateStagedPersistent((void *) indices.data(), indices.size() * sizeof(uint32_t),
-                               vk::BufferUsageFlagBits::eIndexBuffer,
-                               VMA_MEMORY_USAGE_GPU_ONLY,
-                               true,
-                               owner);
-        indexCount = indices.size();
-    }
+	void CreateStatic(const std::vector <uint32_t>& indices, Device& owner)
+	{
+		CreateStagedPersistent((void *) indices.data(), indices.size() * sizeof(uint32_t),
+			vk::BufferUsageFlagBits::eIndexBuffer,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			true,
+			owner
+		);
+		indexCount = indices.size();
+	}
 
-    void CreateDynamic(const std::vector<uint32_t> &indices, Device &owner)
-    {
-        CreateStagedPersistent((void *) indices.data(), indices.size() * sizeof(uint32_t),
-                               vk::BufferUsageFlagBits::eIndexBuffer,
-                               VMA_MEMORY_USAGE_GPU_ONLY,
-                               false,
-                               owner);
-        indexCount = indices.size();
-    }
-
-
-    void UpdateData(void *data, vk::DeviceSize size, uint32_t newIndexCount, bool submitToGPU)
-    {
-        indexCount = newIndexCount;
-        Buffer::UpdateData(data, size, submitToGPU);
-    }
+	void CreateDynamic(const std::vector <uint32_t>& indices, Device& owner)
+	{
+		CreateStagedPersistent((void *) indices.data(), indices.size() * sizeof(uint32_t),
+			vk::BufferUsageFlagBits::eIndexBuffer,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			false,
+			owner
+		);
+		indexCount = indices.size();
+	}
 
 
-    uint32_t GetIndexCount() const
-    { return indexCount; }
+	void UpdateData(void *data, vk::DeviceSize size, uint32_t newIndexCount, bool submitToGPU)
+	{
+		indexCount = newIndexCount;
+		Buffer::UpdateData(data, size, submitToGPU);
+	}
+
+
+	uint32_t GetIndexCount() const
+	{ return indexCount; }
 
 private:
-    uint32_t indexCount = 0;
+	uint32_t indexCount = 0;
 };
 
 

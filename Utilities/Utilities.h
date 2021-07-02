@@ -24,11 +24,21 @@ namespace utils
     float Random(float min = 0.0f, float max = 1.0f, float offset = 0.0f);
     int RandomInt(int min = 0, int max = 1, int offset = 0);
     std::vector<char> ReadFile(const std::string& filename);
-    inline void CheckVkResult(vk::Result result, const std::string& error)
+
+	inline void CheckVkResult(vk::Result result, const std::string& error)
     {
         ASSERT(result == vk::Result::eSuccess, error.c_str());
     }
-    void AssertVkBase(VkResult result);
+	inline void CheckVkResult(vk::Result result)
+	{
+		ASSERT(result == vk::Result::eSuccess, "Assertion failed when testing VkResult!");
+	}
+	inline void CheckVkResult(VkResult result)
+	{
+		ASSERT(result == VK_SUCCESS, "Assertion failed when testing VkResult!");
+	}
+
+	void AssertVkBase(VkResult result);
 
 	inline void PushIdentityModel(vk::CommandBuffer commandBuffer,
 								  vk::PipelineLayout pipelineLayout)

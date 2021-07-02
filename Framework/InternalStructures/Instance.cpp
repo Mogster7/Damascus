@@ -67,7 +67,7 @@ void Instance::Create()
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
     if (enableValidationLayers && !checkValidationLayerSupport())
-        throw std::runtime_error("Validation layers requested, but not available");
+        throw std::runtime_error("Validation layers requested.Create(but not available");
 
     vk::ApplicationInfo appInfo("Hello Triangle", VK_MAKE_VERSION(1, 0, 0),
                                 "No Engine", VK_MAKE_VERSION(1, 0, 0),

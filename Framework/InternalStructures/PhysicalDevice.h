@@ -45,7 +45,6 @@ public:
         return *instance;
     }
 
-    UNDERLYING_CONVERSION(PhysicalDevice,)
     DERIVED_GETTER(PhysicalDevice, PhysicalDevice,)
 
 private:
