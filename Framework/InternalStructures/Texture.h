@@ -1,10 +1,14 @@
 #pragma once
 
-class Texture
+namespace bk {
+
+//BK_TYPE(Texture)
+class Texture : public IOwned<Device>
 {
 public:
-	void Create(const std::string& filepath, Device& owner);
-	void Destroy();
+	BK_TYPE_OWNED_BODY(Texture, IOwned<Device>)
+
+	void Create(const std::string& filepath, Device* owner);
 
 	vk::DescriptorImageInfo GetDescriptor(
 		vk::ImageLayout imageLayout
@@ -17,8 +21,7 @@ public:
 
 	Image image;
 	ImageView imageView;
-	vk::UniqueSampler sampler;
-
-
-	Device* m_owner;
+	Sampler sampler;
 };
+
+}

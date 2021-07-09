@@ -6,41 +6,36 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-
-//namespace vk
-//{
-//    class SurfaceKHR;
-//    class DebugUtilsMessengerEXT;
-//    class Instance;
-//    class DynamicLoader;
-//}
-
+namespace bk {
 class Window;
+class RenderingContext;
 
-class Instance : public vk::Instance
+//BK_TYPE(Instance)
+class Instance : public IVulkanType<vk::Instance>, public IOwned<RenderingContext>
 {
-    std::weak_ptr<Window> window;
-    vk::SurfaceKHR surface;
-    vk::DebugUtilsMessengerEXT debugMessenger = {};
-    vk::DynamicLoader dynamicLoader = {};
 
 public:
-    Instance() = default;
-    void Create();
-    void CreateSurface(std::weak_ptr<Window> winHandle);
-    void Destroy();
-    ~Instance() = default;
-    DERIVED_GETTER(Instance, Instance,)
+	BK_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<RenderingContext>)
 
-    vk::SurfaceKHR GetSurface() const { return surface; }
-    std::weak_ptr<Window> GetWindow() const { return window; }
+	void Create();
+
+	void CreateSurface(std::weak_ptr<Window> winHandle);
+
+	void Destroy();
+
+
+	std::weak_ptr<Window> window;
+	vk::SurfaceKHR surface;
+	vk::DebugUtilsMessengerEXT debugMessenger = {};
+	vk::DynamicLoader dynamicLoader = {};
+
 
 private:
-    static void PopulateDebugCreateInfo(vk::DebugUtilsMessengerCreateInfoEXT& createInfo);
-    void ConstructDebugMessenger();
+	static void PopulateDebugCreateInfo(vk::DebugUtilsMessengerCreateInfoEXT& createInfo);
+
+	void ConstructDebugMessenger();
+
 
 };
 
-
-
-
+}

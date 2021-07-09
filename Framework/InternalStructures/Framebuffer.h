@@ -6,10 +6,13 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
+namespace bk {
 
-CUSTOM_VK_DECLARE_DERIVE(FrameBuffer, Framebuffer, Device)
-
+////BK_TYPE(FrameBuffer)
+class FrameBuffer : public IVulkanType<vk::Framebuffer>, public IOwned<Device>
+{
+	BK_TYPE_VULKAN_OWNED_BODY(FrameBuffer, IOwned<Device>)
+	BK_TYPE_VULKAN_OWNED_GENERIC(FrameBuffer, Framebuffer)
 };
 
-
-
+}

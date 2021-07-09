@@ -6,20 +6,22 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-class Device;
+namespace bk {
 
-class FrameBufferAttachment 
+//BK_TYPE(FrameBufferAttachment)
+class FrameBufferAttachment : public IOwned<Device>
 {
-	Device* m_owner = nullptr;
-
-
 public:
-	void Create(vk::Format format,
-									   vk::Extent2D extent,
-									   vk::ImageUsageFlags usage,
-									   vk::ImageAspectFlags aspectMask,
-									   vk::ImageLayout destinationLayout,
-									   Device& owner);
+	BK_TYPE_OWNED_BODY(FrameBufferAttachment, IOwned<Device>)
+
+	void Create(
+		vk::Format format,
+		vk::Extent2D extent,
+		vk::ImageUsageFlags usage,
+		vk::ImageAspectFlags aspectMask,
+		vk::ImageLayout destinationLayout,
+		Device* owner
+	);
 
 	void Create(
 		vk::Format format,
@@ -28,20 +30,21 @@ public:
 		vk::ImageAspectFlags aspectMask,
 		vk::ImageLayout destinationLayout,
 		vk::SamplerCreateInfo samplerCreateInfo,
-		Device& owner
+		Device* owner
 	);
-    void CreateDepth(Device& owner);
-    void Destroy();
 
-	vk::DescriptorImageInfo GetDescriptor(
+	void CreateDepth(Device* owner);
+
+	[[nodiscard]] vk::DescriptorImageInfo GetDescriptor(
 		vk::ImageLayout imageLayout
-	);
+	) const;
 
-	Image image = {};
-    ImageView imageView = {};
-    vk::Format format = {};
-	vk::Sampler sampler = {};
+	Image image;
+	ImageView imageView;
+	Sampler sampler;
+	vk::Format format = {};
 
-    static vk::Format GetDepthFormat();
+	static vk::Format GetDepthFormat();
 };
 
+}

@@ -1,10 +1,11 @@
+namespace bk {
 
 bool RenderQueue::Begin(Device& device, uint32_t currentFrame)
 {
 	_currentSubmitInfo = vk::SubmitInfo();
 	_previousSignalSemaphores = nullptr;
 	_previousSignalSemaphoresCount = 0;
-	return RenderingContext::Get().PrepareFrame(currentFrame);
+	return device.OwnerGet<RenderingContext>().PrepareFrame(currentFrame);
 }
 
 void RenderQueue::SetSemaphores(vk::Semaphore const* const& waitSemaphores, vk::Semaphore const* const& signalSemaphores, const uint32_t waitSemaphoresCount /*= 1*/, const uint32_t signalSemaphoresCount /*= 1*/)
@@ -60,9 +61,10 @@ bool RenderQueue::End(Device& device, uint32_t currentFrame, const vk::Semaphore
 		"No wait semaphore provided for device frame submission"
 	);
 
-	return RenderingContext::Get().SubmitFrame(
+	return device.OwnerGet<RenderingContext>().SubmitFrame(
 		currentFrame,
 		(previousSemaphore) ? *_previousSignalSemaphores : deviceWaitSemaphores,
 		(previousSemaphore) ? _previousSignalSemaphoresCount : deviceWaitSemaphoresCount);
 }
 
+}

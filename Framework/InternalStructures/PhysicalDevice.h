@@ -7,58 +7,48 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace vk
-{
-    PhysicalDevice;
-    Device;
-}
+namespace bk {
 
 class QueueFamilyIndices
 {
 public:
-    std::optional<uint32_t> graphics;
-    std::optional<uint32_t> present;
+	std::optional<uint32_t> graphics;
+	std::optional<uint32_t> present;
 
-    bool isComplete() const
-    {
-        return graphics.has_value() && present.has_value();
-    }
+	[[nodiscard]] bool isComplete() const
+	{
+		return graphics.has_value() && present.has_value();
+	}
 };
 
 class Device;
+class RenderingContext;
 
-class PhysicalDevice : public vk::PhysicalDevice
+class PhysicalDevice : public IVulkanType<vk::PhysicalDevice>, public IOwned<RenderingContext>
 {
 public:
-    PhysicalDevice() = default;
-    PhysicalDevice(const vk::PhysicalDevice& other);
-    ~PhysicalDevice() = default;
+BK_TYPE_VULKAN_OWNED_BODY(PhysicalDevice, IOwned<RenderingContext>)
 
-    void Create(Instance& instance);
-    void CreateLogicalDevice(Device& device);
-    const QueueFamilyIndices& GetQueueFamilyIndices() const;
-    vk::PhysicalDeviceProperties GetProperties() const { return properties; }
-    vk::DeviceSize GetMinimumUniformBufferOffset() const;
+	void Create(RenderingContext* owner);
 
-    Instance& GetInstance()
-    {
-        return *instance;
-    }
+	[[nodiscard]] const QueueFamilyIndices& GetQueueFamilyIndices() const;
 
-    DERIVED_GETTER(PhysicalDevice, PhysicalDevice,)
+	[[nodiscard]] vk::PhysicalDeviceProperties GetProperties() const
+	{
+		return properties;
+	}
+
+	vk::DeviceSize GetMinimumUniformBufferOffset() const;
+
+	QueueFamilyIndices queueFamilyIndices;
+	vk::PhysicalDeviceProperties properties;
 
 private:
-    Instance* instance;
+	static QueueFamilyIndices FindQueueFamilies(vk::PhysicalDevice pd);
 
+	[[nodiscard]] bool IsDeviceSuitable(vk::PhysicalDevice) const;
 
-
-    static QueueFamilyIndices FindQueueFamilies(vk::PhysicalDevice pd);
-    bool IsDeviceSuitable(vk::PhysicalDevice) const;
-    bool CheckDeviceExtensionSupport(vk::PhysicalDevice) const;
-
-    QueueFamilyIndices queueFamilyIndices;
-    vk::PhysicalDeviceProperties properties;
+	[[nodiscard]] bool CheckDeviceExtensionSupport(vk::PhysicalDevice) const;
 };
 
-
-
+}

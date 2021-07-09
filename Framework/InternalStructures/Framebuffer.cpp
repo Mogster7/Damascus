@@ -5,5 +5,6 @@
 // Date:		6/23/2020
 //
 //------------------------------------------------------------------------------
+namespace bk {
 
-CUSTOM_VK_DEFINE(FrameBuffer, Framebuffer, Device)
+}

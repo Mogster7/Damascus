@@ -7,9 +7,14 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-CUSTOM_VK_DECLARE_DERIVE(ImageView, ImageView, Device)
+namespace bk {
 
+class ImageView : public IVulkanType<vk::ImageView>, public IOwned<Device>
+{
 public:
-	void CreateTexture2DView(vk::Image image, Device& owner);
+	BK_TYPE_VULKAN_OWNED_BODY(ImageView, IOwned<Device>)
+	BK_TYPE_VULKAN_OWNED_GENERIC(ImageView, ImageView)
+	void CreateTexture2DView(vk::Image image, Device* owner);
 };
 
+}

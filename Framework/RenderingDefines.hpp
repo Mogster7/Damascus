@@ -1,3 +1,5 @@
+#include <utility>
+
 //------------------------------------------------------------------------------
 //
 // File Name:	RenderingDefines.h
@@ -11,174 +13,141 @@ constexpr std::string_view ASSET_DIR = "Assets/";
 constexpr size_t MAX_FRAME_DRAWS = 2;
 
 
-const std::vector<const char *> deviceExtensions = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+const std::vector<const char*> deviceExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
 
-// Tests if the class has a method by the name of Initialization
-// If it does, it will execute it immediately following the constructor of our underlying Vulkan structure
-template<typename T>
-class HasInitialization
-{
-	typedef char one;
-	struct two
-	{
-		char x[2];
-	};
-
-	template<typename C>
-	constexpr static one test(decltype(&C::Initialization));
-
-	template<typename C>
-	constexpr static two test(...);
-
-public:
-	enum
-	{
-		value = sizeof(test<T>(0)) == sizeof(char)
-	};
-};
-
-template<typename T>
-constexpr void CheckInitialization(T& obj)
-{
-	if constexpr (HasInitialization<T>::value)
-	{
-		obj.Initialization();
-	}
-}
-
-template<class OwnerType>
-class IOwned
+template<class Type>
+struct IOwned
 {
 public:
-	explicit IOwned(const OwnerType& owner)
-			: owner(owner)
+	using OwnerType = Type;
+
+	void Create(Type* inOwner, std::function<void(void)> inDestroyFunction = [](){})
 	{
+		owner = inOwner;
+		destroyFunction = std::move(inDestroyFunction);
+		created = true;
 	}
 
-	void OwnerCreate(std::function<vk::Result(const OwnerType&)> CreateFunction)
+	void DestroyIfCreated()
 	{
-		utils::CheckVkResult(CreateFunction(owner), "Failed to create Vulkan type");
+		if (created)
+		{
+			destroyFunction();
+		}
 	}
 
-	void OwnerDestroy(std::function<vk::Result(const OwnerType&)> DestroyFunction)
+	virtual ~IOwned()
 	{
-		utils::CheckVkResult(DestroyFunction(owner), "Failed to destroy Vulkan type");
+		DestroyIfCreated();
 	}
 
-	const OwnerType& owner;
+	template<class QueryType, bool Match = std::is_same<QueryType, OwnerType>::value>
+	constexpr QueryType& OwnerGet() const
+	{
+		if constexpr (Match)
+		{
+			return *owner;
+		}
+		else
+		{
+			return owner->template OwnerGet<QueryType>();
+		}
+	}
+
+	Type* owner = nullptr;
+	bool created = false;
+private:
+	std::function<void(void)> destroyFunction;
 };
+
+
 
 #define ASSERT_VK(VkResult) utils::CheckVkResult(VkResult)
 
-template<class VulkanType>
-class IVulkanType : public VulkanType
+template<class Type, class CType = typename Type::CType>
+struct IVulkanType : public Type
 {
-public:
-	VulkanType& GetBase() { return *this; }
-	const VulkanType& GetBase() const { return *this; }
+	using VulkanType = Type;
+	using VulkanCType = CType;
+
+
+	const VulkanType& VkType() const
+	{
+		return static_cast<const VulkanType&>(*this);
+	}
+
+	VulkanType& VkType()
+	{
+		return static_cast<VulkanType&>(*this);
+	}
+
+	const VulkanCType& VkCType() const
+	{
+		return (VulkanCType&) *this;
+	}
+
+	VulkanCType& VkCType()
+	{
+		return (VulkanCType&) *this;
+	}
+
+	const VulkanType* VkTypePtr() const
+	{
+		return reinterpret_cast<VulkanType*>(this);
+	}
+
+	VulkanType* VkTypePtr()
+	{
+		return reinterpret_cast<VulkanType*>(this);
+	}
+
+	const VulkanCType* VkCTypePtr() const
+	{
+		return reinterpret_cast<VulkanCType*>(this);
+	}
+
+	VulkanCType* VkCTypePtr()
+	{
+		return reinterpret_cast<VulkanCType*>(this);
+	}
+
 };
 
-
-#define BK_TYPE(Type) \
-class Type;           \
-class S##Type : public std::shared_ptr<Type> \
-{                     \
-public:               \
-	template <class ...Args>                   \
-	static std::shared_ptr<Type> Make(Args&&... args) \
-	{                    \
-		return std::make_shared<Type>(args...);  \
-	}                    \
-};                     \
-                      \
-using W##Type = std::weak_ptr<Type>;         \
-class U##Type : public std::unique_ptr<Type> \
-{                     \
-public:               \
-	template <class ...Args>                   \
-	static std::unique_ptr<Type> Make(Args&&... args) \
-	{                    \
-		return std::make_unique<Type>(args...);  \
-	}                    \
-};                     \
-
-#define BK_TYPE_BODY(VulkanType, OwnerType) \
-
-#define CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, derived, EXT) \
-    class ownerName;\
-    class myName derived \
-    { \
-    public:\
-        myName() = default;\
-        ~myName() = default;\
-        virtual void Destroy() = 0;                                     \
-                                                                        \
-    inline vk::vkName##EXT  &Get() { return *this; }\
-    inline const vk::vkName##EXT & Get() const { return *this; }        \
-    protected:\
-        ownerName* m_owner = {};                                        \
-        void DestroyBase()                                                      \
-        {                                                                      \
-            if(m_owner)                                                          \
-            {                                                                     \
-                m_owner->destroy##vkName##EXT(Get()); \
-                m_owner = nullptr;\
-            }\
-        }\
-    public:\
-
-
-#define CUSTOM_VK_DERIVED_CREATE_FULL(myName, vkName, ownerName, EXT, createName, constructName) \
-    public:\
+#define BK_TYPE_VULKAN_OWNED_CREATE_FULL(Type, VulkanName, EXT, CreateName, ConstructName)    \
+    public:                                                                           \
         template <class ...Args>\
-        void Create(const vk::createName##CreateInfo##EXT & createInfo, \
-            ownerName& owner, Args&&... args)\
-        {\
-            utils::CheckVkResult(owner.create##constructName##EXT(args... , &createInfo, nullptr, &Get()), \
-                std::string("Failed to construct ") + #vkName );\
-            m_owner = &owner; \
-            CheckInitialization<myName>(*this);\
-        }\
-        template <class ...Args>\
-        static void Create(myName*&& obj, const vk::createName##CreateInfo##EXT & createInfo, \
-            ownerName& owner, Args &&... args)\
-        {\
-            obj->Create(createInfo, owner, std::forward(args)...);\
-        }\
-    private:\
+        void Create(const vk::CreateName##CreateInfo##EXT & createInfo,                \
+            OwnerType* inOwner, Args&&... args)                                                                                \
+        {                                                                                     \
+            IOwned::Create(inOwner, [this]() { owner->destroy##VulkanName##EXT(VkType()); });\
+            utils::CheckVkResult(owner->create##ConstructName##EXT(args... , &createInfo, nullptr, &VkType()), \
+                std::string("Failed to construct ") + #VulkanName );              \
+        }                                                                         \
 
-#define CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, EXT) CUSTOM_VK_DERIVED_CREATE_FULL(myName, vkName, ownerName, EXT, vkName, vkName)
+#define BK_TYPE_VULKAN_OWNED_CREATE(Type, VulkanName) \
+	BK_TYPE_VULKAN_OWNED_CREATE_FULL(Type, VulkanName, ,VulkanName, VulkanName)
+
+#define BK_TYPE_VULKAN_OWNED_DESTROY_EXT(Type, VulkanName, EXT) \
+        ~Type() { if (created) owner->destroy##VulkanName##EXT(VkType()); } \
+
+#define BK_TYPE_VULKAN_OWNED_DESTROY(Type, VulkanName) BK_TYPE_VULKAN_OWNED_DESTROY_EXT(Type, VulkanName,)
+
+#define BK_TYPE_VULKAN_OWNED_GENERIC(Type, VulkanName) \
+	BK_TYPE_VULKAN_OWNED_CREATE(Type, VulkanName)         \
+
+/**
+ * Defines things common to each owned vulkan type
+ */
+#define BK_TYPE_BODY(Type) \
+public:                          \
 
 
-#define DERIVED_GETTER(myName, vkName, EXT)\
-public:\
-    inline vk::vkName##EXT  &Get() { return *this; }\
-    inline const vk::vkName##EXT & Get() const { return *this; }\
+#define BK_TYPE_OWNED_BODY(Type, DerivedOwner) \
+BK_TYPE_BODY(Type)\
 
-
-#define CUSTOM_VK_DECLARE_DERIVE_NC(myName, vkName, ownerName) \
-    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::vkName , ) DERIVED_GETTER(myName, vkName, )
-
-#define CUSTOM_VK_DECLARE_DERIVE(myName, vkName, ownerName) \
-    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::vkName , ) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, ) DERIVED_GETTER(myName, vkName, )
-
-#define CUSTOM_VK_DECLARE_DERIVE_KHR(myName, vkName, ownerName) \
-    CUSTOM_VK_DECLARE_FULL(myName, vkName, ownerName, : public vk::vkName##KHR , KHR) CUSTOM_VK_DERIVED_CREATE(myName, vkName, ownerName, KHR) DERIVED_GETTER(myName, vkName, KHR)
-
-#define CUSTOM_VK_DEFINE_FULL(myName, vkName, ownerName, EXT)\
-    void myName::Destroy()\
-    {\
-        if(m_owner)\
-        {\
-            m_owner->destroy##vkName##EXT(Get()); \
-            m_owner = nullptr;\
-        }\
-    }
-
-#define CUSTOM_VK_DEFINE(myName, vkName, ownerName) CUSTOM_VK_DEFINE_FULL(myName, vkName, ownerName,)
-#define CUSTOM_VK_DEFINE_KHR(myName, vkName, ownerName) CUSTOM_VK_DEFINE_FULL(myName, vkName, ownerName, KHR)
-
+#define BK_TYPE_VULKAN_OWNED_BODY(Type, DerivedOwner)\
+BK_TYPE_OWNED_BODY(Type, DerivedOwner)\
 

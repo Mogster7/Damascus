@@ -1,5 +1,7 @@
 #pragma once
 
+using namespace bk;
+
 template <class VertexType>
 class RenderComponent
 {
@@ -7,13 +9,17 @@ public:
 	RenderComponent() = default;
 	RenderComponent(const std::string& path, Device& owner)
 	{
-		mesh.CreateModel(path, false, owner);
+		mesh = new Mesh<VertexType>();
+		mesh->CreateModel(path, false);
+	}
+	RenderComponent(Mesh<VertexType>& other)
+		: mesh(other)
+	{
 	}
 
-	RenderComponent(Mesh<VertexType>& mesh)
-		:
-		mesh(mesh)
+	~RenderComponent()
 	{
+		//delete mesh;
 	}
 
 	Mesh<VertexType> mesh;

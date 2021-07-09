@@ -7,127 +7,99 @@
 //------------------------------------------------------------------------------
 #include "PhysicalDevice.h"
 #include "RenderingContext.h"
-#include <set>
-#include <vector>
+
+namespace bk {
+
 
 bool PhysicalDevice::CheckDeviceExtensionSupport(vk::PhysicalDevice device) const
 {
-    std::vector<vk::ExtensionProperties> available = device.enumerateDeviceExtensionProperties();
+	std::vector<vk::ExtensionProperties> available = device.enumerateDeviceExtensionProperties();
 
-    std::set<std::string> required(deviceExtensions.begin(), deviceExtensions.end());
+	std::set<std::string> required(deviceExtensions.begin(), deviceExtensions.end());
 
-    for (const auto& extension : available)
-    {
-        required.erase(extension.extensionName);
-    }
+	for (const auto& extension : available)
+	{
+		required.erase(extension.extensionName);
+	}
 
-    return required.empty();
+	return required.empty();
 }
 
 
 bool PhysicalDevice::IsDeviceSuitable(vk::PhysicalDevice device) const
 {
-    auto indices = FindQueueFamilies(device);
-    if (!indices.isComplete()) return false;
+	auto indices = FindQueueFamilies(device);
+	if (!indices.isComplete())
+		return false;
 
-    bool extensionsSupported = CheckDeviceExtensionSupport(device);
-    if (!extensionsSupported) return false;
+	bool extensionsSupported = CheckDeviceExtensionSupport(device);
+	if (!extensionsSupported)
+		return false;
 
-    vk::SurfaceKHR surface = RenderingContext::Get().instance.GetSurface();
-    if (device.getSurfaceFormatsKHR(surface).empty() ||
-        device.getSurfacePresentModesKHR(surface).empty())
-        return false;
-        
+	vk::SurfaceKHR surface = OwnerGet<RenderingContext>().instance.surface;
+	if (device.getSurfaceFormatsKHR(surface).empty() ||
+		device.getSurfacePresentModesKHR(surface).empty())
+		return false;
 
-    return true;
+
+	return true;
 }
 
 
-PhysicalDevice::PhysicalDevice(const vk::PhysicalDevice& other) : vk::PhysicalDevice(other) { }
-
-void PhysicalDevice::Create(Instance& instance)
+void PhysicalDevice::Create(RenderingContext* owner)
 {
-    std::vector<vk::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
-    if (devices.empty()) throw std::runtime_error("Failed to find GPU with Vulkan support");
+	this->owner = owner;
+	std::vector<vk::PhysicalDevice> devices = OwnerGet<RenderingContext>().instance.enumeratePhysicalDevices();
+	if (devices.empty())
+		throw std::runtime_error("Failed to find GPU with Vulkan support");
 
-    auto it = std::find_if(devices.begin(), devices.end(), [this](const auto& device) -> bool
-        {
-            return IsDeviceSuitable(device);
-        });
+	auto it = std::find_if(devices.begin(), devices.end(), [this](const auto& device) -> bool
+	{
+		return IsDeviceSuitable(device);
+	});
 
-    if (it == devices.end())
-        throw std::runtime_error("Failed to find a suitable GPU");
+	if (it == devices.end())
+		throw std::runtime_error("Failed to find a suitable GPU");
 
-    (*this) = PhysicalDevice(*it);
-	this->instance = &instance;
-    queueFamilyIndices = FindQueueFamilies(*this);
-    getProperties(&properties);
+	VkType() = *it;
+	queueFamilyIndices = FindQueueFamilies(VkType());
+	getProperties(&properties);
 }
 
-void PhysicalDevice::CreateLogicalDevice(Device& device)
-{
-    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> queueFamilies = { queueFamilyIndices.graphics.value(), queueFamilyIndices.present.value() };
-
-    float queuePriority = 1.0f;
-    for (uint32_t queueFamily : queueFamilies)
-    {
-        queueCreateInfos.emplace_back(
-            vk::DeviceQueueCreateFlags(),
-            queueFamily,
-            1,
-            &queuePriority
-        );
-    }
-
-    vk::PhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.wideLines = VK_TRUE;
-    deviceFeatures.fillModeNonSolid = VK_TRUE;
-
-    vk::DeviceCreateInfo createInfo(
-        {},
-        (uint32_t)queueCreateInfos.size(),
-        queueCreateInfos.data(),
-        0,
-        {},
-        (uint32_t)deviceExtensions.size(),
-        deviceExtensions.data(),
-        &deviceFeatures
-    );
-    
-    device.Create(&device, createInfo, *this);
-}
 
 
 const QueueFamilyIndices& PhysicalDevice::GetQueueFamilyIndices() const
 {
-    return queueFamilyIndices;
+	return queueFamilyIndices;
 }
 
 vk::DeviceSize PhysicalDevice::GetMinimumUniformBufferOffset() const
 {
-    return properties.limits.minUniformBufferOffsetAlignment;
+	return properties.limits.minUniformBufferOffsetAlignment;
 }
 
 QueueFamilyIndices PhysicalDevice::FindQueueFamilies(vk::PhysicalDevice pd)
 {
-    QueueFamilyIndices indices;
+	QueueFamilyIndices indices;
 
-    std::vector<vk::QueueFamilyProperties> queueFamilies = pd.getQueueFamilyProperties();
+	std::vector<vk::QueueFamilyProperties> queueFamilies = pd.getQueueFamilyProperties();
 
-    int i = 0;
-    for (const auto& queueFamily : queueFamilies)
-    {
-        if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
-            indices.graphics = i;
+	int i = 0;
+	for (const auto& queueFamily : queueFamilies)
+	{
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
+			indices.graphics = i;
 
-        if (pd.getSurfaceSupportKHR(i, RenderingContext::Get().instance.GetSurface()))
-            indices.present = i;
+		if (pd.getSurfaceSupportKHR(i, RenderingContext::Get().instance.surface))
+			indices.present = i;
 
-        if (indices.isComplete()) break;
+		if (indices.isComplete())
+			break;
 
-        ++i;
-    }
+		++i;
+	}
 
-    return indices;
+	return indices;
+}
+
 }

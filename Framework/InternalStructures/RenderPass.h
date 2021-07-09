@@ -6,35 +6,41 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
+namespace bk {
 
-class Device;
-
-BK_TYPE(RenderPass)
+//BK_TYPE(RenderPass)
 class RenderPass : public IVulkanType<vk::RenderPass>, public IOwned<Device>
 {
 public:
-	RenderPass(const vk::RenderPassCreateInfo& info,
-			   const Device& owner,
-			   vk::Extent2D extent,
-			   const std::vector<vk::ClearValue>& clearValues)
-		: IOwned<Device>(owner)
-		, extent(extent)
-		, clearValues(clearValues)
+BK_TYPE_VULKAN_OWNED_BODY(RenderPass, IOwned<Device>)
+
+	void Create(
+			const vk::RenderPassCreateInfo& info,
+			vk::Extent2D inExtent,
+			const std::vector<vk::ClearValue>& inClearValues,
+			Device* inOwner
+	)
 	{
-		OwnerCreate([&info, this](const Device& owner)
-			{
-				return owner.createRenderPass(&info, nullptr, &this->GetBase());
-			}
-		);
+		IOwned::Create(inOwner, [this]()
+		{
+			owner->destroyRenderPass(VkType());
+		});
+
+		extent = inExtent;
+		clearValues = inClearValues;
+
+		ASSERT_VK(owner->createRenderPass(&info, nullptr, &VkType()));
 	}
 
-	void Begin(vk::CommandBuffer cmdBuf,
-			   vk::Framebuffer framebuffer,
-			   vk::Pipeline pipeline,
-			   vk::SubpassContents subpassContents = vk::SubpassContents::eInline)
+	void Begin(
+			vk::CommandBuffer cmdBuf,
+			vk::Framebuffer framebuffer,
+			vk::Pipeline pipeline,
+			vk::SubpassContents subpassContents = vk::SubpassContents::eInline
+	)
 	{
 		vk::RenderPassBeginInfo renderPassInfo;
-		renderPassInfo.renderPass = GetBase();
+		renderPassInfo.renderPass = VkType();
 		renderPassInfo.renderArea.extent = extent;
 		renderPassInfo.renderArea.offset = vk::Offset2D(0, 0);
 		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
@@ -60,4 +66,4 @@ public:
 };
 
 
-
+}

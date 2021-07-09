@@ -1,21 +1,25 @@
 #pragma once
+
 #include "Overlay/EditorWindow.h"
 #include "Overlay/EditorBlock.h"
 
-class Overlay
+namespace bk {
+
+//BK_TYPE(Overlay)
+class Overlay : public IOwned<Device>
 {
 public:
-	void Create(std::weak_ptr<Window> window, 
-				Instance& instance,
-				PhysicalDevice& physicalDevice,
-				Device& device);
+	BK_TYPE_OWNED_BODY(Overlay, IOwned<Device>)
+
+	void Create(std::weak_ptr<Window> window, Device* owner);
+
 	void Destroy();
 
 	void Begin();
 
 	void Update(float dt)
 	{
-		for (auto& window : m_editorWindows) 
+		for (auto& window : m_editorWindows)
 			window->Update(dt);
 	}
 
@@ -25,16 +29,16 @@ public:
 	{
 		m_editorWindows.emplace_back(editorWindow);
 	}
-	
 
-    DescriptorPool descriptorPool;
+
+	DescriptorPool descriptorPool;
 	RenderPass renderPass;
 	CommandPool commandPool;
 	std::vector<vk::CommandBuffer> commandBuffers;
 	std::vector<FrameBuffer> framebuffers;
 
 private:
-	Device* m_owner;
 	std::vector<EditorWindow*> m_editorWindows;
-
 };
+
+}

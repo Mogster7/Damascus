@@ -11,27 +11,28 @@
 #include "tiny/tiny_obj_loader.h"
 
 namespace std {
-    template<> struct hash<Vertex> {
-        size_t operator()(Vertex const& vertex) const {
-            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texPos) << 1);
-        }
-    };
+template<>
+struct hash<bk::Vertex>
+{
+	size_t operator()(bk::Vertex const& vertex) const
+	{
+		return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texPos) << 1);
+	}
+};
 }
 
-template <class VertexType>
-class Mesh
+namespace bk {
+
+
+template<class VertexType>
+class Mesh : public IOwned<Device>
 {
 public:
-	Mesh() = default;
-	~Mesh() = default;
-
-
-
 	struct Data
-    {
+	{
 		std::vector<VertexType> vertices;
 		std::vector<uint32_t> indices;
-    };
+	};
 	struct Memory
 	{
 		VertexType* vertices;
@@ -47,79 +48,92 @@ public:
 		const uint32_t indexCount;
 	};
 
-	void Create(Mesh<VertexType>& other)
+	void Create(Mesh<VertexType>& other, Device* inOwner)
 	{
+		IOwned::Create(inOwner);
+
 		Mesh<VertexType> mesh;
 		uint32_t indexCount = other.GetIndexCount();
 
 		if (other.dynamic)
 		{
 			if (indexCount > 0)
+			{
 				CreateDynamic(other.GetVertexBufferDataCopy<VertexType>(0),
-							  other.GetIndexBufferDataCopy(), *other.m_owner);
+					other.GetIndexBufferDataCopy(), *other.m_owner);
+			}
 			else
+			{
 				CreateDynamic(other.GetVertexBufferDataCopy<VertexType>(0),
-							  *other.m_owner);
+					*other.m_owner);
+			}
 		}
 		else
 		{
 			if (indexCount > 0)
+			{
 				CreateStatic(other.GetVertexBufferDataCopy<VertexType>(0),
-							 other.GetIndexBufferDataCopy(), *other.m_owner);
+					other.GetIndexBufferDataCopy(), *other.m_owner);
+			}
 			else
+			{
 				CreateStatic(other.GetVertexBufferDataCopy<VertexType>(0),
-							  *other.m_owner);
+					*other.m_owner);
+			}
 		}
 
 	}
 
 
-    void CreateStatic(
-		const std::vector<VertexType>& vertices, 
-        const std::vector<uint32_t>& indices,
-		Device& device)
-    {
-		m_owner = &device;
-		vertexBuffer.CreateStatic(vertices, device);
-		indexBuffer.CreateStatic(indices, device);
+	void CreateStatic(
+		const std::vector<VertexType>& vertices,
+		const std::vector<uint32_t>& indices,
+		Device* inOwner
+	)
+	{
+		IOwned::Create(inOwner);
+		vertexBuffer.CreateStatic(vertices, owner);
+		indexBuffer.CreateStatic(indices, owner);
 	}
 
-    void CreateStatic(
-		const std::vector<VertexType>& vertices, 
-		Device& device)
-    {
-		m_owner = &device;
-		vertexBuffer.CreateStatic(vertices, device);
+	void CreateStatic(
+		const std::vector<VertexType>& vertices,
+		Device* inOwner
+	)
+	{
+		IOwned::Create(inOwner);
+		vertexBuffer.CreateStatic(vertices, owner);
 	}
-
- 
 
 
 	// User is responsible for updating / staging
-    void CreateDynamic(
+	void CreateDynamic(
 		std::vector<VertexType>& vertices,
-        std::vector<uint32_t>& indices,
-		Device& device)
-    {
-		m_owner = &device;
-		vertexBuffer.CreateDynamic(vertices, device);
-		indexBuffer.CreateDynamic(indices, device);
+		std::vector<uint32_t>& indices,
+		Device* inOwner
+	)
+	{
+		IOwned::Create(inOwner);
+		vertexBuffer.CreateDynamic(vertices, owner);
+		indexBuffer.CreateDynamic(indices, owner);
 		dynamic = true;
 	}
 
-    void CreateDynamic(
+	void CreateDynamic(
 		std::vector<VertexType>& vertices,
-		Device& device)
-    {
-		m_owner = &device;
-		vertexBuffer.CreateDynamic(vertices, device);
+		Device* inOwner
+	)
+	{
+		IOwned::Create(inOwner);
+		vertexBuffer.CreateDynamic(vertices, owner);
 		dynamic = true;
 	}
 
 
 	void UpdateDynamic(
 		std::vector<VertexType>& vertices,
-		std::vector<uint32_t>& indices)
+		std::vector<uint32_t>& indices
+	)
 	{
 		vertexBuffer.UpdateData(vertices.data(), vertices.size() * sizeof(VertexType), vertices.size(), false);
 		indexBuffer.UpdateData(vertices.data(), vertices.size() * sizeof(uint32_t), indices.size(), false);
@@ -131,7 +145,7 @@ public:
 	}
 
 
-	template <class T> 
+	template<class T>
 	std::vector<T> GetVertexBufferDataCopy(uint32_t offset) const
 	{
 		std::vector<T> data;
@@ -146,7 +160,7 @@ public:
 		return std::move(data);
 	}
 
-	std::vector<VertexType> GetVertexBufferDataCopy() const
+	[[nodiscard]] std::vector<VertexType> GetVertexBufferDataCopy() const
 	{
 		std::vector<VertexType> data;
 		const auto* buffer = reinterpret_cast<const char*>(vertexBuffer.GetMappedData());
@@ -156,7 +170,7 @@ public:
 		return std::move(data);
 	}
 
-	std::vector<uint32_t> GetIndexBufferDataCopy() const
+	[[nodiscard]] std::vector<uint32_t> GetIndexBufferDataCopy() const
 	{
 		std::vector<uint32_t> data;
 		const auto* buffer = reinterpret_cast<const char*>(indexBuffer.GetMappedData());
@@ -165,7 +179,7 @@ public:
 		return std::move(data);
 	}
 
-	Mesh::Data GetDataCopy() const
+	[[nodiscard]] Mesh::Data GetDataCopy() const
 	{
 		return { GetVertexBufferDataCopy(), GetIndexBufferDataCopy() };
 	}
@@ -174,81 +188,98 @@ public:
 	{
 		return reinterpret_cast<VertexType*>(vertexBuffer.GetMappedData());
 	}
+
 	uint32_t* GetIndexBufferData()
 	{
 		return reinterpret_cast<uint32_t*>(indexBuffer.GetMappedData());
 	}
 
-	const VertexType* GetVertexBufferData() const
+	[[nodiscard]] const VertexType* GetVertexBufferData() const
 	{
 		return reinterpret_cast<const VertexType*>(vertexBuffer.GetMappedData());
 	}
-	const uint32_t* GetIndexBufferData() const
+
+	[[nodiscard]] const uint32_t* GetIndexBufferData() const
 	{
 		return reinterpret_cast<const uint32_t*>(indexBuffer.GetMappedData());
 	}
 
-	const Mesh::View GetDataView() const
+	[[nodiscard]] Mesh::View GetDataView() const
 	{
 		return { GetVertexBufferData(), GetVertexCount(),
-				 GetIndexBufferData(), GetIndexCount() };
+				 GetIndexBufferData(), GetIndexCount()
+		};
 	}
-
 
 
 	void StageDynamic(vk::CommandBuffer commandBuffer)
 	{
 		vertexBuffer.StageTransferDynamic(commandBuffer);
 		if (indexBuffer.GetIndexCount() > 0)
+		{
 			indexBuffer.StageTransferDynamic(commandBuffer);
+		}
 	}
 
 
 	static Mesh::Data LoadModel(const std::string& path);
-    void CreateModel(const std::string& path, bool dynamic, Device& owner)
-    {
-        ASSERT(false, "There is no template specialization for this model creation.");
-    }
+
+	void CreateModel(const std::string& path, bool dynamic, Device* owner)
+	{
+		ASSERT(false, "There is no template specialization for this model creation.");
+	}
 
 	void Bind(vk::CommandBuffer commandBuffer) const
 	{
 		vk::DeviceSize offset = 0;
-		commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer.Get(), &offset);
+		commandBuffer.bindVertexBuffers(0, 1, &vertexBuffer.VkType(), &offset);
 		bool hasIndex = GetIndexCount() > 0;
 		if (hasIndex)
-			commandBuffer.bindIndexBuffer(GetIndexBuffer().Get(), 0, vk::IndexType::eUint32);
+		{
+			commandBuffer.bindIndexBuffer(GetIndexBuffer().VkType(), 0, vk::IndexType::eUint32);
+		}
 	}
 
 	void Draw(vk::CommandBuffer commandBuffer) const
 	{
 		bool hasIndex = GetIndexCount() > 0;
 		hasIndex ?
-			commandBuffer.drawIndexed(GetIndexCount(), 1, 0, 0, 0)
-			:
-			commandBuffer.draw(GetVertexCount(), 1, 0, 0);
+		commandBuffer.drawIndexed(GetIndexCount(), 1, 0, 0, 0)
+				 :
+		commandBuffer.draw(GetVertexCount(), 1, 0, 0);
 	}
 
-    void Destroy()
-    {
-		if (m_owner == nullptr) return;
+	void SetModel(const glm::mat4& model)
+	{
+		this->model = model;
+	}
 
-		if (indexBuffer.GetIndexCount() > 0)
-				indexBuffer.Destroy();
+	[[nodiscard]] uint32_t GetIndexCount() const
+	{
+		return indexBuffer.GetIndexCount();
+	}
 
+	[[nodiscard]] const IndexBuffer& GetIndexBuffer() const
+	{
+		return indexBuffer;
+	}
+
+	[[nodiscard]] uint32_t GetVertexCount() const
+	{
+		return vertexBuffer.GetVertexCount();
+	}
+
+	[[nodiscard]] std::weak_ptr<VertexBuffer<VertexType>> GetVertexBuffer() const
+	{
+		return vertexBuffer;
+	}
+
+	void DestroyVertexBuffer()
+	{
 		vertexBuffer.Destroy();
-    }
+	}
 
-    void SetModel(const glm::mat4& model) { this->model = model; }
-
-    uint32_t GetIndexCount() const { return indexBuffer.GetIndexCount(); }
-    const Buffer& GetIndexBuffer() const { return indexBuffer; }
-    void DestroyIndexBuffer() { indexBuffer.Destroy(); }
-
-    uint32_t GetVertexCount() const { return vertexBuffer.GetVertexCount(); }
-    const Buffer& GetVertexBuffer() const { return vertexBuffer; }
-    void DestroyVertexBuffer() { vertexBuffer.Destroy(); }
-
-	std::vector<glm::vec3> AggregateVertexPositions() const
+	[[nodiscard]] std::vector<glm::vec3> AggregateVertexPositions() const
 	{
 		const uint32_t indexCount = GetIndexCount();
 		const VertexType* vertices = GetVertexBufferData();
@@ -295,13 +326,13 @@ public:
 		else
 		{
 			const uint32_t vertexCount = GetVertexCount();
-			positions.resize(vertexCount * 4/3);
+			positions.resize(vertexCount * 4 / 3);
 			for (int i = 0; i < vertexCount; ++i)
 			{
 				positions[i] = vertices[i].pos;
 				if ((i + 1) % 3 == 0)
 				{
-					positions[++i] = vertices[i-2].pos;
+					positions[++i] = vertices[i - 2].pos;
 				}
 			}
 		}
@@ -312,14 +343,16 @@ public:
 
 	// -1 if all in the back, 0 if straddling, and 1 if all in front
 	//int IsStraddlingPlane(const Primitives::Plane& plane) const;
-	static int IsStraddlingPlane(const VertexType* vertices,
-								 const uint32_t vertexCount,
-								 const Primitives::Plane& plane,
-								float* minDistance = nullptr);
+	static int IsStraddlingPlane(
+		const VertexType* vertices,
+		const uint32_t vertexCount,
+		const Primitives::Plane& plane,
+		float* minDistance = nullptr
+	);
 
 
 	// Returns front-facing and back-facing mesh relative to the plane respectively
-	std::pair<Mesh<VertexType>, Mesh<VertexType>> Clip(const Primitives::Plane& plane) const;
+	[[nodiscard]] std::pair<Mesh<VertexType>, Mesh<VertexType>> Clip(const Primitives::Plane& plane) const;
 
 	static void Clip(
 		const Mesh<VertexType>::Data& data,
@@ -329,19 +362,17 @@ public:
 	);
 
 	static Primitives::Box GetBoundingBox(const VertexType* vertices, const uint32_t vertexCount);
+
 	Primitives::Box GetBoundingBox() const;
 
 	glm::vec3 GetFurthestVertexPosition(const glm::vec3& direction) const;
 
 	bool dynamic = false;
-    VertexBuffer<VertexType> vertexBuffer = {};
-    IndexBuffer indexBuffer = {};
-
-	private:
-		Device* m_owner = nullptr;
+	VertexBuffer<VertexType> vertexBuffer;
+	IndexBuffer indexBuffer;
 };
 
-template <class VertexType>
+template<class VertexType>
 glm::vec3 Mesh<VertexType>::GetFurthestVertexPosition(const glm::vec3& direction) const
 {
 	const auto* vertices = GetVertexBufferData();
@@ -362,7 +393,7 @@ glm::vec3 Mesh<VertexType>::GetFurthestVertexPosition(const glm::vec3& direction
 	return vertices[maxIndex].pos;
 }
 
-template <class VertexType>
+template<class VertexType>
 Primitives::Box Mesh<VertexType>::GetBoundingBox(const VertexType* vertices, const uint32_t vertexCount)
 {
 	glm::vec3 minX, minY, minZ;
@@ -370,7 +401,8 @@ Primitives::Box Mesh<VertexType>::GetBoundingBox(const VertexType* vertices, con
 
 	auto GetExtremePoints = [vertices, vertexCount](auto& min, auto& max, const auto& dir)
 	{
-		float minProj = FLT_MAX; float maxProj = -FLT_MAX;
+		float minProj = FLT_MAX;
+		float maxProj = -FLT_MAX;
 		int indexMin = 0, indexMax = 0;
 
 		for (int i = 0; i < vertexCount; ++i)
@@ -400,22 +432,24 @@ Primitives::Box Mesh<VertexType>::GetBoundingBox(const VertexType* vertices, con
 	Primitives::Box bb;
 	bb.position = glm::vec3(maxX.x + minX.x, maxY.y + minY.y, maxZ.z + minZ.z) * 0.5f;
 	bb.halfExtent = glm::vec3(maxX.x - minX.x, maxY.y - minY.y, maxZ.z - minZ.z) * 0.5f;
-	
+
 	return bb;
 }
 
-template <class VertexType>
+template<class VertexType>
 Primitives::Box Mesh<VertexType>::GetBoundingBox() const
 {
 	return GetBoundingBox(GetVertexBufferData(), GetVertexCount());
 }
 
 
-template <class VertexType>
-int Mesh<VertexType>::IsStraddlingPlane(const VertexType* vertices,
-					  const uint32_t vertexCount,
-					  const Primitives::Plane& plane,
-					  float* minDistance)
+template<class VertexType>
+int Mesh<VertexType>::IsStraddlingPlane(
+	const VertexType* vertices,
+	const uint32_t vertexCount,
+	const Primitives::Plane& plane,
+	float* minDistance
+)
 {
 	uint32_t positive = 0;
 	uint32_t negative = 0;
@@ -441,14 +475,21 @@ int Mesh<VertexType>::IsStraddlingPlane(const VertexType* vertices,
 		{
 			float absDist = std::abs(distance);
 			if (absDist < minDist)
+			{
 				minDist = absDist;
+			}
 		}
 	}
 
-	if (minDistance != nullptr) 
+	if (minDistance != nullptr)
+	{
 		*minDistance = minDist;
+	}
 
-	if (!negative && !positive) return 1;
+	if (!negative && !positive)
+	{
+		return 1;
+	}
 
 	int straddle = 0;
 	straddle += negative == 0;
@@ -483,11 +524,10 @@ int Mesh<VertexType>::IsStraddlingPlane(const VertexType* vertices,
 //	return straddle;
 //}
 
-void InitializeMeshStatics(Device& device);
+void InitializeMeshStatics(Device* device);
 
 
-
-template <class VertexType>
+template<class VertexType>
 void Mesh<VertexType>::Clip(
 	const Mesh<VertexType>::Data& data,
 	const Primitives::Plane& plane,
@@ -501,8 +541,8 @@ void Mesh<VertexType>::Clip(
 	ASSERT(size % 3 == 0, "Incorrect number of vertices attempted to be split");
 	ASSERT(data.indices.size() != 0, "Non-indexed triangles not supported for octree");
 	std::vector<glm::vec3> frontVerts, backVerts;
-	frontVerts.resize(size * 4/3);
-	backVerts.resize(size * 4/3);
+	frontVerts.resize(size * 4 / 3);
+	backVerts.resize(size * 4 / 3);
 
 	// Used to store per triangle if it is a quad
 	std::vector<bool> frontQuads(size / 3);
@@ -539,7 +579,7 @@ void Mesh<VertexType>::Clip(
 				// All on one side, not a quad
 				frontQuads[frontFaceCount++] = false;
 			}
-			else 
+			else
 			{
 				for (int j = 0; j < 3; ++j)
 					backVerts[backCount++] = tri[j].pos;
@@ -548,63 +588,69 @@ void Mesh<VertexType>::Clip(
 			}
 			continue;
 		}
-		
+
 		auto SplitTriangle =
 			[&](const glm::vec3& a, const glm::vec3& b)
-		{
-			int aSide = ClassifyPointToPlane(a, plane);
-			int bSide = ClassifyPointToPlane(b, plane);
-			if (bSide == Primitives::PointPlaneStatus::Front) {
-				if (aSide == Primitives::PointPlaneStatus::Back) {
-					Primitives::Ray ray;
-					ray.direction = glm::normalize(b - a);
-					ray.position = a;
-					glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
-					//ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar , "Failed validation of clipping");
-					frontVerts[frontCount++] = backVerts[backCount++] = i;
-					++currentFrontFaceVertCount;
-					++currentBackFaceVertCount;
-				}
-				// In all three cases, output b to the front side
-				frontVerts[frontCount++] = b;
-				++currentFrontFaceVertCount;
-			}
-			else if (bSide == Primitives::PointPlaneStatus::Back) {
-				if (aSide == Primitives::PointPlaneStatus::Front) {
-					//float t = da / (da - db);
-					//glm::vec3 i = (1 - t) * a + t * b;
-					Primitives::Ray ray;
-					ray.direction = glm::normalize(b - a);
-					ray.position = a;
-					glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
-
-					// Edge (a, b) straddles plane, output intersection point
-					//ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar, "Failed validation of clipping");
-					frontVerts[frontCount++] = backVerts[backCount++] = i;
-					++currentFrontFaceVertCount;
-					++currentBackFaceVertCount;
-				}
-				else if (aSide == Primitives::PointPlaneStatus::Coplanar) {
-					// Output a when edge (a, b) goes from �on� to �behind� plane
-					backVerts[backCount++] = a;
-					++currentBackFaceVertCount;
-				}
-				// In all three cases, output b to the back side
-				backVerts[backCount++] = b;
-				++currentBackFaceVertCount;
-			}
-			else {
-				// b is on the plane. In all three cases output b to the front side
-				frontVerts[frontCount++] = b;
-				++currentFrontFaceVertCount;
-				// In one case, also output b to back side
-				if (aSide == Primitives::PointPlaneStatus::Back)
+			{
+				int aSide = ClassifyPointToPlane(a, plane);
+				int bSide = ClassifyPointToPlane(b, plane);
+				if (bSide == Primitives::PointPlaneStatus::Front)
 				{
+					if (aSide == Primitives::PointPlaneStatus::Back)
+					{
+						Primitives::Ray ray;
+						ray.direction = glm::normalize(b - a);
+						ray.position = a;
+						glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
+						//ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar , "Failed validation of clipping");
+						frontVerts[frontCount++] = backVerts[backCount++] = i;
+						++currentFrontFaceVertCount;
+						++currentBackFaceVertCount;
+					}
+					// In all three cases, output b to the front side
+					frontVerts[frontCount++] = b;
+					++currentFrontFaceVertCount;
+				}
+				else if (bSide == Primitives::PointPlaneStatus::Back)
+				{
+					if (aSide == Primitives::PointPlaneStatus::Front)
+					{
+						//float t = da / (da - db);
+						//glm::vec3 i = (1 - t) * a + t * b;
+						Primitives::Ray ray;
+						ray.direction = glm::normalize(b - a);
+						ray.position = a;
+						glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
+
+						// Edge (a, b) straddles plane, output intersection point
+						//ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar, "Failed validation of clipping");
+						frontVerts[frontCount++] = backVerts[backCount++] = i;
+						++currentFrontFaceVertCount;
+						++currentBackFaceVertCount;
+					}
+					else if (aSide == Primitives::PointPlaneStatus::Coplanar)
+					{
+						// Output a when edge (a, b) goes from �on� to �behind� plane
+						backVerts[backCount++] = a;
+						++currentBackFaceVertCount;
+					}
+					// In all three cases, output b to the back side
 					backVerts[backCount++] = b;
 					++currentBackFaceVertCount;
 				}
-			}
-		};
+				else
+				{
+					// b is on the plane. In all three cases output b to the front side
+					frontVerts[frontCount++] = b;
+					++currentFrontFaceVertCount;
+					// In one case, also output b to back side
+					if (aSide == Primitives::PointPlaneStatus::Back)
+					{
+						backVerts[backCount++] = b;
+						++currentBackFaceVertCount;
+					}
+				}
+			};
 
 		SplitTriangle(tri[0].pos, tri[1].pos);
 		SplitTriangle(tri[1].pos, tri[2].pos);
@@ -634,77 +680,78 @@ void Mesh<VertexType>::Clip(
 	backQuads.resize(backFaceCount);
 
 	auto SplitQuads =
-		[](const std::vector<bool>& quads,
-		   const std::vector<glm::vec3>& input,
-		   const int faceVertCount,
-		   Mesh<VertexType>::Data& out)
-	{
-		int numFaces = quads.size();
-
-		int numOutputVertices = 0;
-		int numOutputIndices = 0;
-		for (int i = 0; i < numFaces; ++i)
+		[](
+			const std::vector<bool>& quads,
+			const std::vector<glm::vec3>& input,
+			const int faceVertCount,
+			Mesh<VertexType>::Data& out
+		)
 		{
-			numOutputVertices += (quads[i] == true) ? 4 : 3;
-			numOutputIndices += (quads[i] == true) ? 6 : 3;
-		}
+			int numFaces = quads.size();
 
-		out.vertices.resize(numOutputVertices);
-		out.indices.resize(numOutputIndices);
-
-		for (int i = 0, faceIndex = 0, ii = 0; i < faceVertCount;)
-		{
-			bool isQuad = (quads[faceIndex++] == true);
-
-			for (int j = 0; j < 3; ++j)
+			int numOutputVertices = 0;
+			int numOutputIndices = 0;
+			for (int i = 0; i < numFaces; ++i)
 			{
-				out.vertices[i + j].pos = input[i + j];
-				out.indices[ii + j] = i + j;
+				numOutputVertices += (quads[i] == true) ? 4 :3;
+				numOutputIndices += (quads[i] == true) ? 6 :3;
 			}
 
-			if (isQuad)
+			out.vertices.resize(numOutputVertices);
+			out.indices.resize(numOutputIndices);
+
+			for (int i = 0, faceIndex = 0, ii = 0; i < faceVertCount;)
 			{
-				out.vertices[i + 3].pos = input[i + 3];
-				// 0 2 3
-				out.indices[ii + 3] = i + 0;
-				out.indices[ii + 4] = i + 2;
-				out.indices[ii + 5] = i + 3;
-				i += 4;
-				ii += 6;
+				bool isQuad = (quads[faceIndex++] == true);
+
+				for (int j = 0; j < 3; ++j)
+				{
+					out.vertices[i + j].pos = input[i + j];
+					out.indices[ii + j] = i + j;
+				}
+
+				if (isQuad)
+				{
+					out.vertices[i + 3].pos = input[i + 3];
+					// 0 2 3
+					out.indices[ii + 3] = i + 0;
+					out.indices[ii + 4] = i + 2;
+					out.indices[ii + 5] = i + 3;
+					i += 4;
+					ii += 6;
+				}
+				else
+				{
+					i += 3;
+					ii += 3;
+				}
 			}
-			else
-			{
-				i += 3;
-				ii += 3;
-			}
-		}
-	};
+		};
 	if (frontCount > 0)
+	{
 		SplitQuads(frontQuads, frontVerts, frontCount, front);
+	}
 	if (backCount > 0)
+	{
 		SplitQuads(backQuads, backVerts, backCount, back);
+	}
 
-	//ASSERT(front.vertices.size() % 3 == 0 || 
-	//	   front.vertices.size() % 4 == 0, "Incorrect number of vertices in back output triangles");
 	ASSERT(front.indices.size() % 3 == 0, "Incorrect number of indices in front output triangles");
-
-	//ASSERT(back.vertices.size() % 3 == 0 || 
-	//	   back.vertices.size() % 4 == 0, "Incorrect number of vertices in back output triangles");
 	ASSERT(back.indices.size() % 3 == 0, "Incorrect number of indices in back output triangles");
 }
 
-template <class VertexType>
+template<class VertexType>
 struct SimpleMesh
 {
-	inline static Mesh<VertexType> Sphere;
-	inline static Mesh<VertexType> Cube;
-	inline static Mesh<VertexType> Point;
-	inline static Mesh<VertexType> Plane;
-	inline static Mesh<VertexType> Triangle;
-	inline static Mesh<VertexType> Ray;
+	inline static Mesh<VertexType>* Sphere = nullptr;
+	inline static Mesh<VertexType>* Cube = nullptr;
+	inline static Mesh<VertexType>* Point = nullptr;
+	inline static Mesh<VertexType>* Plane = nullptr;
+	inline static Mesh<VertexType>* Triangle = nullptr;
+	inline static Mesh<VertexType>* Ray = nullptr;
 
 	// Created using line lists instead of strips
-	inline static Mesh<VertexType> CubeList;
+	inline static Mesh<VertexType>* CubeList = nullptr;
 };
 
 
@@ -720,11 +767,12 @@ struct SimpleMesh
 //}
 
 
-template <class VertexType>
+template<class VertexType>
 inline typename Mesh<VertexType>::Data Mesh<VertexType>::LoadModel(const std::string& path)
 {
 	ASSERT(false, "No template specialization for loading a model with this vertex type");
 }
+
 
 template<>
 inline typename Mesh<Vertex>::Data Mesh<Vertex>::LoadModel(const std::string& path)
@@ -752,40 +800,41 @@ inline typename Mesh<Vertex>::Data Mesh<Vertex>::LoadModel(const std::string& pa
 			Vertex vertex{};
 
 			vertex.pos = {
-	attrib.vertices[3 * index.vertex_index + 0],
-	attrib.vertices[3 * index.vertex_index + 1],
-	attrib.vertices[3 * index.vertex_index + 2]
+				attrib.vertices[3 * index.vertex_index + 0],
+				attrib.vertices[3 * index.vertex_index + 1],
+				attrib.vertices[3 * index.vertex_index + 2]
 			};
 
 			if (hasTextureCoords)
 			{
 				vertex.texPos = {
-				attrib.texcoords[2 * index.texcoord_index + 0],
-				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+					attrib.texcoords[2 * index.texcoord_index + 0],
+					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
 				};
 			}
 
 			if (hasColors)
 			{
 				vertex.color =
-				{
-					attrib.colors[3 * index.vertex_index + 0],
-					attrib.colors[3 * index.vertex_index + 1],
-					attrib.colors[3 * index.vertex_index + 2]
-				};
+					{
+						attrib.colors[3 * index.vertex_index + 0],
+						attrib.colors[3 * index.vertex_index + 1],
+						attrib.colors[3 * index.vertex_index + 2]
+					};
 			}
 
 			if (hasNormals)
 			{
 				vertex.normal =
-				{
-					attrib.normals[3 * index.normal_index + 0],
-					attrib.normals[3 * index.normal_index + 1],
-					attrib.normals[3 * index.normal_index + 2]
-				};
+					{
+						attrib.normals[3 * index.normal_index + 0],
+						attrib.normals[3 * index.normal_index + 1],
+						attrib.normals[3 * index.normal_index + 2]
+					};
 			}
 
-			if (uniqueVerts.count(vertex) == 0) {
+			if (uniqueVerts.count(vertex) == 0)
+			{
 				uniqueVerts[vertex] = static_cast<uint32_t>(vertices.size());
 				vertices.push_back(vertex);
 			}
@@ -797,14 +846,18 @@ inline typename Mesh<Vertex>::Data Mesh<Vertex>::LoadModel(const std::string& pa
 	return { std::move(vertices), std::move(indices) };
 }
 
-template <>
-inline void Mesh<Vertex>::CreateModel(const std::string& path, bool dynamic, Device& owner)
+template<>
+inline void Mesh<Vertex>::CreateModel(const std::string& path, bool dynamic, Device* owner)
 {
 	auto data = LoadModel(path);
 	if (dynamic)
+	{
 		CreateDynamic(data.vertices, data.indices, owner);
+	}
 	else
+	{
 		CreateStatic(data.vertices, data.indices, owner);
+	}
 }
 
-
+}

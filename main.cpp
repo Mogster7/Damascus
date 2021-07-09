@@ -8,15 +8,14 @@
 
 class Application {
 public:
-    RenderingContext& renderingContext;
 
-    Application(const glm::uvec2& windowDimensions, RenderingContext& renderingContext)
-        : renderingContext(renderingContext)
+    Application(const glm::uvec2& windowDimensions)
+    	: window(std::make_shared<Window>(windowDimensions, "Vulkan"))
+    	, renderingContext(&RenderingContext::Get())
     {
         ECS::CreateSystems();
         JobSystem::Initialize();
-        window = std::shared_ptr<Window>(new Window(windowDimensions, "Vulkan"));
-        renderingContext.Initialize(window);
+        renderingContext->Create(window);
     }
 
     void Run() {
@@ -29,22 +28,23 @@ public:
             ECS::UpdateSystems(dt);
 
             window->SwapBuffer();
-            renderingContext.Update();
-            dt = renderingContext.dt;
-			renderingContext.Draw();
+            renderingContext->Update();
+            dt = renderingContext->dt;
+			renderingContext->Draw();
         }
         
-		renderingContext.Destroy();
+		renderingContext->Destroy();
         ECS::DestroySystems();
     }
 
 private:
     std::shared_ptr<Window> window;
+	bk::RenderingContext* renderingContext;
 
 };
 
 int main() {
-    Application app({ 1600,900 }, RenderingContext::Get());
+    Application app({ 1600,900 });
 
     try {
         app.Run();

@@ -7,34 +7,47 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-CUSTOM_VK_DECLARE_DERIVE(Image, Image, Device)
+namespace bk {
+
+//BK_TYPE(Image)
+class Image : public IVulkanType<vk::Image>, public IOwned<Device>
+{
 public:
-	void Create(vk::ImageCreateInfo& imageCreateInfo, 
-				VmaAllocationCreateInfo& allocCreateInfo,
-				Device& owner);
+	BK_TYPE_VULKAN_OWNED_BODY(Image, IOwned<Device>)
 
-	void Create2D(glm::uvec2 size,
-				  vk::Format format,
-				  uint32_t mipLevels,
-				  vk::ImageTiling tiling,
-				  vk::ImageUsageFlags usage,
-				  vk::ImageLayout dstLayout,
-				  vk::ImageAspectFlags aspectMask,
-				  Device& owner);
+	void Create(
+		vk::ImageCreateInfo& imageCreateInfo,
+		VmaAllocationCreateInfo& allocCreateInfo,
+		Device* owner
+	);
 
-	void CreateDepthImage(glm::vec2 size, 
-						  Device& owner);
+	void Create2D(
+		glm::uvec2 size,
+		vk::Format format,
+		uint32_t mipLevels,
+		vk::ImageTiling tiling,
+		vk::ImageUsageFlags usage,
+		vk::ImageLayout dstLayout,
+		vk::ImageAspectFlags aspectMask,
+		Device* owner
+	);
 
-	void TransitionLayout(vk::ImageLayout oldLayout,
-						  vk::ImageLayout newLayout,
-						  vk::ImageAspectFlags aspectMask,
-						  uint32_t mipLevels = 1);
+	void CreateDepthImage(glm::vec2 size, Device* owner);
 
-	void TransitionLayout(vk::CommandBuffer commandBuffer,
-						  vk::ImageLayout oldLayout,
-						  vk::ImageLayout newLayout,
-						  vk::ImageAspectFlags aspectMask,
-						  uint32_t mipLevels = 1);
+	void TransitionLayout(
+		vk::ImageLayout oldLayout,
+		vk::ImageLayout newLayout,
+		vk::ImageAspectFlags aspectMask,
+		uint32_t mipLevels = 1
+	);
+
+	void TransitionLayout(
+		vk::CommandBuffer commandBuffer,
+		vk::ImageLayout oldLayout,
+		vk::ImageLayout newLayout,
+		vk::ImageAspectFlags aspectMask,
+		uint32_t mipLevels = 1
+	);
 
 protected:
 
@@ -47,6 +60,4 @@ protected:
 };
 
 
-
-
-
+}

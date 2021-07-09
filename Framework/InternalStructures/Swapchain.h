@@ -6,35 +6,42 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
+namespace bk {
 
-
-CUSTOM_VK_DECLARE_DERIVE_KHR(Swapchain, Swapchain, Device)
-
-
-
+//BK_TYPE(Swapchain)
+class Swapchain : public IVulkanType<vk::SwapchainKHR>, public IOwned<Device>
+{
 public:
-    void Create(const vk::SwapchainCreateInfoKHR& createInfo,
-        Device& owner, vk::Format imageFormat, vk::Extent2D extent);
+BK_TYPE_VULKAN_OWNED_BODY(Swapchain, IOwned<Device>)
 
-    static vk::Extent2D ChooseExtent(glm::uvec2 windowDimensions, vk::SurfaceCapabilitiesKHR);
-    static vk::PresentModeKHR ChoosePresentMode(const std::vector<vk::PresentModeKHR>&);
-    static vk::SurfaceFormatKHR ChooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>&);
+	void Create(
+		const vk::SwapchainCreateInfoKHR& createInfo,
+		vk::Format imageFormat,
+		vk::Extent2D extent,
+		Device* owner
+	);
 
-    void CreateImageViews();
+	static vk::Extent2D ChooseExtent(glm::uvec2 windowDimensions, vk::SurfaceCapabilitiesKHR);
 
-    // Uses same index as framebuffer & command buffer
-    std::vector<vk::Image> images = {};
-    vk::Format imageFormat = {};
-    vk::Extent2D extent = {};
-    std::vector<ImageView> imageViews = {};
+	static vk::PresentModeKHR ChoosePresentMode(const std::vector<vk::PresentModeKHR>&);
 
-    glm::uvec2 GetExtentDimensions() const { return { extent.width, extent.height }; }
+	static vk::SurfaceFormatKHR ChooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>&);
+
+
+	// Uses same index as framebuffer & command buffer
+	std::vector<vk::Image> images = {};
+	std::vector<ImageView> imageViews = {};
+	vk::Format imageFormat = {};
+	vk::Extent2D extent = {};
+
+	[[nodiscard]] glm::uvec2 GetExtentDimensions() const
+	{
+		return {extent.width, extent.height};
+	}
 
 
 private:
-
+	void CreateImageViews();
 };
 
-
-
-
+}

@@ -5,12 +5,10 @@
 // Date:		6/29/2020
 //
 //------------------------------------------------------------------------------
-
-CUSTOM_VK_DEFINE(DescriptorPool, DescriptorPool, Device)
-CUSTOM_VK_DEFINE(DescriptorSetLayout, DescriptorSetLayout, Device)
+namespace bk {
 
 vk::DescriptorSetLayoutBinding DescriptorSetLayoutBinding::Create(
-	vk::DescriptorType type, 
+	vk::DescriptorType type,
 	vk::ShaderStageFlags flags,
 	uint32_t binding,
 	uint32_t descriptorCount)
@@ -23,3 +21,4 @@ vk::DescriptorSetLayoutBinding DescriptorSetLayoutBinding::Create(
 	return setBinding;
 }
 
+}

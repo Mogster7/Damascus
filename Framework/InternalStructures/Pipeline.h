@@ -7,22 +7,26 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-CUSTOM_VK_DECLARE_DERIVE(PipelineLayout, PipelineLayout, Device)
+namespace bk {
 
-};
-
-namespace vk
+//BK_TYPE(PipelineLayout)
+class PipelineLayout : public IVulkanType<vk::PipelineLayout>, public IOwned<Device>
 {
-    using GraphicsPipeline = Pipeline;
-}
+BK_TYPE_VULKAN_OWNED_BODY(PipelineLayout, IOwned<Device>)
+BK_TYPE_VULKAN_OWNED_GENERIC(PipelineLayout, PipelineLayout)
+};
 
-using VkGraphicsPipeline = VkPipeline;
+//BK_TYPE(GraphicsPipeline)
+class GraphicsPipeline : public IVulkanType<vk::Pipeline>, public IOwned<Device>
+{
+BK_TYPE_VULKAN_OWNED_BODY(GraphicsPipeline, IOwned<Device>)
+BK_TYPE_VULKAN_OWNED_CREATE_FULL(GraphicsPipeline, Pipeline, ,GraphicsPipeline, GraphicsPipelines)
 
-CUSTOM_VK_DECLARE_DERIVE_NC(GraphicsPipeline, GraphicsPipeline, Device)
-
-public:
-    CUSTOM_VK_DERIVED_CREATE_FULL(GraphicsPipeline, Pipeline, Device, , GraphicsPipeline, GraphicsPipelines)
+	void Create(const vk::GraphicsPipelineCreateInfo& createInfo, Device* owner)
+	{
+		Create(createInfo, owner, vk::PipelineCache(), 1);
+	}
 };
 
 
-
+}

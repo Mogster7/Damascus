@@ -6,79 +6,95 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
+namespace bk {
 
 class Overlay;
+class RenderingContext;
 
-class RenderingContext
+/**
+ * Base structures to handle cleaning up lower level structures below the logical device
+ */
+struct Context
 {
-public:
-    RenderingContext() = default;
-    ~RenderingContext() = default;
+	Instance instance;
+	PhysicalDevice physicalDevice;
+};
 
-    // Must be defined by a compilation unit for each demo
-    static RenderingContext& Get();
-    
-    // Draw
-    virtual void Draw() = 0;
-
-     // Update
-    virtual void Update();
-
-    // Init functions
-    virtual void Initialize(std::weak_ptr<Window> winHandle, bool enabledOverlay = true);
-
-    virtual void Destroy();
-
-
-    Instance instance = {};
-    PhysicalDevice physicalDevice = {};
-    Device device = {};
-    std::unique_ptr<Overlay> overlay = {};
-    bool enabledOverlay = false;
-
-
-    Swapchain swapchain = {};
-
-    RenderPass renderPass = {};
-
-    PipelineLayout pipelineLayout = {};
-    GraphicsPipeline pipeline = {};
-
-    std::vector<FrameBuffer> frameBuffers = {};
-    std::vector<CommandBuffer> drawBuffers = {};
-
-    CommandPool commandPool = {};
-
-    std::vector<Semaphore> imageAvailable = {};
-    std::vector<Semaphore> renderFinished = {};
-    std::vector<Fence> drawFences = {};
-
-    FrameBufferAttachment depth;
-
-    uint32_t currentFrame = 0;
-    uint32_t imageIndex;
-
-    float dt = 0.0f;
-    std::weak_ptr<Window> window;
-
-	bool PrepareFrame(const uint32_t frameIndex);
-	// Return if surface is out of date
-	bool SubmitFrame(const uint32_t frameIndex, const vk::Semaphore* wait, uint32_t waitCount);
-
-
-protected:
-	void CreateSwapchain(bool recreate = false);
-	void CreateRenderPass();
-	void CreateSync();
-	void CreateFramebuffers(bool recreate = false);
-	void CreateDepthBuffer(bool recreate = false);
-	void CreateCommandBuffers(bool recreate = false);
-	void CreateCommandPool();
-
-
+struct DeviceContext : public Context
+{
+	Device device;
 };
 
 
+/**
+ * Handles all of the rendering state, any application should extend and work with this class
+ */
+//BK_TYPE(RenderingContext)
+class RenderingContext : public DeviceContext
+{
+public:
+
+	// Must be defined by a compilation unit for each demo
+	static RenderingContext& Get();
+
+	virtual void Create(std::weak_ptr<Window> window, bool enabledOverlay = true);
+
+	// Draw
+	virtual void Draw() = 0;
+
+	// Update
+	virtual void Update();
+	virtual void Destroy();
+
+	std::unique_ptr<Overlay> overlay = {};
+	bool enabledOverlay = false;
+
+	Swapchain swapchain;
+
+	RenderPass renderPass;
+
+	PipelineLayout pipelineLayout;
+	GraphicsPipeline pipeline;
+
+	std::vector <FrameBuffer> frameBuffers = {};
+	std::vector <CommandBuffer> drawBuffers = {};
+
+	CommandPool commandPool;
+
+	std::vector <Semaphore> imageAvailable = {};
+	std::vector <Semaphore> renderFinished = {};
+	std::vector <Fence> drawFences = {};
+
+	FrameBufferAttachment depth;
+
+	uint32_t currentFrame = 0;
+	uint32_t imageIndex = -1;
+
+	float dt = 0.0f;
+	std::weak_ptr <Window> window;
+
+	bool PrepareFrame(uint32_t frameIndex);
+
+	// Return if surface is out of date
+	bool SubmitFrame(uint32_t frameIndex, const vk::Semaphore *wait, uint32_t waitCount);
 
 
+protected:
+	void CreateLogicalDevice();
 
+	void CreateSwapchain(bool recreate = false);
+
+	void CreateRenderPass();
+
+	void CreateSync();
+
+	void CreateFramebuffers(bool recreate = false);
+
+	void CreateDepthBuffer(bool recreate = false);
+
+	void CreateCommandBuffers(bool recreate = false);
+
+	void CreateCommandPool();
+};
+
+}

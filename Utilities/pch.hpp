@@ -20,6 +20,7 @@
 #include <tuple>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 #ifndef NDEBUG
 #   define ASSERT(condition, message) \

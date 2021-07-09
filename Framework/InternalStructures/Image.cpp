@@ -5,30 +5,35 @@
 // Date:        7/24/2020 
 //
 //------------------------------------------------------------------------------
-void Image::Create(vk::ImageCreateInfo& imageCreateInfo,
-				   VmaAllocationCreateInfo& allocCreateInfo,
-				   Device& owner)
+namespace bk {
+void Image::Create(
+	vk::ImageCreateInfo& imageCreateInfo,
+	VmaAllocationCreateInfo& allocCreateInfo,
+	Device* inOwner
+)
 {
-	m_owner = &owner;
-	this->allocator = m_owner->allocator;
-	
-	utils::CheckVkResult((vk::Result)vmaCreateImage(allocator, (VkImageCreateInfo*)&imageCreateInfo, &allocCreateInfo,
-													(VkImage*)&Get(), &allocation, &allocationInfo),
-						 "Failed to allocate image");
+	IOwned::Create(inOwner, [this]()
+	{
+		vmaDestroyImage(allocator, VkCType(), allocation);
+	});
+	this->allocator = owner->allocator;
+
+	ASSERT_VK((vk::Result) vmaCreateImage(allocator, (VkImageCreateInfo * ) & imageCreateInfo, &allocCreateInfo,
+		& VkCType(), &allocation, &allocationInfo));
 }
 
 
-void Image::Create2D(glm::uvec2 size,
-				   vk::Format format,
-				   uint32_t mipLevels,
-				   vk::ImageTiling tiling,
-				   vk::ImageUsageFlags usage,
-				   vk::ImageLayout dstLayout,
-					 vk::ImageAspectFlags aspectMask,
-				   Device& owner)
+void Image::Create2D(
+	glm::uvec2 size,
+	vk::Format format,
+	uint32_t mipLevels,
+	vk::ImageTiling tiling,
+	vk::ImageUsageFlags usage,
+	vk::ImageLayout dstLayout,
+	vk::ImageAspectFlags aspectMask,
+	Device* owner
+)
 {
-	m_owner = &owner;
-
 	vk::ImageCreateInfo imageCreateInfo = {};
 
 	imageCreateInfo.imageType = vk::ImageType::e2D;
@@ -55,49 +60,54 @@ void Image::Create2D(glm::uvec2 size,
 	VmaAllocationCreateInfo allocInfo = {};
 	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-	Create(imageCreateInfo, allocInfo, *m_owner);
+	Create(imageCreateInfo, allocInfo, owner);
 
 	TransitionLayout(vk::ImageLayout::eUndefined, dstLayout, aspectMask, mipLevels);
 }
 
-void Image::CreateDepthImage(glm::vec2 size, Device& owner)
+void Image::CreateDepthImage(glm::vec2 size, Device* owner)
 {
 	Create2D(size,
-			 FrameBufferAttachment::GetDepthFormat(),
-			 1,
-			 vk::ImageTiling::eOptimal,
-			 vk::ImageUsageFlagBits::eDepthStencilAttachment,
-			 vk::ImageLayout::eDepthStencilAttachmentOptimal,
-			 vk::ImageAspectFlagBits::eDepth,
-			 owner);
+		FrameBufferAttachment::GetDepthFormat(),
+		1,
+		vk::ImageTiling::eOptimal,
+		vk::ImageUsageFlagBits::eDepthStencilAttachment,
+		vk::ImageLayout::eDepthStencilAttachmentOptimal,
+		vk::ImageAspectFlagBits::eDepth,
+		owner
+	);
 }
 
-void Image::TransitionLayout(vk::ImageLayout oldLayout,
-                             vk::ImageLayout newLayout,
-							 vk::ImageAspectFlags aspectMask,
-                             uint32_t mipLevels) 
+void Image::TransitionLayout(
+	vk::ImageLayout oldLayout,
+	vk::ImageLayout newLayout,
+	vk::ImageAspectFlags aspectMask,
+	uint32_t mipLevels
+)
 {
-	auto& rc = RenderingContext::Get();
+	auto& rc = OwnerGet<RenderingContext>();
 	auto cmdBuf = rc.commandPool.BeginCommandBuffer();
 
 	TransitionLayout(cmdBuf.get(),
-					 oldLayout, newLayout,
-					 aspectMask, mipLevels);
+		oldLayout, newLayout,
+		aspectMask, mipLevels);
 
 	rc.commandPool.EndCommandBuffer(cmdBuf.get());
 }
 
 
-void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
-					  vk::ImageLayout oldLayout,
-					  vk::ImageLayout newLayout,
-					  vk::ImageAspectFlags aspectMask,
-					  uint32_t mipLevels)
+void Image::TransitionLayout(
+	vk::CommandBuffer commandBuffer,
+	vk::ImageLayout oldLayout,
+	vk::ImageLayout newLayout,
+	vk::ImageAspectFlags aspectMask,
+	uint32_t mipLevels
+)
 {
 	// Create a barrier with sensible defaults - some properties will change
-		// depending on the old -> new layout combinations.
+	// depending on the old -> new layout combinations.
 	vk::ImageMemoryBarrier barrier;
-	barrier.image = Get();
+	barrier.image = VkType();
 	barrier.oldLayout = oldLayout;
 	barrier.newLayout = newLayout;
 	barrier.subresourceRange.aspectMask = aspectMask;
@@ -117,7 +127,7 @@ void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 	}
-	// Scenario: undefined -> depth stencil attachment optimal
+		// Scenario: undefined -> depth stencil attachment optimal
 	else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal)
 	{
 		barrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
@@ -125,7 +135,7 @@ void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eEarlyFragmentTests;
 	}
-	// Scenario: undefined -> transfer destination optimal
+		// Scenario: undefined -> transfer destination optimal
 	else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferSrcOptimal)
 	{
 		barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
@@ -133,7 +143,7 @@ void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eTransfer;
 	}
-	// Scenario: undefined -> transfer destination optimal
+		// Scenario: undefined -> transfer destination optimal
 	else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
 	{
 		barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
@@ -187,7 +197,7 @@ void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eEarlyFragmentTests;
 	}
-	// Scenario: transfer destination -> shader resource
+		// Scenario: transfer destination -> shader resource
 	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
 	{
 		barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
@@ -195,9 +205,11 @@ void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
 		srcFlags = vk::PipelineStageFlagBits::eTopOfPipe;
 		dstFlags = vk::PipelineStageFlagBits::eFragmentShader;
 	}
-
-
-	else ASSERT(false, "Unhandled image layout transition");
+		// Unhandled layout transition
+	else
+	{
+		assert(false);
+	}
 
 	// Pipeline stage flags sets where to apply the command in the pipeline
 	commandBuffer.pipelineBarrier(
@@ -211,7 +223,4 @@ void Image::TransitionLayout(vk::CommandBuffer commandBuffer,
 
 
 
-void Image::Destroy()
-{
-	vmaDestroyImage(allocator, (VkImage)Get(), allocation);
 }

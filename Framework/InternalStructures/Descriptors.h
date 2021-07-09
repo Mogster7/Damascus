@@ -7,12 +7,20 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-CUSTOM_VK_DECLARE_DERIVE(DescriptorPool, DescriptorPool, Device)
+namespace bk {
 
+//BK_TYPE(DescriptorPool)
+class DescriptorPool : public IVulkanType<vk::DescriptorPool>, public IOwned<Device>
+{
+	BK_TYPE_VULKAN_OWNED_BODY(DescriptorPool, IOwned<Device>)
+	BK_TYPE_VULKAN_OWNED_GENERIC(DescriptorPool, DescriptorPool)
 };
 
-CUSTOM_VK_DECLARE_DERIVE(DescriptorSetLayout, DescriptorSetLayout, Device)
-
+//BK_TYPE(DescriptorSetLayout)
+class DescriptorSetLayout : public IVulkanType<vk::DescriptorSetLayout>, public IOwned<Device>
+{
+	BK_TYPE_VULKAN_OWNED_BODY(DescriptorSetLayout, IOwned<Device>)
+	BK_TYPE_VULKAN_OWNED_GENERIC(DescriptorSetLayout, DescriptorSetLayout)
 };
 
 class DescriptorSetLayoutBinding
@@ -25,19 +33,19 @@ public:
 		uint32_t descriptorCount = 1);
 };
 
-
-class DescriptorInfo : public vk::WriteDescriptorSet
+//BK_TYPE(WriteDescriptorSet)
+class WriteDescriptorSet : public IVulkanType<vk::WriteDescriptorSet, VkWriteDescriptorSet>
 {
 public:
 
-	static DescriptorInfo Create(
+	static WriteDescriptorSet Create(
 		uint32_t binding,
 		vk::ShaderStageFlags shaderStage,
 		vk::DescriptorType type,
 		vk::DescriptorBufferInfo& bufferInfo,
 		uint32_t descriptorCount = 1)
 	{
-		DescriptorInfo descInfo = {};
+		WriteDescriptorSet descInfo = {};
 		descInfo.descriptorType = type;
 		descInfo.descriptorCount = descriptorCount;
 		descInfo.dstBinding = binding;
@@ -46,14 +54,14 @@ public:
 		return descInfo;
 	}
 
-	static DescriptorInfo Create(
+	static WriteDescriptorSet Create(
 		uint32_t binding,
 		vk::ShaderStageFlags shaderStage,
 		vk::DescriptorType type,
 		vk::DescriptorImageInfo& imageInfo,
 		uint32_t descriptorCount = 1)
 	{
-		DescriptorInfo descInfo = {};
+		WriteDescriptorSet descInfo = {};
 		descInfo.descriptorType = type;
 		descInfo.descriptorCount = descriptorCount;
 		descInfo.dstBinding = binding;
@@ -62,31 +70,33 @@ public:
 		return descInfo;
 	}
 
-	static DescriptorInfo CreateAsync(
+	static WriteDescriptorSet CreateAsync(
 		uint32_t binding,
 		vk::ShaderStageFlags shaderStage,
 		vk::DescriptorType type,
-		std::vector<vk::DescriptorImageInfo*>& imageInfosPerSet,
+		std::vector<vk::DescriptorImageInfo *>& imageInfosPerSet,
 		uint32_t descriptorCount = 1)
 	{
-		DescriptorInfo descInfo = Create(binding, shaderStage,
-										 type, *imageInfosPerSet[0], 
-										 descriptorCount);
+		WriteDescriptorSet descInfo = Create(binding, shaderStage,
+			type, *imageInfosPerSet[0],
+			descriptorCount
+		);
 		descInfo.imageInfosPerSet = &imageInfosPerSet[0];
 		descInfo.infosCount = imageInfosPerSet.size();
 		return descInfo;
 	}
 
-	static DescriptorInfo CreateAsync(
+	static WriteDescriptorSet CreateAsync(
 		uint32_t binding,
 		vk::ShaderStageFlags shaderStage,
 		vk::DescriptorType type,
-		std::vector<vk::DescriptorBufferInfo*>& bufferInfosPerSet,
+		std::vector<vk::DescriptorBufferInfo *>& bufferInfosPerSet,
 		uint32_t descriptorCount = 1)
 	{
-		DescriptorInfo descInfo = Create(binding, shaderStage,
-										 type, *bufferInfosPerSet[0], 
-										 descriptorCount);
+		WriteDescriptorSet descInfo = Create(binding, shaderStage,
+			type, *bufferInfosPerSet[0],
+			descriptorCount
+		);
 		descInfo.bufferInfosPerSet = &bufferInfosPerSet[0];
 		descInfo.infosCount = bufferInfosPerSet.size();
 		return descInfo;
@@ -98,22 +108,28 @@ public:
 	}
 
 	vk::ShaderStageFlags shaderStage;
-	vk::DescriptorImageInfo * * imageInfosPerSet = nullptr;
-	vk::DescriptorBufferInfo * * bufferInfosPerSet = nullptr;
+	vk::DescriptorImageInfo **imageInfosPerSet = nullptr;
+	vk::DescriptorBufferInfo **bufferInfosPerSet = nullptr;
 	uint32_t infosCount = 0;
 };
 
-class Descriptors
+
+
+class Descriptors : public IOwned<Device>
 {
 public:
-	template <uint32_t SetCount>
+	BK_TYPE_OWNED_BODY(Descriptors, IOwned<Device>)
+
+
+	template<uint32_t SetCount>
 	void Create(
-		std::array<DescriptorInfo, SetCount> infos,
+		std::array<WriteDescriptorSet, SetCount> infos,
 		uint32_t imageCount,
-		Device& owner
+		Device* inOwner
 	)
 	{
-		m_owner = &owner;
+		IOwned::Create(inOwner);
+
 		// Aggregate type counts for pool
 		std::unordered_map<vk::DescriptorType, uint32_t> typeCounts = {};
 		// Create bindings from write descriptions and aggregate type counts
@@ -133,12 +149,12 @@ public:
 
 		// Allocate descriptor pool for our sets
 		std::vector<vk::DescriptorPoolSize> poolSizes(typeCounts.size());
-		uint32_t i = 0;
+		uint32_t kvIndex = 0;
 		for (const auto& kv : typeCounts)
 		{
-			poolSizes[i].type = kv.first;
-			poolSizes[i].descriptorCount = kv.second;
-			++i;
+			poolSizes[kvIndex].type = kv.first;
+			poolSizes[kvIndex].descriptorCount = kv.second;
+			++kvIndex;
 		}
 
 		vk::DescriptorPoolCreateInfo poolInfo = {};
@@ -154,19 +170,20 @@ public:
 		layout.Create(dslInfo, owner);
 
 		// Copy set layout for each image 
-		std::vector<vk::DescriptorSetLayout> setLayouts(imageCount, layout.Get());
+		std::vector<vk::DescriptorSetLayout> setLayouts(imageCount, layout.VkType());
 
 		vk::DescriptorSetAllocateInfo allocInfo = {};
-		allocInfo.descriptorPool = pool.Get();
+		allocInfo.descriptorPool = pool.VkType();
 		allocInfo.descriptorSetCount = imageCount;
 		allocInfo.pSetLayouts = setLayouts.data();
 
 		sets.resize(imageCount);
 		utils::CheckVkResult(
-			owner.allocateDescriptorSets(
+			owner->allocateDescriptorSets(
 				&allocInfo,
 				sets.data()),
-			"Failed to allocate descriptor sets");
+			"Failed to allocate descriptor sets"
+		);
 
 		std::array<vk::WriteDescriptorSet, SetCount> writeSets = {};
 		for (int i = 0; i < imageCount; ++i)
@@ -187,7 +204,7 @@ public:
 				}
 			}
 
-			owner.updateDescriptorSets(
+			owner->updateDescriptorSets(
 				static_cast<uint32_t>(writeSets.size()),
 				writeSets.data(),
 				0, nullptr
@@ -196,15 +213,10 @@ public:
 
 	}
 
-	void Destroy()
-	{
-		pool.Destroy();
-		layout.Destroy();
-	}
 
 	DescriptorPool pool;
-	DescriptorSetLayout layout = {};
+	DescriptorSetLayout layout ;
 	std::vector<vk::DescriptorSet> sets = {};
-private:
-	Device* m_owner;
 };
+
+}

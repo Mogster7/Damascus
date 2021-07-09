@@ -7,11 +7,16 @@
 //------------------------------------------------------------------------------
 #pragma once
 
+namespace bk {
 
-CUSTOM_VK_DECLARE_DERIVE(Semaphore, Semaphore, Device)
+//BK_TYPE(Semaphore)
+class Semaphore : public IVulkanType<vk::Semaphore>, public IOwned<Device>
+{
+BK_TYPE_VULKAN_OWNED_BODY(Semaphore, IOwned<Device>)
 
+BK_TYPE_VULKAN_OWNED_GENERIC(Semaphore, Semaphore)
 };
 
-
+}
 
 

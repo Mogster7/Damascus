@@ -28,9 +28,9 @@ public:
 		view.each(
 			[=](const TransformComponent& transform, const ComponentType& render)
 		{
-			render.mesh.Bind(commandBuffer);
+			render.mesh->Bind(commandBuffer);
 			transform.PushModel(commandBuffer, pipelineLayout);
-			render.mesh.Draw(commandBuffer);
+			render.mesh->Draw(commandBuffer);
 		});
 	}
 

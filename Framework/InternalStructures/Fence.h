@@ -7,9 +7,16 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-CUSTOM_VK_DECLARE_DERIVE(Fence, Fence, Device)
+namespace bk {
 
+//BK_TYPE(Fence)
+class Fence : public IVulkanType<vk::Fence>, public IOwned<Device>
+{
+	BK_TYPE_VULKAN_OWNED_BODY(Fence, IOwned<Device>)
+	BK_TYPE_VULKAN_OWNED_GENERIC(Fence, Fence)
 };
+
+}
 
 
 

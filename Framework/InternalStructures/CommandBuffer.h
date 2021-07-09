@@ -1,13 +1,17 @@
 #pragma once
 
+namespace bk {
+
+//BK_TYPE(CommandBuffer)
 class CommandBuffer : public vk::CommandBuffer
 {
 public:
-	void Begin(vk::CommandBufferBeginInfo beginInfo = { {}, nullptr })
+	void Begin(vk::CommandBufferBeginInfo beginInfo = {{}, nullptr})
 	{
 		utils::CheckVkResult(
-			begin(&beginInfo), 
-			"Failed to begin recording command buffer");
+			begin(&beginInfo),
+			"Failed to begin recording command buffer"
+		);
 	}
 
 	void End()
@@ -20,3 +24,5 @@ public:
 		return *this;
 	}
 };
+
+}

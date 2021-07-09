@@ -5,10 +5,11 @@
 // Date:		6/23/2020
 //
 //------------------------------------------------------------------------------
+#include "ImageView.h"
 
-CUSTOM_VK_DEFINE(ImageView, ImageView, Device)
+namespace bk {
 
-void ImageView::CreateTexture2DView(vk::Image image, Device& owner)
+void ImageView::CreateTexture2DView(vk::Image image, Device* owner)
 {
 	vk::ImageViewCreateInfo CI = {};
 	CI.image = image;
@@ -24,4 +25,4 @@ void ImageView::CreateTexture2DView(vk::Image image, Device& owner)
 }
 
 
-
+}

@@ -6,32 +6,35 @@
 //
 //------------------------------------------------------------------------------
 #include "RenderingContext.h"
+#include "FrameBufferAttachment.h"
+
+namespace bk {
 
 
-void FrameBufferAttachment::Create(vk::Format format,
-								   vk::Extent2D extent, 
-								   vk::ImageUsageFlags usage, 
-								   vk::ImageAspectFlags aspectMask,
-								   vk::ImageLayout destinationLayout,
-								   Device& owner)
+void FrameBufferAttachment::Create(
+	vk::Format format,
+	vk::Extent2D extent,
+	vk::ImageUsageFlags usage,
+	vk::ImageAspectFlags aspectMask,
+	vk::ImageLayout destinationLayout,
+	Device* owner
+)
 {
-	m_owner = &owner;
-
-	image.Create2D({extent.width, extent.height}, format, 1, vk::ImageTiling::eOptimal, 
-				   usage, destinationLayout, aspectMask, owner);
+	image.Create2D({ extent.width, extent.height }, format, 1, vk::ImageTiling::eOptimal,
+		usage, destinationLayout, aspectMask, owner);
 
 
 	this->format = format;
 	vk::ImageViewCreateInfo viewCreateInfo = {};
-	viewCreateInfo.image = image.Get();											// Image to create view for
-	viewCreateInfo.viewType = vk::ImageViewType::e2D;						// Type of image (1D, 2D, 3D, Cube, etc)
-	viewCreateInfo.format = format;											// Format of image data
+	viewCreateInfo.image = image.VkType();                                            // Image to create view for
+	viewCreateInfo.viewType = vk::ImageViewType::e2D;                        // Type of image (1D, 2D, 3D, Cube, etc)
+	viewCreateInfo.format = format;                                            // Format of image data
 	// Subresources allow the view to view only a part of an image
 	viewCreateInfo.subresourceRange.aspectMask = aspectMask;  // Which aspect of image to view (e.g. COLOR_BIT for viewing colour)
-	viewCreateInfo.subresourceRange.baseMipLevel = 0;						// Start mipmap level to view from
-	viewCreateInfo.subresourceRange.levelCount = 1;							// Number of mipmap levels to view
-	viewCreateInfo.subresourceRange.baseArrayLayer = 0;						// Start array level to view from
-	viewCreateInfo.subresourceRange.layerCount = 1;					// Number of array levels to view
+	viewCreateInfo.subresourceRange.baseMipLevel = 0;                        // Start mipmap level to view from
+	viewCreateInfo.subresourceRange.levelCount = 1;                            // Number of mipmap levels to view
+	viewCreateInfo.subresourceRange.baseArrayLayer = 0;                        // Start array level to view from
+	viewCreateInfo.subresourceRange.layerCount = 1;                    // Number of array levels to view
 
 	imageView.Create(viewCreateInfo, owner);
 }
@@ -43,33 +46,31 @@ void FrameBufferAttachment::Create(
 	vk::ImageAspectFlags aspectMask,
 	vk::ImageLayout destinationLayout,
 	vk::SamplerCreateInfo samplerCreateInfo,
-	Device& owner
+	Device* owner
 )
 {
 	Create(format, extent, usage, aspectMask, destinationLayout, owner);
-	utils::CheckVkResult(
-		owner.createSampler(&samplerCreateInfo, nullptr, &sampler),
-		"Failed to create frame buffer attachment sampler");
+	sampler.Create(samplerCreateInfo, owner);
 }
 
 
-void FrameBufferAttachment::CreateDepth(Device& owner)
+void FrameBufferAttachment::CreateDepth(Device* owner)
 {
 	format = GetDepthFormat();
 	Create(format, RenderingContext::Get().swapchain.extent,
-		   vk::ImageUsageFlagBits::eDepthStencilAttachment,
-		   vk::ImageAspectFlagBits::eDepth,
-		   vk::ImageLayout::eDepthStencilAttachmentOptimal,
-		   owner);
+		vk::ImageUsageFlagBits::eDepthStencilAttachment,
+		vk::ImageAspectFlagBits::eDepth,
+		vk::ImageLayout::eDepthStencilAttachmentOptimal,
+		owner);
 }
 
 vk::DescriptorImageInfo FrameBufferAttachment::GetDescriptor(
 	vk::ImageLayout imageLayout
-)
+) const
 {
 	return vk::DescriptorImageInfo(
-		sampler,
-		imageView,
+		sampler.VkType(),
+		imageView.VkType(),
 		imageLayout
 	);
 }
@@ -88,10 +89,5 @@ vk::Format FrameBufferAttachment::GetDepthFormat()
 	return vk::Format::eUndefined;
 }
 
-void FrameBufferAttachment::Destroy()
-{
-	m_owner->destroySampler(sampler);
-	imageView.Destroy();
-	image.Destroy();
-}
 
+}
