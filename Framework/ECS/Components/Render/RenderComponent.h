@@ -12,15 +12,20 @@ public:
 		mesh = new Mesh<VertexType>();
 		mesh->CreateModel(path, false);
 	}
-	RenderComponent(Mesh<VertexType>& other)
-		: mesh(other)
+
+	RenderComponent& operator=(RenderComponent& other) = delete;
+	RenderComponent(RenderComponent& other) = delete;
+
+	RenderComponent(RenderComponent&& other) noexcept = default;
+	RenderComponent& operator=(RenderComponent&& other) noexcept = default;
+	~RenderComponent() noexcept = default;
+
+	RenderComponent(Mesh<VertexType>&& other) noexcept
+		: mesh(std::move(other))
 	{
 	}
 
-	~RenderComponent()
-	{
-		//delete mesh;
-	}
+
 
 	Mesh<VertexType> mesh;
 };

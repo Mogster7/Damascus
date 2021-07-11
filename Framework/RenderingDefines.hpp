@@ -23,26 +23,54 @@ struct IOwned
 {
 public:
 	using OwnerType = Type;
+	using OwnerInterface = IOwned<OwnerType>;
 
-	void Create(Type* inOwner, std::function<void(void)> inDestroyFunction = [](){})
+	IOwned() = default;
+
+	IOwned(const IOwned& other) = delete;
+
+	virtual IOwned& operator=(const IOwned& other) = delete;
+
+	virtual IOwned& operator=(IOwned&& other) noexcept
+	{
+		assert(this != &other);
+
+		created = other.created;
+		other.created = false;
+
+		owner = other.owner;
+		other.owner = nullptr;
+
+		return *this;
+	}
+
+	IOwned(IOwned&& other) noexcept
+	{
+		*this = std::move(other);
+	}
+
+
+	IOwned(
+		OwnerType* inOwner
+	)
+		: owner(inOwner)
+		, created(true)
+	{
+	}
+
+	void Create(
+		OwnerType* inOwner
+	)
 	{
 		owner = inOwner;
-		destroyFunction = std::move(inDestroyFunction);
 		created = true;
 	}
 
-	void DestroyIfCreated()
+	virtual ~IOwned() noexcept
 	{
-		if (created)
-		{
-			destroyFunction();
-		}
-	}
-
-	virtual ~IOwned()
-	{
-		DestroyIfCreated();
-	}
+		owner = nullptr;
+		created = false;
+	};
 
 	template<class QueryType, bool Match = std::is_same<QueryType, OwnerType>::value>
 	constexpr QueryType& OwnerGet() const
@@ -59,10 +87,7 @@ public:
 
 	Type* owner = nullptr;
 	bool created = false;
-private:
-	std::function<void(void)> destroyFunction;
 };
-
 
 
 #define ASSERT_VK(VkResult) utils::CheckVkResult(VkResult)
@@ -72,6 +97,7 @@ struct IVulkanType : public Type
 {
 	using VulkanType = Type;
 	using VulkanCType = CType;
+	using VulkanInterface = IVulkanType<Type, CType>;
 
 
 	const VulkanType& VkType() const
@@ -116,37 +142,44 @@ struct IVulkanType : public Type
 
 };
 
-#define BK_TYPE_VULKAN_OWNED_CREATE_FULL(Type, VulkanName, EXT, CreateName, ConstructName)    \
-    public:                                                                           \
+#define BK_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, EXT, CreateName, ConstructName)    \
+    public:                                                                                    \
+        Type(Type&& other) noexcept = default;                                                          \
+        Type& operator=(Type&& other) noexcept = default;                                      \
         template <class ...Args>\
-        void Create(const vk::CreateName##CreateInfo##EXT & createInfo,                \
-            OwnerType* inOwner, Args&&... args)                                                                                \
+        Type(const vk::CreateName##CreateInfo##EXT & createInfo,                \
+            OwnerType* inOwner, Args&&... args)                                               \
+            : OwnerInterface(inOwner)    \
         {                                                                                     \
-            IOwned::Create(inOwner, [this]() { owner->destroy##VulkanName##EXT(VkType()); });\
             utils::CheckVkResult(owner->create##ConstructName##EXT(args... , &createInfo, nullptr, &VkType()), \
                 std::string("Failed to construct ") + #VulkanName );              \
-        }                                                                         \
-
-#define BK_TYPE_VULKAN_OWNED_CREATE(Type, VulkanName) \
-	BK_TYPE_VULKAN_OWNED_CREATE_FULL(Type, VulkanName, ,VulkanName, VulkanName)
-
-#define BK_TYPE_VULKAN_OWNED_DESTROY_EXT(Type, VulkanName, EXT) \
-        ~Type() { if (created) owner->destroy##VulkanName##EXT(VkType()); } \
-
-#define BK_TYPE_VULKAN_OWNED_DESTROY(Type, VulkanName) BK_TYPE_VULKAN_OWNED_DESTROY_EXT(Type, VulkanName,)
-
+        }                                                                                      \
+        template <class ...Args>\
+        void Create(const vk::CreateName##CreateInfo##EXT & createInfo,                \
+            OwnerType* inOwner, Args&&... args)                                               \
+        {                                                                                     \
+            OwnerInterface::Create(inOwner);    \
+            utils::CheckVkResult(owner->create##ConstructName##EXT(args... , &createInfo, nullptr, &VkType()), \
+                std::string("Failed to construct ") + #VulkanName );              \
+        }\
+		~Type() noexcept\
+		{                                                                                            \
+			if (created) owner->destroy##VulkanName##EXT(VkType());\
+		}
 #define BK_TYPE_VULKAN_OWNED_GENERIC(Type, VulkanName) \
-	BK_TYPE_VULKAN_OWNED_CREATE(Type, VulkanName)         \
+    BK_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, ,VulkanName, VulkanName)         \
 
 /**
  * Defines things common to each owned vulkan type
  */
 #define BK_TYPE_BODY(Type) \
-public:                          \
-
+public:                    \
 
 #define BK_TYPE_OWNED_BODY(Type, DerivedOwner) \
-BK_TYPE_BODY(Type)\
+BK_TYPE_BODY(Type)                             \
+	Type() = default;                                                                          \
+	Type(const Type& other) = delete;\
+	virtual Type& operator=(const Type& other) = delete;\
 
 #define BK_TYPE_VULKAN_OWNED_BODY(Type, DerivedOwner)\
 BK_TYPE_OWNED_BODY(Type, DerivedOwner)\

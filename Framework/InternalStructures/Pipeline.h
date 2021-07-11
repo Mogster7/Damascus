@@ -20,7 +20,7 @@ BK_TYPE_VULKAN_OWNED_GENERIC(PipelineLayout, PipelineLayout)
 class GraphicsPipeline : public IVulkanType<vk::Pipeline>, public IOwned<Device>
 {
 BK_TYPE_VULKAN_OWNED_BODY(GraphicsPipeline, IOwned<Device>)
-BK_TYPE_VULKAN_OWNED_CREATE_FULL(GraphicsPipeline, Pipeline, ,GraphicsPipeline, GraphicsPipelines)
+BK_TYPE_VULKAN_OWNED_GENERIC_FULL(GraphicsPipeline, Pipeline, ,GraphicsPipeline, GraphicsPipelines)
 
 	void Create(const vk::GraphicsPipelineCreateInfo& createInfo, Device* owner)
 	{

@@ -41,6 +41,7 @@ public:
 	};
 
 	static void Initialize();
+	static void Destroy();
 
 	// Add job to system
 	static Job Push(const JobFunc jobFunction, 
@@ -73,7 +74,7 @@ private:
 	inline static std::atomic_bool active = false;
 
 	// Our dispatcher thread
-	inline static std::unique_ptr<std::thread> dispatcher;
+	inline static std::thread* dispatcher;
 
 	// Unique job ID to assign, increments on assignment
 	inline static uint32_t currentID = 0;

@@ -8,18 +8,7 @@ namespace bk {
 
 void Overlay::Create(std::weak_ptr<Window> window, Device* inOwner)
 {
-	IOwned::Create(inOwner, [this] ()
-	{
-		owner->freeCommandBuffers(commandPool.VkType(),
-								  commandBuffers.size(),
-								  commandBuffers.data());
-
-		ImGui_ImplVulkan_Shutdown();
-		ImGui::DestroyContext();
-
-		for (auto& window : m_editorWindows)
-			delete window;
-	});
+	IOwned::Create(inOwner);
 	// Allocate descriptor pools for ImGui
 	auto& context = OwnerGet<RenderingContext>();
 	uint32_t imageCount = context.swapchain.images.size();
@@ -196,6 +185,24 @@ void Overlay::RecordCommandBuffers(uint32_t imageIndex)
 	cmdBuf.endRenderPass();
 	cmdBuf.end();
 }
+
+Overlay::~Overlay() noexcept
+{
+	if(!created)
+	{
+		return;
+	}
+	owner->freeCommandBuffers(commandPool.VkType(),
+							  commandBuffers.size(),
+							  commandBuffers.data());
+
+	ImGui_ImplVulkan_Shutdown();
+	ImGui::DestroyContext();
+
+	for (auto& window : m_editorWindows)
+		delete window;
+}
+
 
 
 }

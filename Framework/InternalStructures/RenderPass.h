@@ -21,15 +21,20 @@ BK_TYPE_VULKAN_OWNED_BODY(RenderPass, IOwned<Device>)
 			Device* inOwner
 	)
 	{
-		IOwned::Create(inOwner, [this]()
-		{
-			owner->destroyRenderPass(VkType());
-		});
+		IOwned::Create(inOwner);
 
 		extent = inExtent;
 		clearValues = inClearValues;
 
 		ASSERT_VK(owner->createRenderPass(&info, nullptr, &VkType()));
+	}
+
+	~RenderPass() noexcept
+	{
+		if (created)
+		{
+			owner->destroyRenderPass(VkType());
+		}
 	}
 
 	void Begin(

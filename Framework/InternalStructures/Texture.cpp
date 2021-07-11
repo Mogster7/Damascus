@@ -36,8 +36,7 @@ void Texture::Create(const std::string& filepath, Device* owner)
 	VmaAllocationCreateInfo stageAllocInfo = {};
 	stageAllocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 
-	Buffer stagingBuffer = {};
-	stagingBuffer.Create(stageInfo, stageAllocInfo, owner);
+	Buffer stagingBuffer(stageInfo, stageAllocInfo, owner);
 
 	// TODO: abstract staging buffers
 	void* mapped;

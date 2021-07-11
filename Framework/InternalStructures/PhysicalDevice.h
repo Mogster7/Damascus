@@ -30,6 +30,7 @@ public:
 BK_TYPE_VULKAN_OWNED_BODY(PhysicalDevice, IOwned<RenderingContext>)
 
 	void Create(RenderingContext* owner);
+	~PhysicalDevice() = default;
 
 	[[nodiscard]] const QueueFamilyIndices& GetQueueFamilyIndices() const;
 

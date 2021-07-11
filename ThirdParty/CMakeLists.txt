@@ -52,7 +52,11 @@ target_link_directories(ThirdParty PUBLIC
         )
 
 if (WIN32)
-    target_link_libraries(ThirdParty PUBLIC glfw ${Vulkan_LIBRARIES} imm32)
+    if (MSVC)
+        target_link_libraries(ThirdParty PUBLIC glfw ${Vulkan_LIBRARIES})
+    else(MSVC)
+        target_link_libraries(ThirdParty PUBLIC glfw ${Vulkan_LIBRARIES} imm32)
+    endif(MSVC)
 else(WIN32)
     target_link_libraries(ThirdParty PUBLIC glfw ${Vulkan_LIBRARIES})
 endif(WIN32)

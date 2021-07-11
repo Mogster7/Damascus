@@ -39,16 +39,21 @@ void Device::Update(float dt)
 
 void Device::Create(const vk::DeviceCreateInfo& createInfo, PhysicalDevice* inOwner)
 {
-	IOwned::Create(inOwner, [this]()
-	{
-		vmaDestroyAllocator(allocator);
-		destroy();
-	});
+	IOwned::Create(inOwner);
 	ASSERT_VK(owner->createDevice(&createInfo, nullptr, &VkType()));
 	const QueueFamilyIndices& indices = owner->GetQueueFamilyIndices();
 	getQueue(indices.graphics.value(), 0, &graphicsQueue);
 	getQueue(indices.present.value(), 0, &presentQueue);
 	CreateAllocator();
+}
+
+Device::~Device() noexcept
+{
+	if (created)
+	{
+		vmaDestroyAllocator(allocator);
+		destroy();
+	}
 }
 
 

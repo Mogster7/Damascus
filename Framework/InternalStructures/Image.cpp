@@ -5,6 +5,8 @@
 // Date:        7/24/2020 
 //
 //------------------------------------------------------------------------------
+#include "Image.h"
+
 namespace bk {
 void Image::Create(
 	vk::ImageCreateInfo& imageCreateInfo,
@@ -12,10 +14,7 @@ void Image::Create(
 	Device* inOwner
 )
 {
-	IOwned::Create(inOwner, [this]()
-	{
-		vmaDestroyImage(allocator, VkCType(), allocation);
-	});
+	IOwned::Create(inOwner);
 	this->allocator = owner->allocator;
 
 	ASSERT_VK((vk::Result) vmaCreateImage(allocator, (VkImageCreateInfo * ) & imageCreateInfo, &allocCreateInfo,
@@ -221,6 +220,12 @@ void Image::TransitionLayout(
 		1, &barrier);
 }
 
-
+Image::~Image()
+{
+	if (created)
+	{
+		vmaDestroyImage(allocator, VkCType(), allocation);
+	}
+}
 
 }

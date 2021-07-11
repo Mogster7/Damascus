@@ -32,7 +32,8 @@ public:
             dt = renderingContext->dt;
 			renderingContext->Draw();
         }
-        
+
+        JobSystem::Destroy();
 		renderingContext->Destroy();
         ECS::DestroySystems();
     }
@@ -46,13 +47,7 @@ private:
 int main() {
     Application app({ 1600,900 });
 
-    try {
-        app.Run();
-    }
-    catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
+    app.Run();
 
 	return EXIT_SUCCESS;
 }

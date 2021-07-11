@@ -21,6 +21,8 @@ public:
 		Device* owner
 	);
 
+	~Image() noexcept;
+
 	void Create2D(
 		glm::uvec2 size,
 		vk::Format format,

@@ -35,6 +35,8 @@ public:
 
 	void CreateDepth(Device* owner);
 
+	~FrameBufferAttachment() noexcept = default;
+
 	[[nodiscard]] vk::DescriptorImageInfo GetDescriptor(
 		vk::ImageLayout imageLayout
 	) const;

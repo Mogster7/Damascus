@@ -1,8 +1,9 @@
 
+#include "Job.h"
+
 void JobSystem::Initialize()
 {
-
-	dispatcher = std::make_unique<std::thread>(Dispatch);
+	dispatcher = new std::thread(Dispatch);
 	// -1 for our dispatcher
 	ThreadCount = std::thread::hardware_concurrency() - 1;
 
@@ -272,3 +273,8 @@ void JobSystem::Dispatch()
 	}
 }
 
+void JobSystem::Destroy()
+{
+	active = false;
+	dispatcher->join();
+}

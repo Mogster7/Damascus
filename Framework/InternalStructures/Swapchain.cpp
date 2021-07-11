@@ -7,6 +7,8 @@
 //------------------------------------------------------------------------------
 #include "RenderingContext.h"
 #include "Window.h"
+#include "Swapchain.h"
+
 
 namespace bk {
 void Swapchain::Create(
@@ -16,10 +18,7 @@ void Swapchain::Create(
 	Device* inOwner
 )
 {
-	IOwned::Create(inOwner, [this]()
-	{
-		owner->destroySwapchainKHR(VkType());
-	});
+	IOwned::Create(inOwner);
 
 	ASSERT_VK(owner->createSwapchainKHR(&createInfo, nullptr, &VkType()));
 	imageFormat = inImageFormat;
@@ -101,14 +100,14 @@ void Swapchain::CreateImageViews()
 
 		imageViews[i].Create(createInfo, owner);
 
-		if (!bool(imageViews[i].VkType()))
-		{
-			throw std::runtime_error("Failed to create image views");
-		}
+		assert(bool(imageViews[i].VkType()));
 	}
 
 }
 
-
+Swapchain::~Swapchain() noexcept
+{
+	owner->destroySwapchainKHR(VkType());
+}
 
 }

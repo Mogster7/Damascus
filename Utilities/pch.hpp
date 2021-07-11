@@ -42,8 +42,6 @@
 #include <vulkan/vulkan.h>
 #include <vulkan.hpp>
 
-
-
 // Other
 #include "Utilities.h"
 #include "Job/Job.h"

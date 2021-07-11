@@ -120,7 +120,6 @@ class Descriptors : public IOwned<Device>
 public:
 	BK_TYPE_OWNED_BODY(Descriptors, IOwned<Device>)
 
-
 	template<uint32_t SetCount>
 	void Create(
 		std::array<WriteDescriptorSet, SetCount> infos,
@@ -213,6 +212,7 @@ public:
 
 	}
 
+	~Descriptors() noexcept = default;
 
 	DescriptorPool pool;
 	DescriptorSetLayout layout ;

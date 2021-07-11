@@ -29,9 +29,7 @@ namespace utils
         std::string convertedName = filename.c_str();
         std::ifstream file(convertedName, std::ios::ate | std::ios::binary);
 
-        if (!file.is_open()) {
-            throw std::runtime_error("failed to open file!");
-        }
+        assert(file.is_open());
 
         size_t fileSize = (size_t)file.tellg();
         std::vector<char> buffer(fileSize);

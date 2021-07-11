@@ -16,7 +16,8 @@ struct hash<bk::Vertex>
 {
 	size_t operator()(bk::Vertex const& vertex) const
 	{
-		return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texPos) << 1);
+		return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+			   (hash<glm::vec2>()(vertex.texPos) << 1);
 	}
 };
 }
@@ -24,7 +25,7 @@ struct hash<bk::Vertex>
 namespace bk {
 
 
-template<class VertexType>
+template<class VertexType = Vertex>
 class Mesh : public IOwned<Device>
 {
 public:
@@ -48,87 +49,43 @@ public:
 		const uint32_t indexCount;
 	};
 
-	void Create(Mesh<VertexType>& other, Device* inOwner)
-	{
-		IOwned::Create(inOwner);
+	Mesh() = default;
 
-		Mesh<VertexType> mesh;
-		uint32_t indexCount = other.GetIndexCount();
-
-		if (other.dynamic)
-		{
-			if (indexCount > 0)
-			{
-				CreateDynamic(other.GetVertexBufferDataCopy<VertexType>(0),
-					other.GetIndexBufferDataCopy(), *other.m_owner);
-			}
-			else
-			{
-				CreateDynamic(other.GetVertexBufferDataCopy<VertexType>(0),
-					*other.m_owner);
-			}
-		}
-		else
-		{
-			if (indexCount > 0)
-			{
-				CreateStatic(other.GetVertexBufferDataCopy<VertexType>(0),
-					other.GetIndexBufferDataCopy(), *other.m_owner);
-			}
-			else
-			{
-				CreateStatic(other.GetVertexBufferDataCopy<VertexType>(0),
-					*other.m_owner);
-			}
-		}
-
-	}
-
-
-	void CreateStatic(
+	Mesh(
 		const std::vector<VertexType>& vertices,
 		const std::vector<uint32_t>& indices,
-		Device* inOwner
+		Device* owner,
+		bool dynamic = false
 	)
+		: IOwned<Device>(owner)
+		, vertexBuffer(vertices, dynamic, owner)
+		, indexBuffer(indices, dynamic, owner)
 	{
-		IOwned::Create(inOwner);
-		vertexBuffer.CreateStatic(vertices, owner);
-		indexBuffer.CreateStatic(indices, owner);
 	}
 
-	void CreateStatic(
+	Mesh(
 		const std::vector<VertexType>& vertices,
-		Device* inOwner
+		Device* owner,
+		bool dynamic = false
 	)
+		: IOwned<Device>(owner)
+		, vertexBuffer(vertices, dynamic, owner)
 	{
-		IOwned::Create(inOwner);
-		vertexBuffer.CreateStatic(vertices, owner);
 	}
 
+//	Mesh(const Mesh<VertexType>& other)
+//		: IOwned<Device>(other.owner)
+//		, vertexBuffer(other.GetVertexBufferDataCopy<VertexType>(0), other.owner)
+//		, indexBuffer((other.indexCount > 0) ? IndexBuffer(other.GetIndexBufferDataCopy(), other.owner) : IndexBuffer())
+//	{
+//	}
 
-	// User is responsible for updating / staging
-	void CreateDynamic(
-		std::vector<VertexType>& vertices,
-		std::vector<uint32_t>& indices,
-		Device* inOwner
-	)
-	{
-		IOwned::Create(inOwner);
-		vertexBuffer.CreateDynamic(vertices, owner);
-		indexBuffer.CreateDynamic(indices, owner);
-		dynamic = true;
-	}
+	Mesh& operator=(const Mesh& other) noexcept = delete;
+	Mesh(const Mesh& other) noexcept = delete;
 
-	void CreateDynamic(
-		std::vector<VertexType>& vertices,
-		Device* inOwner
-	)
-	{
-		IOwned::Create(inOwner);
-		vertexBuffer.CreateDynamic(vertices, owner);
-		dynamic = true;
-	}
-
+	Mesh(Mesh&& other) noexcept = default;
+	Mesh& operator=(Mesh&& other) noexcept = default;
+	~Mesh() noexcept = default;
 
 	void UpdateDynamic(
 		std::vector<VertexType>& vertices,
@@ -181,7 +138,7 @@ public:
 
 	[[nodiscard]] Mesh::Data GetDataCopy() const
 	{
-		return { GetVertexBufferDataCopy(), GetIndexBufferDataCopy() };
+		return {GetVertexBufferDataCopy(), GetIndexBufferDataCopy()};
 	}
 
 	VertexType* GetVertexBufferData()
@@ -206,8 +163,8 @@ public:
 
 	[[nodiscard]] Mesh::View GetDataView() const
 	{
-		return { GetVertexBufferData(), GetVertexCount(),
-				 GetIndexBufferData(), GetIndexCount()
+		return {GetVertexBufferData(), GetVertexCount(),
+				GetIndexBufferData(), GetIndexCount()
 		};
 	}
 
@@ -269,7 +226,7 @@ public:
 		return vertexBuffer.GetVertexCount();
 	}
 
-	[[nodiscard]] std::weak_ptr<VertexBuffer<VertexType>> GetVertexBuffer() const
+	[[nodiscard]] std::weak_ptr<VertexBuffer < VertexType>> GetVertexBuffer() const
 	{
 		return vertexBuffer;
 	}
@@ -368,7 +325,7 @@ public:
 	glm::vec3 GetFurthestVertexPosition(const glm::vec3& direction) const;
 
 	bool dynamic = false;
-	VertexBuffer<VertexType> vertexBuffer;
+	VertexBuffer <VertexType> vertexBuffer;
 	IndexBuffer indexBuffer;
 };
 
@@ -525,6 +482,7 @@ int Mesh<VertexType>::IsStraddlingPlane(
 //}
 
 void InitializeMeshStatics(Device* device);
+void DestroyMeshStatics();
 
 
 template<class VertexType>
@@ -693,8 +651,8 @@ void Mesh<VertexType>::Clip(
 			int numOutputIndices = 0;
 			for (int i = 0; i < numFaces; ++i)
 			{
-				numOutputVertices += (quads[i] == true) ? 4 :3;
-				numOutputIndices += (quads[i] == true) ? 6 :3;
+				numOutputVertices += (quads[i] == true) ? 4 : 3;
+				numOutputIndices += (quads[i] == true) ? 6 : 3;
 			}
 
 			out.vertices.resize(numOutputVertices);
@@ -743,6 +701,8 @@ void Mesh<VertexType>::Clip(
 template<class VertexType>
 struct SimpleMesh
 {
+	static void Initialize(Device* owner);
+	static void Destroy();
 	inline static Mesh<VertexType>* Sphere = nullptr;
 	inline static Mesh<VertexType>* Cube = nullptr;
 	inline static Mesh<VertexType>* Point = nullptr;
@@ -843,21 +803,20 @@ inline typename Mesh<Vertex>::Data Mesh<Vertex>::LoadModel(const std::string& pa
 		}
 	}
 
-	return { std::move(vertices), std::move(indices) };
+	return {std::move(vertices), std::move(indices)};
 }
 
-template<>
-inline void Mesh<Vertex>::CreateModel(const std::string& path, bool dynamic, Device* owner)
-{
-	auto data = LoadModel(path);
-	if (dynamic)
-	{
-		CreateDynamic(data.vertices, data.indices, owner);
-	}
-	else
-	{
-		CreateStatic(data.vertices, data.indices, owner);
-	}
+//template<>
+//inline void Mesh<Vertex>::CreateModel(const std::string& path, bool dynamic, Device* owner)
+//{
+//	auto data = LoadModel(path);
+//	if (dynamic)
+//	{
+//		CreateDynamic(data.vertices, data.indices, owner);
+//	}
+//	else
+//	{
+//		CreateStatic(data.vertices, data.indices, owner);
+//	}
 }
 
-}

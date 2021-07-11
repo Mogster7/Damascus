@@ -13,7 +13,7 @@ public:
 
 	void Create(std::weak_ptr<Window> window, Device* owner);
 
-	void Destroy();
+	~Overlay() noexcept;
 
 	void Begin();
 

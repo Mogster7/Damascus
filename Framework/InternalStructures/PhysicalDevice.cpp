@@ -50,16 +50,14 @@ void PhysicalDevice::Create(RenderingContext* owner)
 {
 	this->owner = owner;
 	std::vector<vk::PhysicalDevice> devices = OwnerGet<RenderingContext>().instance.enumeratePhysicalDevices();
-	if (devices.empty())
-		throw std::runtime_error("Failed to find GPU with Vulkan support");
+	assert(!devices.empty());
 
 	auto it = std::find_if(devices.begin(), devices.end(), [this](const auto& device) -> bool
 	{
 		return IsDeviceSuitable(device);
 	});
 
-	if (it == devices.end())
-		throw std::runtime_error("Failed to find a suitable GPU");
+	assert(it != devices.end());
 
 	VkType() = *it;
 	queueFamilyIndices = FindQueueFamilies(VkType());

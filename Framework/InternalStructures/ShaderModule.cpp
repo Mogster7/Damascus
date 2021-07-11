@@ -10,7 +10,10 @@ namespace bk {
 
 vk::PipelineShaderStageCreateInfo ShaderModule::Load(const std::string& name, vk::ShaderStageFlagBits stageFlags, Device* inOwner)
 {
-	DestroyIfCreated();
+	if (created)
+	{
+		owner->destroyShaderModule(VkType());
+	}
 
 	auto src = utils::ReadFile(std::string(ASSET_DIR) + "Shaders/" + name);
 

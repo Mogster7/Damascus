@@ -15,6 +15,8 @@ BK_TYPE_VULKAN_OWNED_BODY(Device, IOwned<PhysicalDevice>)
 
 	void Create(const vk::DeviceCreateInfo& createInfo, PhysicalDevice* owner);
 
+	~Device() noexcept;
+
 	void Update(float dt);
 
 	// Return whether or not the surface is out of date

@@ -18,11 +18,8 @@ public:
 	BK_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<RenderingContext>)
 
 	void Create();
-
 	void CreateSurface(std::weak_ptr<Window> winHandle);
-
-	void Destroy();
-
+	~Instance() noexcept;
 
 	std::weak_ptr<Window> window;
 	vk::SurfaceKHR surface;

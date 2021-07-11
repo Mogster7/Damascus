@@ -5,35 +5,99 @@
 // Date:		6/9/2020
 //
 //------------------------------------------------------------------------------
+
 #include "Buffer.h"
 
 namespace bk {
 
 
-void Buffer::Create(vk::BufferCreateInfo& bufferCreateInfo, VmaAllocationCreateInfo& allocCreateInfo, Device* inOwner)
+Buffer::Buffer(
+	const vk::BufferCreateInfo& bufferCreateInfo,
+	const VmaAllocationCreateInfo& allocCreateInfo,
+	Device* inOwner
+)
+	: IOwned<Device>(inOwner)
+	, bufferCI(bufferCreateInfo)
+	, allocationCI(allocCreateInfo)
 {
-	IOwned::Create(inOwner, [this]()
-	{
-		vmaDestroyBuffer(allocator, VkType(), allocation);
-	});
-
-	allocator = owner->allocator;
-	size = bufferCreateInfo.size;
-	assert(size != 0);
-	bufferUsage = bufferCreateInfo.usage;
-	memoryUsage = allocCreateInfo.usage;
+	assert(bufferCreateInfo.size != 0);
 	ASSERT_VK(vmaCreateBuffer(owner->allocator,
-		(VkBufferCreateInfo * ) & bufferCreateInfo,
-		&allocCreateInfo,
-		VkCTypePtr(),
-		&allocation,
-		&allocationInfo
+							  (VkBufferCreateInfo*) &bufferCreateInfo,
+							  &allocCreateInfo,
+							  VkCTypePtr(),
+							  &allocation,
+							  &allocationInfo
 	));
 
 	descriptorInfo.offset = 0;
-	descriptorInfo.range = size;
+	descriptorInfo.range = bufferCreateInfo.size;
 	descriptorInfo.buffer = VkType();
 }
+
+Buffer::~Buffer() noexcept
+{
+	if(created)
+	{
+		vmaDestroyBuffer(owner->allocator, VkCType(), allocation);
+	}
+}
+
+Buffer::Buffer(
+	void* data, const vk::DeviceSize size,
+	vk::BufferUsageFlags bufferUsage,
+	VmaMemoryUsage memoryUsage,
+	bool submitToGPU,
+	bool persistentMapped,
+	Device* inOwner
+)
+{
+	assert(size > 0);
+	assert(data != nullptr);
+
+	vk::BufferCreateInfo bufferCreateInfo;
+	bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferDst | bufferUsage;
+	bufferCreateInfo.size = size;
+
+	VmaAllocationCreateInfo allocCreateInfo = {};
+	allocCreateInfo.usage = memoryUsage;
+
+	// Create THIS buffer, which is the destination buffer
+	*this = Buffer(bufferCreateInfo, allocCreateInfo, inOwner);
+	this->persistentMapped = persistentMapped;
+
+	// Reuse create info, except this time its the source
+	bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+
+	// we can reuse size
+	allocCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+	if (persistentMapped)
+	{
+		allocCreateInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+	}
+	stagingBuffer = std::make_unique<Buffer>(bufferCreateInfo, allocCreateInfo, inOwner);
+
+	if (persistentMapped)
+	{
+		memcpy(stagingBuffer->allocationInfo.pMappedData, data, (size_t) size);
+	}
+	else
+	{
+		// Create pointer to memory
+		void* mapped;
+
+		//// Map and copy data to the memory, then unmap
+		vmaMapMemory(owner->allocator, stagingBuffer->allocation, &mapped);
+		std::memcpy(mapped, data, (size_t) size);
+		vmaUnmapMemory(owner->allocator, stagingBuffer->allocation);
+	}
+
+	// Copy staging buffer to GPU-side
+	if (submitToGPU)
+	{
+		StageTransferSingleSubmit(*stagingBuffer, *this, size, *owner);
+	}
+}
+
 
 
 void Buffer::Map(Buffer& buffer, void* data)
@@ -50,11 +114,11 @@ void Buffer::Map(Buffer& buffer, void* data)
 	}
 	else
 	{
-		auto result = buffer.owner->mapMemory(memory, offset, buffer.size, {}, &toMap);
+		auto result = buffer.owner->mapMemory(memory, offset, buffer.bufferCI.size, {}, &toMap);
 		utils::CheckVkResult(result, "Failed to map uniform buffer memory");
 	}
 
-	memcpy(toMap, data, buffer.size);
+	memcpy(toMap, data, buffer.bufferCI.size);
 
 	if (!buffer.persistentMapped)
 	{
@@ -62,13 +126,16 @@ void Buffer::Map(Buffer& buffer, void* data)
 	}
 }
 
+
+
+
 void Buffer::UpdateData(void* data, vk::DeviceSize size, bool submitToGPU)
 {
-	if (this->size < size)
+	if (bufferCI.size < size)
 	{
-		CreateStaged(
+		*this = Buffer(
 			data, size,
-			bufferUsage, memoryUsage,
+			bufferCI.usage, allocationCI.usage,
 			submitToGPU,
 			persistentMapped,
 			owner
@@ -140,74 +207,40 @@ void Buffer::StageTransfer(
 
 void Buffer::StageTransferDynamic(vk::CommandBuffer commandBuffer)
 {
-	StageTransfer(*stagingBuffer, *this, size, commandBuffer, *owner);
+	StageTransfer(*stagingBuffer, *this, bufferCI.size, commandBuffer, *owner);
 }
 
 
-void Buffer::CreateStaged(
-	void* data, const vk::DeviceSize size,
-	vk::BufferUsageFlags bufferUsage,
-	VmaMemoryUsage memoryUsage,
-	bool submitToGPU,
-	bool persistentMapped,
-	Device* inOwner
-)
+std::vector<vk::DescriptorBufferInfo*> Buffer::AggregateDescriptorInfo(std::vector<Buffer>& buffers)
 {
-	assert(size > 0);
-	assert(data != nullptr);
-	this->persistentMapped = persistentMapped;
-
-	vk::BufferCreateInfo bufferCreateInfo;
-	bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferDst | bufferUsage;
-	bufferCreateInfo.size = size;
-
-	VmaAllocationCreateInfo allocCreateInfo = {};
-	allocCreateInfo.usage = memoryUsage;
-
-	// Create THIS buffer, which is the destination buffer
-	Create(bufferCreateInfo, allocCreateInfo, inOwner);
-
-	// Reuse create info, except this time its the source
-	bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
-
-	// we can reuse size
-	allocCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-	if (persistentMapped)
-	{
-		allocCreateInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-	}
-	stagingBuffer = std::make_shared<Buffer>();
-	stagingBuffer->Create(bufferCreateInfo, allocCreateInfo, inOwner);
-
-	if (persistentMapped)
-	{
-		memcpy(stagingBuffer->allocationInfo.pMappedData, data, (size_t) size);
-	}
-	else
-	{
-		// Create pointer to memory
-		void* mapped;
-
-		//// Map and copy data to the memory, then unmap
-		vmaMapMemory(allocator, stagingBuffer->allocation, &mapped);
-		std::memcpy(mapped, data, (size_t) size);
-		vmaUnmapMemory(allocator, stagingBuffer->allocation);
-	}
-
-	// Copy staging buffer to GPU-side
-	if (submitToGPU)
-	{
-		StageTransferSingleSubmit(*stagingBuffer, *this, size, *owner);
-	}
-}
-
-
-std::vector<vk::DescriptorBufferInfo*> Buffer::AggregateDescriptorInfo(std::vector <Buffer>& buffers)
-{
-	std::vector < vk::DescriptorBufferInfo * > infos;
+	std::vector<vk::DescriptorBufferInfo*> infos;
 	for (auto& buffer : buffers)
 		infos.emplace_back(&buffer.descriptorInfo);
 	return infos;
+}
+
+Buffer& Buffer::operator=(Buffer&& other) noexcept
+{
+	assert(this != &other);
+	VulkanInterface::operator=(std::move(other));
+	OwnerInterface::operator=(std::move(other));
+
+	allocation = other.allocation;
+	other.allocation = {};
+
+	persistentMapped = other.persistentMapped;
+	allocationInfo = other.allocationInfo;
+	descriptorInfo = other.descriptorInfo;
+	stagingBuffer = std::move(other.stagingBuffer);
+	allocationCI = other.allocationCI;
+	bufferCI = other.bufferCI;
+
+	return *this;
+}
+
+Buffer::Buffer(Buffer&& other) noexcept
+{
+	*this = std::move(other);
 }
 
 

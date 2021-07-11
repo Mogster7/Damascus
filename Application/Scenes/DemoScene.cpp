@@ -168,7 +168,7 @@ public:
 		// // its down by default in Vulkan
 		uboViewProjection.projection[1][1] *= -1;
 		std::vector<PosVertex> dummy{{}};
-		debugLineList.mesh.CreateDynamic(dummy, &device);
+		debugLineList.mesh = Mesh<PosVertex>(dummy, &device);
 
 
 		renderSystem = &ECS::GetSystem<RenderComponentSystem>();
@@ -205,17 +205,17 @@ public:
 			auto& render = reg.emplace<DeferredRenderComponent>(entity);
 			//render.mesh.CreateModel(room, false);
 
-			render.mesh->CreateStatic(quadVerts, quadIndices, &device);
+			render.mesh = Mesh<Vertex>(quadVerts, quadIndices, &device);
 
 			//obj.model = glm::scale(obj.model, glm::vec3(utils::Random() * 3.0f));
 			//obj.model = glm::translate(obj.model, glm::vec3(
 			//	utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f), utils::Random(-10.0f, 10.0f)));
 			//obj.SetRotation(glm::vec3(utils::Random(), utils::Random(), utils::Random()));
 		}
-		fsq.mesh.CreateStatic(meshVerts, meshIndices, &device);
+		fsq.mesh = Mesh<TexVertex>(meshVerts, meshIndices, &device);
 		auto fsqEntity = reg.create();
 		reg.emplace<TransformComponent>(fsqEntity);
-		reg.emplace<PostRenderComponent>(fsqEntity, fsq.mesh);
+		reg.emplace<PostRenderComponent>(fsqEntity, std::move(fsq.mesh));
 
 
 
@@ -249,6 +249,7 @@ public:
 				debugLineList.drawBuffers,
 				debugLineStrip.drawBuffers
 		);
+		RenderingContext::Destroy();
 	}
 
 
@@ -998,7 +999,7 @@ public:
 				auto& transform = reg.emplace<TransformComponent>(entity);
 				transform.SetScale(glm::vec3(0.0001f));
 				auto& render = reg.emplace<DeferredRenderComponent>(entity);
-				render.mesh->CreateStatic(data.vertices, data.indices, &device);
+				render.mesh = Mesh<Vertex>(data.vertices, data.indices, &device);
 			}
 			return;
 		}
@@ -1023,7 +1024,7 @@ public:
 				transform.SetScale(glm::vec3(0.0001f));
 
 				auto& render = reg.emplace<DeferredRenderComponent>(entity);
-				render.mesh->CreateStatic(data.vertices, data.indices, &device);
+				render.mesh = Mesh<Vertex>(data.vertices, data.indices, &device);
 			}
 		}
 
@@ -1053,8 +1054,8 @@ public:
 		aCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 
 		for (size_t i = 0; i < images.size(); ++i) {
-			uniformBufferViewProjection[i].Create(vpCreateInfo, aCreateInfo, &device);
-			uniformBufferComposition[i].Create(compCreateInfo, aCreateInfo, &device);
+			uniformBufferViewProjection[i] = Buffer(vpCreateInfo, aCreateInfo, &device);
+			uniformBufferComposition[i] = Buffer(compCreateInfo, aCreateInfo, &device);
 		}
 	}
 

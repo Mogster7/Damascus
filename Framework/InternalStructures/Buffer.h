@@ -13,15 +13,19 @@ class Device;
 class Buffer : public IVulkanType<vk::Buffer, VkBuffer>, public IOwned<Device>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(Buffer, IOwned<Device>)
+	BK_TYPE_VULKAN_OWNED_BODY(Buffer, IOwned<Device>)
 
-	void Create(
-		vk::BufferCreateInfo& bufferCreateInfo,
-		VmaAllocationCreateInfo& allocCreateInfo,
-		Device* owner
+	virtual Buffer& operator=(Buffer&& other) noexcept;
+	Buffer(Buffer&& other) noexcept;
+	~Buffer() noexcept;
+
+	Buffer(
+		const vk::BufferCreateInfo& bufferCreateInfo,
+		const VmaAllocationCreateInfo& allocCreateInfo,
+		Device* inOwner
 	);
 
-	void CreateStaged(
+	Buffer(
 		void* data,
 		vk::DeviceSize size,
 		vk::BufferUsageFlags bufferUsage,
@@ -30,7 +34,6 @@ BK_TYPE_VULKAN_OWNED_BODY(Buffer, IOwned<Device>)
 		bool persistentMapped,
 		Device* owner
 	);
-
 
 	void MapToBuffer(void* data);
 
@@ -61,54 +64,41 @@ BK_TYPE_VULKAN_OWNED_BODY(Buffer, IOwned<Device>)
 
 	static std::vector<vk::DescriptorBufferInfo*> AggregateDescriptorInfo(std::vector<Buffer>& buffers);
 
-	VmaAllocator allocator = {};
 	VmaAllocation allocation = {};
 	bool persistentMapped = false;
 	VmaAllocationInfo allocationInfo = {};
-	vk::BufferUsageFlags bufferUsage = {};
-	VmaMemoryUsage memoryUsage = {};
-	vk::DeviceSize size = {};
 	vk::DescriptorBufferInfo descriptorInfo = {};
 	std::shared_ptr<Buffer> stagingBuffer = {};
+
+	// Save for copy construction/destruction
+	VmaAllocationCreateInfo allocationCI = {};
+	vk::BufferCreateInfo bufferCI = {};
 
 	static void Map(Buffer& buffer, void* data);
 
 private:
 };
 
-
 template<class VertexType>
 class VertexBuffer : public Buffer
 {
 public:
 BK_TYPE_OWNED_BODY(VertexBuffer<VertexType>, Buffer)
+	VertexBuffer& operator=(VertexBuffer&& other) noexcept = default;
+	VertexBuffer(VertexBuffer&& other) noexcept = default;
+	~VertexBuffer() noexcept = default;
 
-	void CreateStatic(const std::vector<VertexType>& vertices, Device* owner)
+	VertexBuffer(const std::vector<VertexType>& vertices, bool dynamic, Device* owner)
+		: Buffer(
+		(void*) &vertices[0], vertices.size() * sizeof(VertexType),
+		vk::BufferUsageFlagBits::eVertexBuffer,
+		VMA_MEMORY_USAGE_GPU_ONLY,
+		!dynamic,
+		true,
+		owner)
+		, vertexCount(vertices.size())
 	{
-		ASSERT(vertices.size(), "No vertices contained in mesh creation parameters");
-		CreateStaged(
-			(void*) &vertices[0], vertices.size() * sizeof(VertexType),
-			vk::BufferUsageFlagBits::eVertexBuffer,
-			VMA_MEMORY_USAGE_GPU_ONLY,
-			true,
-			true,
-			owner
-		);
-		vertexCount = vertices.size();
-	}
-
-	void CreateDynamic(const std::vector<VertexType>& vertices, Device* owner)
-	{
-		ASSERT(vertices.size(), "No vertices contained in mesh creation parameters");
-		CreateStaged(
-			(void*) &vertices[0], vertices.size() * sizeof(VertexType),
-			vk::BufferUsageFlagBits::eVertexBuffer,
-			VMA_MEMORY_USAGE_GPU_ONLY,
-			false,
-			true,
-			owner
-		);
-		vertexCount = vertices.size();
+		assert(!vertices.empty());
 	}
 
 	void UpdateData(void* data, vk::DeviceSize size, uint32_t newVertexCount, bool submitToGPU)
@@ -127,43 +117,32 @@ private:
 };
 
 
-//BK_TYPE(IndexBuffer)
 class IndexBuffer : public Buffer
 {
 public:
-	BK_TYPE_OWNED_BODY(IndexBuffer, Buffer)
+BK_TYPE_OWNED_BODY(IndexBuffer, Buffer)
+	IndexBuffer& operator=(IndexBuffer&& other) noexcept = default;
+	IndexBuffer(IndexBuffer&& other) noexcept = default;
+	~IndexBuffer() noexcept = default;
 
-	void CreateStatic(const std::vector<uint32_t>& indices, Device* owner)
+	IndexBuffer(const std::vector<uint32_t>& indices, bool dynamic, Device* owner)
+		: Buffer(
+		(void*) indices.data(), indices.size() * sizeof(uint32_t),
+		vk::BufferUsageFlagBits::eIndexBuffer,
+		VMA_MEMORY_USAGE_GPU_ONLY,
+		!dynamic,
+		true,
+		owner)
+		, indexCount(indices.size())
 	{
-		CreateStaged((void*) indices.data(), indices.size() * sizeof(uint32_t),
-			vk::BufferUsageFlagBits::eIndexBuffer,
-			VMA_MEMORY_USAGE_GPU_ONLY,
-			true,
-			true,
-			owner
-		);
-		indexCount = indices.size();
+		assert(!indices.empty());
 	}
-
-	void CreateDynamic(const std::vector<uint32_t>& indices, Device* owner)
-	{
-		CreateStaged((void*) indices.data(), indices.size() * sizeof(uint32_t),
-			vk::BufferUsageFlagBits::eIndexBuffer,
-			VMA_MEMORY_USAGE_GPU_ONLY,
-			false,
-			true,
-			owner
-		);
-		indexCount = indices.size();
-	}
-
 
 	void UpdateData(void* data, vk::DeviceSize size, uint32_t newIndexCount, bool submitToGPU)
 	{
 		indexCount = newIndexCount;
 		Buffer::UpdateData(data, size, submitToGPU);
 	}
-
 
 	[[nodiscard]] uint32_t GetIndexCount() const
 	{

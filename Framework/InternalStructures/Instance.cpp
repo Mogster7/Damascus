@@ -7,6 +7,8 @@
 //------------------------------------------------------------------------------
 #include "RenderingStructures.hpp"
 #include "Window.h"
+#include "Instance.h"
+
 #include <glfw3.h>
 #include <vector>
 
@@ -71,12 +73,14 @@ void Instance::Create()
 	auto vkGetInstanceProcAddr = dynamicLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
 	VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
-	if (enableValidationLayers && !checkValidationLayerSupport())
-		throw std::runtime_error("Validation layers requested.Create(but not available");
+	if (enableValidationLayers)
+	{
+		assert(checkValidationLayerSupport());
+	}
 
 	vk::ApplicationInfo appInfo("Hello Triangle", VK_MAKE_VERSION(1, 0, 0),
-		"No Engine", VK_MAKE_VERSION(1, 0, 0),
-		VK_API_VERSION_1_0);
+								"No Engine", VK_MAKE_VERSION(1, 0, 0),
+								VK_API_VERSION_1_0);
 	vk::InstanceCreateInfo createInfo({}, &appInfo);
 
 	auto requiredExtensions = GetRequiredExtensions();
@@ -99,7 +103,7 @@ void Instance::Create()
 
 		vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo;
 		PopulateDebugCreateInfo(debugCreateInfo);
-		createInfo.pNext = (vk::DebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
+		createInfo.pNext = (vk::DebugUtilsMessengerCreateInfoEXT * ) & debugCreateInfo;
 	}
 	else
 	{
@@ -117,11 +121,7 @@ void Instance::Create()
 
 	std::cout << VK_HEADER_VERSION << std::endl;
 
-	vk::Result result = vk::createInstance(&createInfo, nullptr, this);
-	if (result != vk::Result::eSuccess)
-	{
-		throw std::runtime_error("failed to create instance");
-	}
+	ASSERT_VK(vk::createInstance(&createInfo, nullptr, this));
 
 	VULKAN_HPP_DEFAULT_DISPATCHER.init(VkType());
 
@@ -131,20 +131,11 @@ void Instance::Create()
 void Instance::CreateSurface(std::weak_ptr<Window> winHandle)
 {
 	window = winHandle;
-	if (glfwCreateWindowSurface((VkInstance) (*this), window.lock()->GetHandle(), nullptr, (VkSurfaceKHR*) &surface) != VK_SUCCESS)
+	if (glfwCreateWindowSurface((VkInstance) (*this), window.lock()->GetHandle(), nullptr, (VkSurfaceKHR*) &surface) !=
+		VK_SUCCESS)
 	{
 		ASSERT(false, "Failed to create window surface");
 	}
-}
-
-void Instance::Destroy()
-{
-	if (enableValidationLayers)
-		destroyDebugUtilsMessengerEXT(debugMessenger, nullptr);
-
-	destroySurfaceKHR(surface);
-
-	destroy();
 }
 
 static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(
@@ -155,7 +146,9 @@ static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(
 )
 {
 	if (messageSeverity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose)
+	{
 		return VK_FALSE;
+	}
 
 	std::cerr << "validation layer: " << pCallbackData->pMessage << '\n' << std::endl;
 
@@ -183,13 +176,31 @@ void Instance::PopulateDebugCreateInfo(vk::DebugUtilsMessengerCreateInfoEXT& cre
 void Instance::ConstructDebugMessenger()
 {
 	if (!enableValidationLayers)
+	{
 		return;
+	}
 
 	vk::DebugUtilsMessengerCreateInfoEXT info;
 	PopulateDebugCreateInfo(info);
 
-	if (createDebugUtilsMessengerEXT(&info, nullptr, &debugMessenger) != vk::Result::eSuccess)
-		throw std::runtime_error("Failed to set up debug messenger");
+	ASSERT_VK(createDebugUtilsMessengerEXT(&info, nullptr, &debugMessenger));
 }
+
+Instance::~Instance()
+{
+	if (!created)
+	{
+		return;
+	}
+
+	if (enableValidationLayers)
+	{
+		destroyDebugUtilsMessengerEXT(debugMessenger, nullptr);
+	}
+
+	destroySurfaceKHR(surface);
+	destroy();
+}
+
 
 }
