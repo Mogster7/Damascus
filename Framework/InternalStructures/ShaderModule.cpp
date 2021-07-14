@@ -8,14 +8,14 @@
 namespace bk {
 
 
-vk::PipelineShaderStageCreateInfo ShaderModule::Load(const std::string& name, vk::ShaderStageFlagBits stageFlags, Device* inOwner)
+vk::PipelineShaderStageCreateInfo ShaderModule::Load(const std::string& path, vk::ShaderStageFlagBits stageFlags, Device* inOwner)
 {
 	if (created)
 	{
 		owner->destroyShaderModule(VkType());
 	}
 
-	auto src = utils::ReadFile(std::string(ASSET_DIR) + "Shaders/" + name);
+	auto src = utils::ReadFile(path);
 
 	vk::ShaderModuleCreateInfo shaderInfo;
 	shaderInfo.codeSize = src.size();

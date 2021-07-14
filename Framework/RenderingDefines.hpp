@@ -9,9 +9,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-constexpr std::string_view ASSET_DIR = "Assets/";
 constexpr size_t MAX_FRAME_DRAWS = 2;
-
 
 const std::vector<const char*> deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME

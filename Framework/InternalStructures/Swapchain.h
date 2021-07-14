@@ -23,7 +23,7 @@ BK_TYPE_VULKAN_OWNED_BODY(Swapchain, IOwned<Device>)
 
 	~Swapchain() noexcept;
 
-	static vk::Extent2D ChooseExtent(glm::uvec2 windowDimensions, vk::SurfaceCapabilitiesKHR);
+	static vk::Extent2D ChooseExtent(RenderingContext* context, glm::uvec2 windowDimensions, vk::SurfaceCapabilitiesKHR);
 
 	static vk::PresentModeKHR ChoosePresentMode(const std::vector<vk::PresentModeKHR>&);
 

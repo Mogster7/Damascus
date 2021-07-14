@@ -67,7 +67,7 @@ void Image::Create2D(
 void Image::CreateDepthImage(glm::vec2 size, Device* owner)
 {
 	Create2D(size,
-		FrameBufferAttachment::GetDepthFormat(),
+		FrameBufferAttachment::GetDepthFormat(&owner->OwnerGet<RenderingContext>()),
 		1,
 		vk::ImageTiling::eOptimal,
 		vk::ImageUsageFlagBits::eDepthStencilAttachment,
@@ -220,7 +220,7 @@ void Image::TransitionLayout(
 		1, &barrier);
 }
 
-Image::~Image()
+Image::~Image() noexcept
 {
 	if (created)
 	{

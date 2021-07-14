@@ -45,7 +45,7 @@ BK_TYPE_VULKAN_OWNED_BODY(PhysicalDevice, IOwned<RenderingContext>)
 	vk::PhysicalDeviceProperties properties;
 
 private:
-	static QueueFamilyIndices FindQueueFamilies(vk::PhysicalDevice pd);
+	static QueueFamilyIndices FindQueueFamilies(RenderingContext* context, vk::PhysicalDevice pd);
 
 	[[nodiscard]] bool IsDeviceSuitable(vk::PhysicalDevice) const;
 

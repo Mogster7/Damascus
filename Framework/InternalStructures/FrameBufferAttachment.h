@@ -46,7 +46,7 @@ public:
 	Sampler sampler;
 	vk::Format format = {};
 
-	static vk::Format GetDepthFormat();
+	static vk::Format GetDepthFormat(RenderingContext* context);
 };
 
 }

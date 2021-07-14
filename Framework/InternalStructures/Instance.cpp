@@ -186,7 +186,7 @@ void Instance::ConstructDebugMessenger()
 	ASSERT_VK(createDebugUtilsMessengerEXT(&info, nullptr, &debugMessenger));
 }
 
-Instance::~Instance()
+Instance::~Instance() noexcept
 {
 	if (!created)
 	{

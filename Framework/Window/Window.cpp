@@ -1,5 +1,4 @@
 #include "Window.h"
-#include "RenderingContext.h"
 #include <glfw3.h>
 
 namespace bk {

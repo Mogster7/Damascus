@@ -56,8 +56,8 @@ void FrameBufferAttachment::Create(
 
 void FrameBufferAttachment::CreateDepth(Device* owner)
 {
-	format = GetDepthFormat();
-	Create(format, RenderingContext::Get().swapchain.extent,
+	format = GetDepthFormat(&owner->OwnerGet<RenderingContext>());
+	Create(format, owner->OwnerGet<RenderingContext>().swapchain.extent,
 		vk::ImageUsageFlagBits::eDepthStencilAttachment,
 		vk::ImageAspectFlagBits::eDepth,
 		vk::ImageLayout::eDepthStencilAttachmentOptimal,
@@ -76,9 +76,9 @@ vk::DescriptorImageInfo FrameBufferAttachment::GetDescriptor(
 }
 
 
-vk::Format FrameBufferAttachment::GetDepthFormat()
+vk::Format FrameBufferAttachment::GetDepthFormat(RenderingContext* context)
 {
-	vk::FormatProperties formatProperties{ RenderingContext::Get().physicalDevice.getFormatProperties(vk::Format::eD32Sfloat) };
+	vk::FormatProperties formatProperties{ context->physicalDevice.getFormatProperties(vk::Format::eD32Sfloat) };
 
 	if (formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
 	{

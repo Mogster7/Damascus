@@ -28,7 +28,7 @@ bool PhysicalDevice::CheckDeviceExtensionSupport(vk::PhysicalDevice device) cons
 
 bool PhysicalDevice::IsDeviceSuitable(vk::PhysicalDevice device) const
 {
-	auto indices = FindQueueFamilies(device);
+	auto indices = FindQueueFamilies(&OwnerGet<RenderingContext>(), device);
 	if (!indices.isComplete())
 		return false;
 
@@ -60,7 +60,7 @@ void PhysicalDevice::Create(RenderingContext* owner)
 	assert(it != devices.end());
 
 	VkType() = *it;
-	queueFamilyIndices = FindQueueFamilies(VkType());
+	queueFamilyIndices = FindQueueFamilies(&OwnerGet<RenderingContext>(), VkType());
 	getProperties(&properties);
 }
 
@@ -76,7 +76,7 @@ vk::DeviceSize PhysicalDevice::GetMinimumUniformBufferOffset() const
 	return properties.limits.minUniformBufferOffsetAlignment;
 }
 
-QueueFamilyIndices PhysicalDevice::FindQueueFamilies(vk::PhysicalDevice pd)
+QueueFamilyIndices PhysicalDevice::FindQueueFamilies(RenderingContext* context, vk::PhysicalDevice pd)
 {
 	QueueFamilyIndices indices;
 
@@ -88,7 +88,7 @@ QueueFamilyIndices PhysicalDevice::FindQueueFamilies(vk::PhysicalDevice pd)
 		if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
 			indices.graphics = i;
 
-		if (pd.getSurfaceSupportKHR(i, RenderingContext::Get().instance.surface))
+		if (pd.getSurfaceSupportKHR(i, context->instance.surface))
 			indices.present = i;
 
 		if (indices.isComplete())

@@ -44,27 +44,11 @@
 
 // Other
 #include "Utilities.h"
-#include "Job/Job.h"
-
 
 // Rendering
 #include "RenderingDefines.hpp"
 #include "RenderingStructures.hpp"
-#include "imgui/backends/imgui_impl_vulkan.h"
-#include "Overlay/Overlay.h"
 
-// ECS
-#include "ECS/Components/ComponentSystem.hpp"
-#include "ECS/ECS.h"
-
-#include "ECS/Components/Transform/TransformComponent.h"
-#include "ECS/Components/Transform/TransformComponentSystem.h"
-
-#include "ECS/Components/Render/RenderComponent.h"
-#include "ECS/Components/Render/RenderComponentSystem.h"
-
-#include "ECS/Components/Physics/PhysicsComponent.h"
-#include "ECS/Components/Physics/PhysicsComponentSystem.h"
 
 
 

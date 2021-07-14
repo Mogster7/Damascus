@@ -1,6 +1,5 @@
 #include "RenderingContext.h"
 #include "Window.h"
-#include "Overlay/Overlay.h"
 #include <glfw3.h>
 #include <vk_mem_alloc.h>
 
@@ -184,7 +183,7 @@ void RenderingContext::CreateDepthBuffer(bool recreate /*= false*/)
 //		depth.Destroy();
 
 	auto& extent = swapchain.extent;
-	depth.Create(FrameBufferAttachment::GetDepthFormat(), { extent.width, extent.height },
+	depth.Create(FrameBufferAttachment::GetDepthFormat(this), { extent.width, extent.height },
 		vk::ImageUsageFlagBits::eDepthStencilAttachment |
 		vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc,
 		vk::ImageAspectFlagBits::eDepth,
@@ -243,7 +242,7 @@ void RenderingContext::CreateSwapchain(bool recreate)
 	// Presentation mode (conditions for swapping images)
 	vk::PresentModeKHR presentMode = Swapchain::ChoosePresentMode(presentModes);
 	// Swap extent (resolution of images in the swap chain)
-	vk::Extent2D extent = Swapchain::ChooseExtent(instance.window.lock()->GetDimensions(),
+	vk::Extent2D extent = Swapchain::ChooseExtent(this, instance.window.lock()->GetDimensions(),
 		capabilities);
 
 	// 1 more than the min to not wait on acquiring
@@ -379,7 +378,7 @@ void RenderingContext::CreateLogicalDevice()
 }
 
 
-void RenderingContext::Create(std::weak_ptr<Window> window, bool enabledOverlay)
+void RenderingContext::Create(std::weak_ptr<Window> window)
 {
 	instance.Create();
 	instance.CreateSurface(window);
@@ -396,10 +395,6 @@ void RenderingContext::Create(std::weak_ptr<Window> window, bool enabledOverlay)
 	CreateSync();
 
 	InitializeMeshStatics(&device);
-	if (enabledOverlay) {
-		overlay = std::make_unique<Overlay>();
-		overlay->Create(window, &device);
-	}
 }
 
 

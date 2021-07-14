@@ -8,7 +8,6 @@
 #pragma once
 namespace bk {
 
-class Overlay;
 class RenderingContext;
 
 /**
@@ -37,7 +36,7 @@ public:
 	// Must be defined by a compilation unit for each demo
 	static RenderingContext& Get();
 
-	virtual void Create(std::weak_ptr<Window> window, bool enabledOverlay = true);
+	virtual void Create(std::weak_ptr<Window> window);
 
 	// Draw
 	virtual void Draw() = 0;
@@ -45,9 +44,6 @@ public:
 	// Update
 	virtual void Update();
 	virtual void Destroy();
-
-	std::unique_ptr<Overlay> overlay = {};
-	bool enabledOverlay = false;
 
 	Swapchain swapchain;
 
