@@ -1,5 +1,5 @@
 #pragma once
-namespace Primitives
+namespace bk::Primitives
 {
 	struct Box
 	{

@@ -7,11 +7,9 @@
 //------------------------------------------------------------------------------
 #include <string>
 #include <fstream>
-#include <assert.h>
+#include <cassert>
 
-
-
-namespace utils
+namespace bk::utils
 {
 
     float Random(float min /* = 0.0f */, float max /* = 1.0f */, float offset)

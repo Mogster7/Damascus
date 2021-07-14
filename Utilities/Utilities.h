@@ -6,8 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-
-namespace utils {
+namespace bk::utils {
 struct UBOModel
 {
 	glm::mat4 model;
@@ -57,17 +56,4 @@ inline void PushIdentityModel(
 	);
 }
 
-template<class T>
-void VectorDestroyer(std::vector<T>& vec)
-{
-	for (auto& item : vec)
-		item.Destroy();
 }
-
-}
-
-
-
-
-
-

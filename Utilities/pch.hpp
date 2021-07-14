@@ -5,8 +5,8 @@
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
-#include <entt/single_include/entt/entt.hpp>
 #include <stdexcept>
+#include <set>
 #include <cstdlib>
 #include <thread>
 #include <optional>
@@ -16,7 +16,6 @@
 #include <queue>
 #include <algorithm>
 #include <stack>
-#include <future>
 #include <tuple>
 #include <string>
 #include <string_view>
