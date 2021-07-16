@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm {
 
 //BK_TYPE(Swapchain)
 class Swapchain : public IVulkanType<vk::SwapchainKHR>, public IOwned<Device>

@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm {
 
 class RenderingContext;
 

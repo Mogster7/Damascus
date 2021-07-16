@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm {
 
 //BK_TYPE(RenderPass)
 class RenderPass : public IVulkanType<vk::RenderPass>, public IOwned<Device>

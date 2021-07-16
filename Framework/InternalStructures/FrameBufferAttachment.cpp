@@ -8,7 +8,7 @@
 #include "RenderingContext.h"
 #include "FrameBufferAttachment.h"
 
-namespace bk {
+namespace dm {
 
 
 void FrameBufferAttachment::Create(

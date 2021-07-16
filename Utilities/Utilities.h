@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk::utils {
+namespace dm::utils {
 struct UBOModel
 {
 	glm::mat4 model;

@@ -1,7 +1,7 @@
 #include "Window.h"
 #include <glfw3.h>
 
-namespace bk {
+namespace dm {
 
 Window::Window(const glm::uvec2& dimensions, const std::string& name)
 	: dimensions(dimensions)

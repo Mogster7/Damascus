@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #include "Image.h"
 
-namespace bk {
+namespace dm {
 void Image::Create(
 	vk::ImageCreateInfo& imageCreateInfo,
 	VmaAllocationCreateInfo& allocCreateInfo,

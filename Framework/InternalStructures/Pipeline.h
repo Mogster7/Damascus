@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace bk {
+namespace dm {
 
 //BK_TYPE(PipelineLayout)
 class PipelineLayout : public IVulkanType<vk::PipelineLayout>, public IOwned<Device>

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace bk {
+namespace dm {
 
 //BK_TYPE(Texture)
 class Texture : public IOwned<Device>

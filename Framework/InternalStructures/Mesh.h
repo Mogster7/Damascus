@@ -12,9 +12,9 @@
 
 namespace std {
 template<>
-struct hash<bk::Vertex>
+struct hash<dm::Vertex>
 {
-	size_t operator()(bk::Vertex const& vertex) const
+	size_t operator()(dm::Vertex const& vertex) const
 	{
 		return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
 			   (hash<glm::vec2>()(vertex.texPos) << 1);
@@ -22,7 +22,7 @@ struct hash<bk::Vertex>
 };
 }
 
-namespace bk {
+namespace dm {
 
 
 template<class VertexType = Vertex>

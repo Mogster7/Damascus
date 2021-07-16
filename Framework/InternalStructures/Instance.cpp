@@ -12,7 +12,7 @@
 #include <glfw3.h>
 #include <vector>
 
-namespace bk {
+namespace dm {
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;

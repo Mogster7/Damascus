@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm {
 
 ////BK_TYPE(FrameBuffer)
 class FrameBuffer : public IVulkanType<vk::Framebuffer>, public IOwned<Device>

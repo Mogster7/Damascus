@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace bk {
+namespace dm {
 
 //BK_TYPE(Fence)
 class Fence : public IVulkanType<vk::Fence>, public IOwned<Device>

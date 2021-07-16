@@ -5,7 +5,7 @@
 // Date:		6/29/2020
 //
 //------------------------------------------------------------------------------
-namespace bk {
+namespace dm {
 
 vk::DescriptorSetLayoutBinding DescriptorSetLayoutBinding::Create(
 	vk::DescriptorType type,

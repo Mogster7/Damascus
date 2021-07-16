@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace bk {
+namespace dm {
 
 //BK_TYPE(Image)
 class Image : public IVulkanType<vk::Image>, public IOwned<Device>

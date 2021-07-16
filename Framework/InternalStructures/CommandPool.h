@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace bk {
+namespace dm {
 
 //BK_TYPE(CommandPool)
 class CommandPool : public IVulkanType<vk::CommandPool>, public IOwned<Device>

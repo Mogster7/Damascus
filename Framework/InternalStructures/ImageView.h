@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace bk {
+namespace dm {
 
 class ImageView : public IVulkanType<vk::ImageView>, public IOwned<Device>
 {

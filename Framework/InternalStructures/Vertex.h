@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm {
 struct PosVertex
 {
 	glm::vec3 pos = glm::vec3(0.0f);

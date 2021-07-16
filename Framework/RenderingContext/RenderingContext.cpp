@@ -5,7 +5,7 @@
 
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
-namespace bk {
+namespace dm {
 
 
 void RenderingContext::Update()

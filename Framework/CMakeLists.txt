@@ -46,16 +46,16 @@ set(LIBS
 
 target_include_directories(Framework PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${BULKAN_DIR}/Utilities
-        ${BULKAN_DIR}/ThirdParty
+        ${DAMASCUS_DIR}/Utilities
+        ${DAMASCUS_DIR}/ThirdParty
         RenderingContext
         InternalStructures
         Window
         )
 
 target_link_directories(Framework PUBLIC
-        ${BULKAN_DIR}/Utilities
-        ${BULKAN_DIR}/ThirdParty
+        ${DAMASCUS_DIR}/Utilities
+        ${DAMASCUS_DIR}/ThirdParty
         )
 
 target_link_libraries(Framework ${LIBS})

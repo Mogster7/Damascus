@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm {
 
 //BK_TYPE(FrameBufferAttachment)
 class FrameBufferAttachment : public IOwned<Device>

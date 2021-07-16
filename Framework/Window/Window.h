@@ -1,6 +1,6 @@
 #pragma once
 struct GLFWwindow;
-namespace bk {
+namespace dm {
 class Window
 {
 public:

@@ -9,7 +9,7 @@
 #include "RenderingContext.h"
 #include "stb/stb_image.h"
 
-namespace bk {
+namespace dm {
 
 void Texture::Create(const std::string& filepath, Device* owner)
 {

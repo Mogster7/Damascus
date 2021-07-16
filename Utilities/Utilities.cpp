@@ -9,7 +9,7 @@
 #include <fstream>
 #include <cassert>
 
-namespace bk::utils
+namespace dm::utils
 {
 
     float Random(float min /* = 0.0f */, float max /* = 1.0f */, float offset)

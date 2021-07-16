@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm {
 
 class Device : public IVulkanType<vk::Device>, public IOwned<PhysicalDevice>
 {

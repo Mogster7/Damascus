@@ -1,6 +1,6 @@
 #pragma once
 
-namespace bk {
+namespace dm {
 
 //BK_TYPE(CommandBuffer)
 class CommandBuffer : public vk::CommandBuffer

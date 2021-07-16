@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm {
 
 //BK_TYPE(ShaderModule)
 class ShaderModule : public IVulkanType<vk::ShaderModule>, public IOwned<Device>

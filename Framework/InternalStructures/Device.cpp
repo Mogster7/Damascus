@@ -15,7 +15,7 @@
 #define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
 #include <vk_mem_alloc.h>
 
-namespace bk {
+namespace dm {
 
 
 void Device::CreateAllocator()

@@ -8,7 +8,7 @@
 #include "PhysicalDevice.h"
 #include "RenderingContext.h"
 
-namespace bk {
+namespace dm {
 
 
 bool PhysicalDevice::CheckDeviceExtensionSupport(vk::PhysicalDevice device) const

@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace bk {
+namespace dm {
 
 //BK_TYPE(DescriptorPool)
 class DescriptorPool : public IVulkanType<vk::DescriptorPool>, public IOwned<Device>

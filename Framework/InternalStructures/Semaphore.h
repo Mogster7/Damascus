@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace bk {
+namespace dm {
 
 //BK_TYPE(Semaphore)
 class Semaphore : public IVulkanType<vk::Semaphore>, public IOwned<Device>
