@@ -9,6 +9,8 @@
 //------------------------------------------------------------------------------
 #pragma once
 
+namespace dm {
+
 constexpr size_t MAX_FRAME_DRAWS = 2;
 
 const std::vector<const char*> deviceExtensions = {
@@ -182,3 +184,4 @@ BK_TYPE_BODY(Type)                             \
 #define BK_TYPE_VULKAN_OWNED_BODY(Type, DerivedOwner)\
 BK_TYPE_OWNED_BODY(Type, DerivedOwner)\
 
+}

@@ -41,7 +41,7 @@ add_library(Framework
 
 set(LIBS
         ThirdParty
-        Utilities
+        DamascusUtilities
         )
 
 target_include_directories(Framework PUBLIC

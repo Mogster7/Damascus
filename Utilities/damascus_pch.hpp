@@ -1,10 +1,10 @@
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 
 #include <iostream>
 #include <fstream>
-#include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
 #include <stdexcept>
 #include <set>
 #include <cstdlib>

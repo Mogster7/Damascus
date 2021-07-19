@@ -10,7 +10,6 @@ namespace dm {
 class Window;
 class RenderingContext;
 
-//BK_TYPE(Instance)
 class Instance : public IVulkanType<vk::Instance>, public IOwned<RenderingContext>
 {
 
