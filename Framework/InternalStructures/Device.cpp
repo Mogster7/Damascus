@@ -20,7 +20,7 @@ namespace dm {
 
 void Device::CreateAllocator()
 {
-	ASSERT(allocator == nullptr, "Creating an existing member");
+	DM_ASSERT(allocator == nullptr, "Creating an existing member");
 	VmaAllocatorCreateInfo info = {};
 	info.instance = (VkInstance) OwnerGet<RenderingContext>().instance.VkType();
 	info.physicalDevice = (VkPhysicalDevice) OwnerGet<PhysicalDevice>().VkType();
@@ -40,7 +40,7 @@ void Device::Update(float dt)
 void Device::Create(const vk::DeviceCreateInfo& createInfo, PhysicalDevice* inOwner)
 {
 	IOwned::Create(inOwner);
-	ASSERT_VK(owner->createDevice(&createInfo, nullptr, &VkType()));
+	DM_ASSERT_VK(owner->createDevice(&createInfo, nullptr, &VkType()));
 	const QueueFamilyIndices& indices = owner->GetQueueFamilyIndices();
 	getQueue(indices.graphics.value(), 0, &graphicsQueue);
 	getQueue(indices.present.value(), 0, &presentQueue);

@@ -20,7 +20,7 @@ void Swapchain::Create(
 {
 	IOwned::Create(inOwner);
 
-	ASSERT_VK(owner->createSwapchainKHR(&createInfo, nullptr, &VkType()));
+	DM_ASSERT_VK(owner->createSwapchainKHR(&createInfo, nullptr, &VkType()));
 	imageFormat = inImageFormat;
 	extent = inExtent;
 	images = owner->getSwapchainImagesKHR(VkType());

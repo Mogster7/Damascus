@@ -90,7 +90,7 @@ public:
 };
 
 
-#define ASSERT_VK(VkResult) utils::CheckVkResult(VkResult)
+#define DM_ASSERT_VK(VkResult) utils::CheckVkResult(VkResult)
 
 template<class Type, class CType = typename Type::CType>
 struct IVulkanType : public Type

@@ -22,7 +22,7 @@
 #include <type_traits>
 
 #ifndef NDEBUG
-#   define ASSERT(condition, message) \
+#   define DM_ASSERT(condition, message) \
     do { \
         if (! (condition)) { \
             std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
@@ -32,7 +32,7 @@
     } while (false)
 
 #else
-#   define ASSERT(condition, message) do { } while(false)
+#   define DM_ASSERT(condition, message) do { } while(false)
 #endif
 
 

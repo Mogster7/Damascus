@@ -26,7 +26,7 @@ BK_TYPE_VULKAN_OWNED_BODY(RenderPass, IOwned<Device>)
 		extent = inExtent;
 		clearValues = inClearValues;
 
-		ASSERT_VK(owner->createRenderPass(&info, nullptr, &VkType()));
+		DM_ASSERT_VK(owner->createRenderPass(&info, nullptr, &VkType()));
 	}
 
 	~RenderPass() noexcept

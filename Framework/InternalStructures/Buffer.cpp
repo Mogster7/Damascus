@@ -21,7 +21,7 @@ Buffer::Buffer(
 	, allocationCI(allocCreateInfo)
 {
 	assert(bufferCreateInfo.size != 0);
-	ASSERT_VK(vmaCreateBuffer(owner->allocator,
+	DM_ASSERT_VK(vmaCreateBuffer(owner->allocator,
 							  (VkBufferCreateInfo*) &bufferCreateInfo,
 							  &allocCreateInfo,
 							  VkCTypePtr(),

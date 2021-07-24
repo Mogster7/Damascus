@@ -121,7 +121,7 @@ void Instance::Create()
 
 	std::cout << VK_HEADER_VERSION << std::endl;
 
-	ASSERT_VK(vk::createInstance(&createInfo, nullptr, this));
+	DM_ASSERT_VK(vk::createInstance(&createInfo, nullptr, this));
 
 	VULKAN_HPP_DEFAULT_DISPATCHER.init(VkType());
 
@@ -134,7 +134,7 @@ void Instance::CreateSurface(std::weak_ptr<Window> winHandle)
 	if (glfwCreateWindowSurface((VkInstance) (*this), window.lock()->GetHandle(), nullptr, (VkSurfaceKHR*) &surface) !=
 		VK_SUCCESS)
 	{
-		ASSERT(false, "Failed to create window surface");
+		DM_ASSERT(false, "Failed to create window surface");
 	}
 }
 
@@ -183,7 +183,7 @@ void Instance::ConstructDebugMessenger()
 	vk::DebugUtilsMessengerCreateInfoEXT info;
 	PopulateDebugCreateInfo(info);
 
-	ASSERT_VK(createDebugUtilsMessengerEXT(&info, nullptr, &debugMessenger));
+	DM_ASSERT_VK(createDebugUtilsMessengerEXT(&info, nullptr, &debugMessenger));
 }
 
 Instance::~Instance() noexcept

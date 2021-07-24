@@ -55,7 +55,7 @@ bool RenderQueue::End(Device& device, uint32_t currentFrame, const vk::Semaphore
 {
 	bool previousSemaphore = _previousSignalSemaphores != nullptr;
 
-	ASSERT(
+	DM_ASSERT(
 		previousSemaphore ||
 		deviceWaitSemaphoresCount != 0,
 		"No wait semaphore provided for device frame submission"

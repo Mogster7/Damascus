@@ -27,7 +27,7 @@ void Texture::Create(const std::string& filepath, Device* owner)
 		static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1
 	};
 
-	ASSERT(pixels != nullptr, "Failed to load texture image");
+	DM_ASSERT(pixels != nullptr, "Failed to load texture image");
 
 	vk::BufferCreateInfo stageInfo = {};
 	stageInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;

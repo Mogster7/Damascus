@@ -52,14 +52,14 @@ public:
 	PipelineLayout pipelineLayout;
 	GraphicsPipeline pipeline;
 
-	std::vector <FrameBuffer> frameBuffers = {};
-	std::vector <CommandBuffer> drawBuffers = {};
+	std::vector<FrameBuffer> frameBuffers = {};
+	std::vector<CommandBuffer> drawBuffers = {};
 
 	CommandPool commandPool;
 
-	std::vector <Semaphore> imageAvailable = {};
-	std::vector <Semaphore> renderFinished = {};
-	std::vector <Fence> drawFences = {};
+	std::vector<Semaphore> imageAvailable = {};
+	std::vector<Semaphore> renderFinished = {};
+	std::vector<Fence> drawFences = {};
 
 	FrameBufferAttachment depth;
 

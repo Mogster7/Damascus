@@ -17,7 +17,7 @@ void Image::Create(
 	IOwned::Create(inOwner);
 	this->allocator = owner->allocator;
 
-	ASSERT_VK((vk::Result) vmaCreateImage(allocator, (VkImageCreateInfo * ) & imageCreateInfo, &allocCreateInfo,
+	DM_ASSERT_VK((vk::Result) vmaCreateImage(allocator, (VkImageCreateInfo * ) & imageCreateInfo, &allocCreateInfo,
 		& VkCType(), &allocation, &allocationInfo));
 }
 

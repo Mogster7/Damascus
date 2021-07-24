@@ -29,17 +29,17 @@ std::vector<char> ReadFile(const std::string& filename);
 
 inline void CheckVkResult(vk::Result result)
 {
-	ASSERT(result == vk::Result::eSuccess, "Assertion failed when testing VkResult!");
+	DM_ASSERT(result == vk::Result::eSuccess, "Assertion failed when testing VkResult!");
 }
 
 inline void CheckVkResult(VkResult result)
 {
-	ASSERT(result == VK_SUCCESS, "Assertion failed when testing VkResult!");
+	DM_ASSERT(result == VK_SUCCESS, "Assertion failed when testing VkResult!");
 }
 
 inline void CheckVkResult(vk::Result result, const std::string& error)
 {
-	ASSERT(result == vk::Result::eSuccess, error.c_str());
+	DM_ASSERT(result == vk::Result::eSuccess, error.c_str());
 }
 
 void AssertVkBase(VkResult result);
