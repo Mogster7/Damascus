@@ -45,13 +45,11 @@ set(LIBS
         DamascusUtilities
         )
 
-message("Test: ${Vulkan_INCLUDE_DIR}")
 
 target_include_directories(Framework PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${DAMASCUS_DIR}/Utilities
         ${DAMASCUS_DIR}/ThirdParty
-        ${Vulkan_INCLUDE_DIRS}
         RenderingContext
         InternalStructures
         Window

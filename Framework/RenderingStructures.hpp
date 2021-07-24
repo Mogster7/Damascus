@@ -33,5 +33,6 @@
 #include "InternalStructures/Texture.h"
 #include "InternalStructures/Model.h"
 #include "InternalStructures/RenderQueue.h"
+#include "Window/Window.h"
 #include "RenderingContext/RenderingContext.h"
 
