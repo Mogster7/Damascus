@@ -9,9 +9,10 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(glfw)
 
 # Find vulkan
-find_package(Vulkan 1.2.176.1)
+find_package(Vulkan 1.2.182.0)
 if(Vulkan_FOUND)
-    message(STATUS, " Vulkan found")
+    message("Vulkan Found!")
+    message("Vulkan Directory: ${Vulkan_INCLUDE_DIR}")
 else (Vulkan_FOUND)
     message(FATAL_ERROR, " Could not find Vulkan, can't build")
 endif(Vulkan_FOUND)
@@ -20,14 +21,12 @@ add_library(
         ThirdParty INTERFACE
 )
 
-set(VULKAN_DIR VulkanSDK)
-set(GLFW_INCLUDE_DIR glfw/include/GLFW)
 
+set(GLFW_INCLUDE_DIR glfw/include/GLFW)
 
 target_include_directories(ThirdParty INTERFACE
         VulkanMemoryAllocator/src
         ${Vulkan_INCLUDE_DIRS}
-        vulkan-hpp
         ${GLFW_INCLUDE_DIR}
         ${VULKAN_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}

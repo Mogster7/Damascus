@@ -3,11 +3,12 @@ add_library(DamascusUtilities
     
     )
 
-    
+message("Test: ${Vulkan_INCLUDE_DIR}")
+
 target_include_directories(DamascusUtilities PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${GLM_INCLUDE_DIR}
-    ${VULKAN_INCLUDE_DIRS}
+    ${Vulkan_INCLUDE_DIR}
     ${VMA_INCLUDE_DIR}
     ${FRAMEWORK_INCLUDE_DIR}
     ${IMGUI_INCLUDE_DIR}

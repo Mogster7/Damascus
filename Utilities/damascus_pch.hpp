@@ -39,7 +39,7 @@
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 #define NOMINMAX 1
 #include <vulkan/vulkan.h>
-#include <vulkan.hpp>
+#include <vulkan/vulkan.hpp>
 
 // Other
 #include "Utilities.h"
