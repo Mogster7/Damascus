@@ -2,6 +2,7 @@
 
 namespace dm
 {
+class CommandPool;
 
 //BK_TYPE(CommandBuffer)
 class CommandBuffer : public IVulkanType<vk::CommandBuffer>
@@ -21,10 +22,10 @@ public:
 	}
 };
 
-class CommandBufferVector : public IOwned<Device>, public std::vector<CommandBuffer>
+class CommandBufferVector : public IOwned<CommandPool>, public std::vector<CommandBuffer>
 {
 public:
-	void Create(const vk::CommandBufferAllocateInfo& commandBufferAllocateInfo, Device* inOwner);
+	void Create(const vk::CommandBufferAllocateInfo& commandBufferAllocateInfo, CommandPool* inOwner);
 	~CommandBufferVector() noexcept;
 };
 

@@ -2,16 +2,19 @@
 namespace dm
 {
 
-void CommandBufferVector::Create(const vk::CommandBufferAllocateInfo& commandBufferAllocateInfo, Device* inOwner)
+void CommandBufferVector::Create(const vk::CommandBufferAllocateInfo& commandBufferAllocateInfo, CommandPool* inOwner)
 {
-	IOwned<Device>::Create(inOwner);
-	ASSERT_VK(owner->allocateCommandBuffers(&commandBufferAllocateInfo, data()));
+	IOwned<CommandPool>::Create(inOwner);
+	resize(commandBufferAllocateInfo.commandBufferCount);
+	DM_ASSERT_VK(OwnerGet<Device>().allocateCommandBuffers(&commandBufferAllocateInfo, data()));
 }
 
 CommandBufferVector::~CommandBufferVector() noexcept
 {
-	OwnerGet<RenderingContext>().commandPool.FreeCommandBuffers(
-		*this
+	OwnerGet<Device>().freeCommandBuffers(
+		owner->VkType(),
+		static_cast<uint32_t>(size()),
+		data()
 	);
 }
 

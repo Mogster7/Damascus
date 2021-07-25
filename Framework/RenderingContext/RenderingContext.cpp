@@ -722,6 +722,7 @@ void RenderingContext::CreateForwardPipeline()
 		clearValues,
 		attachmentsPerImage,
 		imageViewCount,
+		&commandPool,
 		&device
 		);
 }

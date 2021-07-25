@@ -47,6 +47,7 @@ BK_TYPE_OWNED_BODY(PipelinePass, IOwned < Device >)
 		const std::vector<vk::ClearValue>& clearValues,
 		const std::vector<std::array<vk::ImageView, AttachmentCount>>& frameBufferAttachments,
 		size_t imageViewCount,
+		CommandPool* commandPool,
 		Device* inOwner
 		)
 	{
@@ -60,14 +61,12 @@ BK_TYPE_OWNED_BODY(PipelinePass, IOwned < Device >)
 			semaphores[i].Create(semaphoreCreateInfo, inOwner);
 		}
 
-		const RenderingContext& context = OwnerGet<RenderingContext>();
-
 		renderPass.Create(renderPassCreateInfo, extent, clearValues, inOwner);
 		pipelineLayout.Create(pipelineLayoutCreateInfo, inOwner);
 		graphicsPipelineCreateInfo.renderPass = renderPass.VkType();                            // Render pass description the pipeline is compatible with
 		graphicsPipelineCreateInfo.layout = pipelineLayout.VkType();
 
-		drawCommandBuffers.Create(commandBufferAllocateInfo, inOwner);
+		drawCommandBuffers.Create(commandBufferAllocateInfo, commandPool);
 
 		// Create FrameBuffers
 		frameBufferCreateInfo.renderPass = renderPass.VkType();
