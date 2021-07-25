@@ -1,4 +1,5 @@
-namespace dm {
+namespace dm
+{
 
 bool RenderQueue::Begin(Device& device, uint32_t currentFrame)
 {
@@ -8,7 +9,12 @@ bool RenderQueue::Begin(Device& device, uint32_t currentFrame)
 	return device.OwnerGet<RenderingContext>().PrepareFrame(currentFrame);
 }
 
-void RenderQueue::SetSemaphores(vk::Semaphore const* const& waitSemaphores, vk::Semaphore const* const& signalSemaphores, const uint32_t waitSemaphoresCount /*= 1*/, const uint32_t signalSemaphoresCount /*= 1*/)
+void RenderQueue::SetSemaphores(
+	vk::Semaphore const* const& waitSemaphores,
+	vk::Semaphore const* const& signalSemaphores,
+	const uint32_t waitSemaphoresCount /*= 1*/,
+	const uint32_t signalSemaphoresCount /*= 1*/
+)
 {
 	_currentSubmitInfo.waitSemaphoreCount = waitSemaphoresCount;
 	_currentSubmitInfo.pWaitSemaphores = waitSemaphores;
@@ -62,9 +68,9 @@ bool RenderQueue::End(Device& device, uint32_t currentFrame, const vk::Semaphore
 	);
 
 	return device.OwnerGet<RenderingContext>().SubmitFrame(
-		currentFrame,
-		(previousSemaphore) ? *_previousSignalSemaphores : deviceWaitSemaphores,
-		(previousSemaphore) ? _previousSignalSemaphoresCount : deviceWaitSemaphoresCount);
+		(previousSemaphore) ? *_previousSignalSemaphores :deviceWaitSemaphores,
+		(previousSemaphore) ? _previousSignalSemaphoresCount :deviceWaitSemaphoresCount
+	);
 }
 
 }

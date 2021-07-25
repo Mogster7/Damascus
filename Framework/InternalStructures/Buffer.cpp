@@ -11,15 +11,15 @@
 namespace dm {
 
 
-Buffer::Buffer(
+void Buffer::Create(
 	const vk::BufferCreateInfo& bufferCreateInfo,
 	const VmaAllocationCreateInfo& allocCreateInfo,
 	Device* inOwner
 )
-	: IOwned<Device>(inOwner)
-	, bufferCI(bufferCreateInfo)
-	, allocationCI(allocCreateInfo)
 {
+	IOwned<Device>::Create(inOwner);
+	bufferCI = bufferCreateInfo;
+	allocationCI = allocCreateInfo;
 	assert(bufferCreateInfo.size != 0);
 	DM_ASSERT_VK(vmaCreateBuffer(owner->allocator,
 							  (VkBufferCreateInfo*) &bufferCreateInfo,
@@ -42,7 +42,7 @@ Buffer::~Buffer() noexcept
 	}
 }
 
-Buffer::Buffer(
+void Buffer::CreateStaged(
 	void* data, const vk::DeviceSize size,
 	vk::BufferUsageFlags bufferUsage,
 	VmaMemoryUsage memoryUsage,
@@ -62,7 +62,7 @@ Buffer::Buffer(
 	allocCreateInfo.usage = memoryUsage;
 
 	// Create THIS buffer, which is the destination buffer
-	*this = Buffer(bufferCreateInfo, allocCreateInfo, inOwner);
+	Create(bufferCreateInfo, allocCreateInfo, inOwner);
 	this->persistentMapped = persistentMapped;
 
 	// Reuse create info, except this time its the source
@@ -74,7 +74,8 @@ Buffer::Buffer(
 	{
 		allocCreateInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
 	}
-	stagingBuffer = std::make_unique<Buffer>(bufferCreateInfo, allocCreateInfo, inOwner);
+	stagingBuffer = std::make_unique<Buffer>();
+	stagingBuffer->Create(bufferCreateInfo, allocCreateInfo, inOwner);
 
 	if (persistentMapped)
 	{
@@ -133,7 +134,9 @@ void Buffer::UpdateData(void* data, vk::DeviceSize size, bool submitToGPU)
 {
 	if (bufferCI.size < size)
 	{
-		*this = Buffer(
+		// TODO: Make this more efficient than wipe and recreation
+		vmaDestroyBuffer(owner->allocator, VkCType(), allocation);
+		CreateStaged(
 			data, size,
 			bufferCI.usage, allocationCI.usage,
 			submitToGPU,

@@ -51,34 +51,27 @@ public:
 
 	Mesh() = default;
 
-	Mesh(
+	void Create(
 		const std::vector<VertexType>& vertices,
 		const std::vector<uint32_t>& indices,
-		Device* owner,
+		Device* inOwner,
 		bool dynamic = false
 	)
-		: IOwned<Device>(owner)
-		, vertexBuffer(vertices, dynamic, owner)
-		, indexBuffer(indices, dynamic, owner)
 	{
+		IOwned<Device>::Create(inOwner);
+		vertexBuffer.Create(vertices, dynamic, owner);
+		indexBuffer.Create(indices, dynamic, owner);
 	}
 
-	Mesh(
+	void Create(
 		const std::vector<VertexType>& vertices,
-		Device* owner,
+		Device* inOwner,
 		bool dynamic = false
 	)
-		: IOwned<Device>(owner)
-		, vertexBuffer(vertices, dynamic, owner)
 	{
+		IOwned<Device>::Create(inOwner);
+		vertexBuffer.Create(vertices, dynamic, owner);
 	}
-
-//	Mesh(const Mesh<VertexType>& other)
-//		: IOwned<Device>(other.owner)
-//		, vertexBuffer(other.GetVertexBufferDataCopy<VertexType>(0), other.owner)
-//		, indexBuffer((other.indexCount > 0) ? IndexBuffer(other.GetIndexBufferDataCopy(), other.owner) : IndexBuffer())
-//	{
-//	}
 
 	Mesh& operator=(const Mesh& other) noexcept = delete;
 	Mesh(const Mesh& other) noexcept = delete;
@@ -324,7 +317,6 @@ public:
 
 	glm::vec3 GetFurthestVertexPosition(const glm::vec3& direction) const;
 
-	bool dynamic = false;
 	VertexBuffer <VertexType> vertexBuffer;
 	IndexBuffer indexBuffer;
 };

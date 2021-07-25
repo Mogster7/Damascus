@@ -112,7 +112,7 @@ void InitializeMeshStatics(Device * inOwner)
 		};
 		vertices.emplace_back(vertex);
 	}
-	*SimpleMesh<Vertex>::Sphere = Mesh<Vertex>(vertices, inOwner);
+	SimpleMesh<Vertex>::Sphere->Create(vertices, inOwner);
 
 
 	std::vector<Vertex> cubeVerts = {
@@ -156,12 +156,12 @@ void InitializeMeshStatics(Device * inOwner)
 		vert.normal = glm::normalize(vert.pos);
 
 
-	*SimpleMesh<Vertex>::Cube = Mesh<Vertex>(cubeVerts, cubeIndices, inOwner);
+	SimpleMesh<Vertex>::Cube->Create(cubeVerts, cubeIndices, inOwner);
 
 	std::vector<Vertex> pt = {
 		{{0.0, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 1.0f}}
 	};
-	*SimpleMesh<Vertex>::Point = Mesh<Vertex>(pt, inOwner);
+	SimpleMesh<Vertex>::Point->Create(pt, inOwner);
 
 	// POS VERTEX
 	auto cubePositions = SimpleMesh<Vertex>::Cube->GetVertexBufferDataCopy<glm::vec3>(0);
@@ -179,12 +179,12 @@ void InitializeMeshStatics(Device * inOwner)
 		{{0.0f, 0.0f, 0.0f}}
 	};
 
-	*SimpleMesh<PosVertex>::Cube = Mesh<PosVertex>(cubePosVertices, cubeIndices, inOwner);
-	*SimpleMesh<PosVertex>::Sphere = Mesh<PosVertex>(spherePosVertices, inOwner);
-	*SimpleMesh<PosVertex>::Plane = Mesh<PosVertex>(planeVerts, planeIndices, inOwner);
-	*SimpleMesh<PosVertex>::Point = Mesh<PosVertex>(point, inOwner);
-	*SimpleMesh<PosVertex>::Ray = Mesh<PosVertex>(rayVerts, inOwner);
-	*SimpleMesh<PosVertex>::Triangle = Mesh<PosVertex>(triVerts, inOwner);
+	SimpleMesh<PosVertex>::Cube->Create(cubePosVertices, cubeIndices, inOwner);
+	SimpleMesh<PosVertex>::Sphere->Create(spherePosVertices, inOwner);
+	SimpleMesh<PosVertex>::Plane->Create(planeVerts, planeIndices, inOwner);
+	SimpleMesh<PosVertex>::Point->Create(point, inOwner);
+	SimpleMesh<PosVertex>::Ray->Create(rayVerts, inOwner);
+	SimpleMesh<PosVertex>::Triangle->Create(triVerts, inOwner);
 
 	const std::vector<uint32_t> cubeListIndices =
 		{
@@ -219,7 +219,7 @@ void InitializeMeshStatics(Device * inOwner)
 			5, 6
 		};
 
-	*SimpleMesh<PosVertex>::CubeList = Mesh<PosVertex>(cubePosVertices, cubeListIndices, inOwner);
+	SimpleMesh<PosVertex>::CubeList->Create(cubePosVertices, cubeListIndices, inOwner);
 	std::vector<Vertex> triangleVertices;
 	triangleVertices.resize(triVerts.size());
 	for (int i = 0; i < triVerts.size(); ++i)
@@ -227,7 +227,7 @@ void InitializeMeshStatics(Device * inOwner)
 		triangleVertices[i].pos = triVerts[i].pos;
 	}
 	std::vector<uint32_t> triIndices = {0, 1, 2};
-	*SimpleMesh<Vertex>::Triangle = Mesh<Vertex>(triangleVertices, triIndices, inOwner);
+	SimpleMesh<Vertex>::Triangle->Create(triangleVertices, triIndices, inOwner);
 }
 
 void DestroyMeshStatics()

@@ -49,8 +49,12 @@ public:
 		*this = std::move(other);
 	}
 
+	explicit operator bool()
+	{
+		return created;
+	}
 
-	IOwned(
+	explicit IOwned(
 		OwnerType* inOwner
 	)
 		: owner(inOwner)
@@ -90,7 +94,7 @@ public:
 };
 
 
-#define DM_ASSERT_VK(VkResult) utils::CheckVkResult(VkResult)
+#define DM_ASSERT_VK(VkResult) dm::utils::CheckVkResult(VkResult)
 
 template<class Type, class CType = typename Type::CType>
 struct IVulkanType : public Type
@@ -140,20 +144,16 @@ struct IVulkanType : public Type
 		return reinterpret_cast<VulkanCType*>(this);
 	}
 
+	explicit operator bool()
+	{
+		return VkCTypePtr() != nullptr;
+	}
 };
 
 #define BK_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, EXT, CreateName, ConstructName)    \
     public:                                                                                    \
         Type(Type&& other) noexcept = default;                                                          \
-        Type& operator=(Type&& other) noexcept = default;                                      \
-        template <class ...Args>\
-        Type(const vk::CreateName##CreateInfo##EXT & createInfo,                \
-            OwnerType* inOwner, Args&&... args)                                               \
-            : OwnerInterface(inOwner)    \
-        {                                                                                     \
-            utils::CheckVkResult(owner->create##ConstructName##EXT(args... , &createInfo, nullptr, &VkType()), \
-                std::string("Failed to construct ") + #VulkanName );              \
-        }                                                                                      \
+        Type& operator=(Type&& other) noexcept = default;\
         template <class ...Args>\
         void Create(const vk::CreateName##CreateInfo##EXT & createInfo,                \
             OwnerType* inOwner, Args&&... args)                                               \
@@ -179,9 +179,12 @@ public:                    \
 BK_TYPE_BODY(Type)                             \
 	Type() = default;                                                                          \
 	Type(const Type& other) = delete;\
-	virtual Type& operator=(const Type& other) = delete;\
+	virtual Type& operator=(const Type& other) = delete;                                       \
+
 
 #define BK_TYPE_VULKAN_OWNED_BODY(Type, DerivedOwner)\
-BK_TYPE_OWNED_BODY(Type, DerivedOwner)\
+BK_TYPE_OWNED_BODY(Type, DerivedOwner)               \
+    explicit operator bool()                         \
+    { return VulkanInterface::operator bool() && OwnerInterface::operator bool(); }
 
 }

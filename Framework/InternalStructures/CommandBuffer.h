@@ -1,12 +1,13 @@
 #pragma once
 
-namespace dm {
+namespace dm
+{
 
 //BK_TYPE(CommandBuffer)
-class CommandBuffer : public vk::CommandBuffer
+class CommandBuffer : public IVulkanType<vk::CommandBuffer>
 {
 public:
-	void Begin(vk::CommandBufferBeginInfo beginInfo = {{}, nullptr})
+	void Begin(vk::CommandBufferBeginInfo beginInfo = {{}, nullptr })
 	{
 		utils::CheckVkResult(
 			begin(&beginInfo),
@@ -18,11 +19,13 @@ public:
 	{
 		end();
 	}
+};
 
-	vk::CommandBuffer& Get()
-	{
-		return *this;
-	}
+class CommandBufferVector : public IOwned<Device>, public std::vector<CommandBuffer>
+{
+public:
+	void Create(const vk::CommandBufferAllocateInfo& commandBufferAllocateInfo, Device* inOwner);
+	~CommandBufferVector() noexcept;
 };
 
 }

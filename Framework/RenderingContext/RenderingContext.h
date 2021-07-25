@@ -32,64 +32,67 @@ struct DeviceContext : public Context
 class RenderingContext : public DeviceContext
 {
 public:
-
 	// Must be defined by a compilation unit for each demo
 	static RenderingContext& Get();
+
+	[[nodiscard]] size_t GetImageViewCount() const
+	{ return swapchain.imageViews.size(); }
 
 	virtual void Create(std::weak_ptr<Window> window);
 
 	// Draw
 	virtual void Draw() = 0;
 
+	static float UpdateDeltaTime();
 	// Update
-	virtual void Update();
+	virtual void Update(float dt);
 	virtual void Destroy();
 
-	Swapchain swapchain;
-
-	RenderPass renderPass;
-
-	PipelineLayout pipelineLayout;
-	GraphicsPipeline pipeline;
-
-	std::vector<FrameBuffer> frameBuffers = {};
-	std::vector<CommandBuffer> drawBuffers = {};
-
+	Swapchain swapchain = {};
 	CommandPool commandPool;
 
-	std::vector<Semaphore> imageAvailable = {};
-	std::vector<Semaphore> renderFinished = {};
-	std::vector<Fence> drawFences = {};
+	// Descriptors for forward pipeline
+	Descriptors descriptors = {};
+	vk::PushConstantRange pushRange = {};
+	std::vector<Buffer> uniformBufferViewProjection = {};
 
+	struct ForwardPass : public PipelinePass
+	{
+		FrameBufferAttachment depth;
+	} forwardPass;
+	// ---------------
+
+	std::vector <FrameBuffer> frameBuffers = {};
+	std::vector <CommandBuffer> drawBuffers = {};
+	std::vector <Semaphore> imageAvailable = {};
+	std::vector <Semaphore> renderFinished = {};
+	std::vector <Fence> drawFences = {};
+	RenderPass renderPass = {};
 	FrameBufferAttachment depth;
 
+	// Values for tracking current async state
 	uint32_t currentFrame = 0;
 	uint32_t imageIndex = -1;
 
-	float dt = 0.0f;
 	std::weak_ptr <Window> window;
 
-	bool PrepareFrame(uint32_t frameIndex);
+	// Default values
+	std::array<float, 4> defaultClearColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+	float defaultClearDepth = 1.0f;
 
 	// Return if surface is out of date
-	bool SubmitFrame(uint32_t frameIndex, const vk::Semaphore *wait, uint32_t waitCount);
-
+	bool PrepareFrame(uint32_t frameIndex);
+	bool SubmitFrame(const vk::Semaphore *wait, uint32_t waitCount);
 
 protected:
 	void CreateLogicalDevice();
-
 	void CreateSwapchain(bool recreate = false);
-
 	void CreateRenderPass();
-
+	void CreateForwardPipeline();
 	void CreateSync();
-
 	void CreateFramebuffers(bool recreate = false);
-
 	void CreateDepthBuffer(bool recreate = false);
-
 	void CreateCommandBuffers(bool recreate = false);
-
 	void CreateCommandPool();
 };
 
