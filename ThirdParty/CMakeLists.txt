@@ -14,7 +14,7 @@ if(Vulkan_FOUND)
     message("Vulkan Found!")
     message("Vulkan Directory: ${Vulkan_INCLUDE_DIR}")
 else (Vulkan_FOUND)
-    message(FATAL_ERROR, " Could not find Vulkan, can't build")
+    message(FATAL_ERROR " Could not find Vulkan, can't build")
 endif(Vulkan_FOUND)
 
 add_library(
