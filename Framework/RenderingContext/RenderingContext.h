@@ -32,7 +32,7 @@ struct DeviceContext : public Context
 class RenderingContext : public DeviceContext
 {
 public:
-	// Must be defined by a compilation unit for each demo
+	// Must be defined by a compilation unit for any application
 	static RenderingContext& Get();
 
 	[[nodiscard]] size_t GetImageViewCount() const
@@ -77,7 +77,7 @@ public:
 	std::weak_ptr <Window> window;
 
 	// Default values
-	std::array<float, 4> defaultClearColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+	std::array<float, 4> defaultClearColor = { 0.2f, 0.2f, 0.2f, 1.0f };
 	float defaultClearDepth = 1.0f;
 
 	// Return if surface is out of date
