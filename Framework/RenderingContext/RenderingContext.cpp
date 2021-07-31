@@ -16,8 +16,8 @@ void RenderingContext::Update(float dt)
 
 void RenderingContext::Destroy()
 {
-	DestroyMeshStatics();
 	device.waitIdle();
+  DestroyMeshStatics();
 
 	device.freeCommandBuffers(commandPool.VkType(),
 		drawBuffers.size(),
