@@ -1,9 +1,4 @@
-Basic Vulkan framework for learning, as well as for academic Computer Graphics work.
+![damascus_gray_shadowed](https://user-images.githubusercontent.com/26748509/127756156-8c2e839f-d891-4f8b-8d96-8d8121e814e8.png)
 
-Features include:
-
-* Vulkan class abstractions for both native and added functionality and simplified boilerplate
-* Entity Component System functionality for scene objects (provided by **EnTT**)
-* Multithreaded model loading
-* Overlay interface (provided by **ImGui**)
+Interface version for use in our upcoming student projects.
 
