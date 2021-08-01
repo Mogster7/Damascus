@@ -85,7 +85,7 @@ void Instance::Create(std::weak_ptr<dm::Window> inWindow)
 
 	vk::ApplicationInfo appInfo("Damascus", VK_MAKE_VERSION(1, 0, 0),
 								"No Engine", VK_MAKE_VERSION(1, 0, 0),
-								VK_API_VERSION_1_0);
+								VK_API_VERSION_1_1);
 	vk::InstanceCreateInfo createInfo({}, &appInfo);
 
 	auto requiredExtensions = GetRequiredExtensions();
