@@ -37,9 +37,27 @@ bool Window::Update(float dt)
 
   while(SDL_PollEvent(&event))
   {
-    if (event.type == SDL_MOUSEBUTTONDOWN)
+    switch (event.type)
     {
-      std::cout << "You pressed the mouse, you win a cashew from Jon" << std::endl;
+      case SDL_MOUSEBUTTONDOWN:
+        std::cout << "You pressed the mouse, you win a cashew from Jon" << std::endl;
+        break;
+      case SDL_KEYDOWN:
+        switch (event.key.keysym.sym)
+        {
+          case SDLK_ESCAPE:
+            return false;
+        }
+      case SDL_WINDOWEVENT:
+        switch (event.window.event)
+        {
+          case SDL_WINDOWEVENT_CLOSE:
+            return false;
+        }
+        break;
+      case SDL_QUIT:
+        return false;
+        break;
     }
   }
 	return true;
