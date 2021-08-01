@@ -176,7 +176,7 @@ public:
 
 	void CreateModel(const std::string& path, bool dynamic, Device* owner)
 	{
-		DM_ASSERT(false, "There is no template specialization for this model creation.");
+		DM_ASSERT_MSG(false, "There is no template specialization for this model creation.");
 	}
 
 	void Bind(vk::CommandBuffer commandBuffer) const
@@ -405,7 +405,7 @@ int Mesh<VertexType>::IsStraddlingPlane(
 
 	float minDist = std::numeric_limits<float>::max();
 
-	//DM_ASSERT(planeDistance.size() == size, "Incorrect size for input bool vector");
+	//DM_ASSERT_MSG(planeDistance.size() == size, "Incorrect size for input bool vector");
 	for (int i = 0; i < vertexCount; ++i)
 	{
 		const glm::vec3& vert = vertices[i].pos;
@@ -488,8 +488,8 @@ void Mesh<VertexType>::Clip(
 	int frontCount = 0, backCount = 0;
 
 	int size = data.indices.size();
-	DM_ASSERT(size % 3 == 0, "Incorrect number of vertices attempted to be split");
-	DM_ASSERT(data.indices.size() != 0, "Non-indexed triangles not supported for octree");
+	DM_ASSERT_MSG(size % 3 == 0, "Incorrect number of vertices attempted to be split");
+	DM_ASSERT_MSG(data.indices.size() != 0, "Non-indexed triangles not supported for octree");
 	std::vector<glm::vec3> frontVerts, backVerts;
 	frontVerts.resize(size * 4 / 3);
 	backVerts.resize(size * 4 / 3);
@@ -552,7 +552,7 @@ void Mesh<VertexType>::Clip(
 						ray.direction = glm::normalize(b - a);
 						ray.position = a;
 						glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
-						//DM_ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar , "Failed validation of clipping");
+						//DM_ASSERT_MSG(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar , "Failed validation of clipping");
 						frontVerts[frontCount++] = backVerts[backCount++] = i;
 						++currentFrontFaceVertCount;
 						++currentBackFaceVertCount;
@@ -573,7 +573,7 @@ void Mesh<VertexType>::Clip(
 						glm::vec3 i = Primitives::GetRayPlaneIntersection(ray, plane);
 
 						// Edge (a, b) straddles plane, output intersection point
-						//DM_ASSERT(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar, "Failed validation of clipping");
+						//DM_ASSERT_MSG(ClassifyPointToPlane(i, plane) == Primitives::PointPlaneStatus::Coplanar, "Failed validation of clipping");
 						frontVerts[frontCount++] = backVerts[backCount++] = i;
 						++currentFrontFaceVertCount;
 						++currentBackFaceVertCount;
@@ -608,10 +608,10 @@ void Mesh<VertexType>::Clip(
 
 		// We have finished this triangle set, output 
 		// whether or not it is a tri or quad
-		DM_ASSERT(currentFrontFaceVertCount == 3 ||
+		DM_ASSERT_MSG(currentFrontFaceVertCount == 3 ||
 			   currentFrontFaceVertCount == 4 ||
 			   currentFrontFaceVertCount == 0, "Invalid number of face points when clipping!");
-		DM_ASSERT(currentBackFaceVertCount == 3 ||
+		DM_ASSERT_MSG(currentBackFaceVertCount == 3 ||
 			   currentBackFaceVertCount == 4 ||
 			   currentBackFaceVertCount == 0, "Invalid number of face points when clipping!");
 		if (currentFrontFaceVertCount > 2)
@@ -686,8 +686,8 @@ void Mesh<VertexType>::Clip(
 		SplitQuads(backQuads, backVerts, backCount, back);
 	}
 
-	DM_ASSERT(front.indices.size() % 3 == 0, "Incorrect number of indices in front output triangles");
-	DM_ASSERT(back.indices.size() % 3 == 0, "Incorrect number of indices in back output triangles");
+	DM_ASSERT_MSG(front.indices.size() % 3 == 0, "Incorrect number of indices in front output triangles");
+	DM_ASSERT_MSG(back.indices.size() % 3 == 0, "Incorrect number of indices in back output triangles");
 }
 
 template<class VertexType>
@@ -722,7 +722,7 @@ struct SimpleMesh
 template<class VertexType>
 inline typename Mesh<VertexType>::Data Mesh<VertexType>::LoadModel(const std::string& path)
 {
-	DM_ASSERT(false, "No template specialization for loading a model with this vertex type");
+	DM_ASSERT_MSG(false, "No template specialization for loading a model with this vertex type");
 }
 
 
@@ -734,7 +734,7 @@ inline typename Mesh<Vertex>::Data Mesh<Vertex>::LoadModel(const std::string& pa
 	std::vector<tinyobj::material_t> materials;
 	std::string warn, error;
 
-	DM_ASSERT(
+	DM_ASSERT_MSG(
 		tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &error, path.c_str()),
 		("Failed to load model at " + path).c_str()
 	);

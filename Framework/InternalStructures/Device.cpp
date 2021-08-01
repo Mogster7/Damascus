@@ -20,7 +20,7 @@ namespace dm {
 
 void Device::CreateAllocator()
 {
-	DM_ASSERT(allocator == nullptr, "Creating an existing member");
+	DM_ASSERT_MSG(allocator == nullptr, "Creating an existing member");
 	VmaAllocatorCreateInfo info = {};
 	info.instance = (VkInstance) OwnerGet<RenderingContext>().instance.VkType();
 	info.physicalDevice = (VkPhysicalDevice) OwnerGet<PhysicalDevice>().VkType();

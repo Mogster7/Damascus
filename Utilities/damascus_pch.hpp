@@ -22,7 +22,7 @@
 #include <type_traits>
 
 #ifndef NDEBUG
-#   define DM_ASSERT(condition, message) \
+#   define DM_ASSERT_MSG(condition, message) \
     do { \
         if (! (condition)) { \
             std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
@@ -31,13 +31,22 @@
         } \
     } while (false)
 
+#   define DM_ASSERT(condition) \
+    do { \
+        if (! (condition)) { \
+            std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
+                      << " line " << __LINE__ << std::endl; \
+            std::terminate(); \
+        } \
+    } while (false)
+
 #else
-#   define DM_ASSERT(condition, message) do { } while(false)
+#   define DM_ASSERT(condition) do { } while (false)
+#   define DM_ASSERT_MSG(condition, message) do { } while(false)
 #endif
 
 
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-#define NOMINMAX 1
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan.hpp>
 

@@ -1,5 +1,5 @@
 #pragma once
-struct GLFWwindow;
+struct SDL_Window;
 namespace dm {
 class Window
 {
@@ -13,12 +13,12 @@ public:
 
 	void SwapBuffer();
 
-	GLFWwindow* GetHandle() const
+	[[nodiscard]] inline SDL_Window* GetHandle() const
 	{
 		return winHandle;
 	}
 
-	inline glm::uvec2 GetDimensions() const
+	[[nodiscard]] inline glm::uvec2 GetDimensions() const
 	{
 		return dimensions;
 	}
@@ -28,7 +28,7 @@ private:
 	glm::uvec2 dimensions = {};
 	const std::string name = "";
 
-	GLFWwindow* winHandle = {};
+	SDL_Window* winHandle = {};
 };
 
 

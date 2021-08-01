@@ -1,5 +1,4 @@
-#include "Window.h"
-#include <glfw3.h>
+#include <SDL/include/SDL.h>
 
 namespace dm {
 
@@ -7,35 +6,47 @@ Window::Window(const glm::uvec2& dimensions, const std::string& name)
 	: dimensions(dimensions)
 	, name(name)
 {
-	glfwInit();
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	winHandle = glfwCreateWindow(dimensions.x, dimensions.y, name.c_str(), nullptr, nullptr);
-	glfwMakeContextCurrent(winHandle);
-	glfwSetInputMode(winHandle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  // TODO: Move out when input handling occurs elsewhere?
+  DM_ASSERT(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) == 0);
+	winHandle = SDL_CreateWindow(
+	  name.c_str(),
+	  SDL_WINDOWPOS_UNDEFINED,
+	  SDL_WINDOWPOS_UNDEFINED,
+	  dimensions.x,
+	  dimensions.y,
+	  SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN
+	  );
+	DM_ASSERT(winHandle != nullptr);
 }
 
 Window::~Window()
 {
-	glfwDestroyWindow(winHandle);
-	glfwTerminate();
+  SDL_DestroyWindow(winHandle);
+  // TODO: Move out when SDL handles input and such
+  SDL_Quit();
 }
 
 
 bool Window::Update(float dt)
 {
-	if (glfwWindowShouldClose(winHandle))
+	if (!(winHandle))
 	{
 		return false;
 	}
+	SDL_Event event;
 
-	glfwPollEvents();
+  while(SDL_PollEvent(&event))
+  {
+    if (event.type == SDL_MOUSEBUTTONDOWN)
+    {
+      std::cout << "You pressed the mouse, you win a cashew from Jon" << std::endl;
+    }
+  }
 	return true;
 }
 
 void Window::SwapBuffer()
 {
-	glfwSwapBuffers(winHandle);
 }
 
 }

@@ -9,7 +9,8 @@
 #include "Window.h"
 #include "Instance.h"
 
-#include <glfw3.h>
+#include <SDL/include/SDL_vulkan.h>
+#include <utility>
 #include <vector>
 
 namespace dm {
@@ -52,24 +53,28 @@ bool checkValidationLayerSupport()
 }
 
 
-std::vector<const char*> GetRequiredExtensions()
+std::vector<const char*> Instance::GetRequiredExtensions() const
 {
-	unsigned glfwExtensionCount = 0;
-	const char** requiredExtensions;
-	requiredExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+	unsigned extensionCount = 0;
+  DM_ASSERT(SDL_Vulkan_GetInstanceExtensions(window.lock()->GetHandle(), &extensionCount, nullptr) == SDL_TRUE);
 
-	std::vector<const char*> extensions(requiredExtensions, requiredExtensions + glfwExtensionCount);
-
-	if (enableValidationLayers)
-	{
-		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-	}
+  std::vector<const char*> extensions;
+  if (extensionCount != 0)
+  {
+    extensions.resize(extensionCount);
+    DM_ASSERT(SDL_Vulkan_GetInstanceExtensions(window.lock()->GetHandle(), &extensionCount, extensions.data()) == SDL_TRUE);
+    if (enableValidationLayers)
+    {
+      extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+  }
 
 	return extensions;
 }
 
-void Instance::Create()
+void Instance::Create(std::weak_ptr<dm::Window> inWindow)
 {
+  window = std::move(inWindow);
 	auto vkGetInstanceProcAddr = dynamicLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
 	VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
@@ -78,7 +83,7 @@ void Instance::Create()
 		assert(checkValidationLayerSupport());
 	}
 
-	vk::ApplicationInfo appInfo("Hello Triangle", VK_MAKE_VERSION(1, 0, 0),
+	vk::ApplicationInfo appInfo("Damascus", VK_MAKE_VERSION(1, 0, 0),
 								"No Engine", VK_MAKE_VERSION(1, 0, 0),
 								VK_API_VERSION_1_0);
 	vk::InstanceCreateInfo createInfo({}, &appInfo);
@@ -126,16 +131,9 @@ void Instance::Create()
 	VULKAN_HPP_DEFAULT_DISPATCHER.init(VkType());
 
 	ConstructDebugMessenger();
-}
 
-void Instance::CreateSurface(std::weak_ptr<Window> winHandle)
-{
-	window = winHandle;
-	if (glfwCreateWindowSurface((VkInstance) (*this), window.lock()->GetHandle(), nullptr, (VkSurfaceKHR*) &surface) !=
-		VK_SUCCESS)
-	{
-		DM_ASSERT(false, "Failed to create window surface");
-	}
+
+  DM_ASSERT(SDL_Vulkan_CreateSurface(window.lock()->GetHandle(), VkCType(), (VkSurfaceKHR*) &surface) == SDL_TRUE);
 }
 
 static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(

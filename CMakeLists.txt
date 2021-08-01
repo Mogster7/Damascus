@@ -6,8 +6,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(INCLUDES
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${GLM_INCLUDE_DIR}
-        ${GLFW_INCLUDE_DIR}
         Include
         Framework
         ThirdParty
@@ -25,9 +23,6 @@ add_subdirectory(Utilities)
 add_subdirectory(ThirdParty)
 target_include_directories(Damascus INTERFACE Include)
 target_link_libraries(Damascus INTERFACE ${LINK_LIBS})
-#target_include_directories(Damascus PRIVATE ${INCLUDES})
-#target_link_directories(Damascus PRIVATE ${LINK_DIRS})
-#target_link_libraries(Damascus PRIVATE ${LINK_LIBS})
-#target_precompile_headers(Damascus REUSE_FROM Utilities)
+
 target_precompile_headers(Framework REUSE_FROM DamascusUtilities)
 

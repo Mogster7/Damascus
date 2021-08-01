@@ -16,8 +16,7 @@ class Instance : public IVulkanType<vk::Instance>, public IOwned<RenderingContex
 public:
 	BK_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<RenderingContext>)
 
-	void Create();
-	void CreateSurface(std::weak_ptr<Window> winHandle);
+	void Create(std::weak_ptr<dm::Window> inWindow);
 	~Instance() noexcept;
 
 	std::weak_ptr<Window> window;
@@ -28,6 +27,7 @@ public:
 
 private:
 	static void PopulateDebugCreateInfo(vk::DebugUtilsMessengerCreateInfoEXT& createInfo);
+  [[nodiscard]] std::vector<const char*> GetRequiredExtensions() const;
 
 	void ConstructDebugMessenger();
 

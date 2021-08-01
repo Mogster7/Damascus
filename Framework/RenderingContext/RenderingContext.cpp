@@ -1,6 +1,6 @@
 #include "RenderingContext.h"
 #include "Window.h"
-#include <glfw3.h>
+#include <SDL.h>
 #include <vk_mem_alloc.h>
 
 
@@ -375,8 +375,7 @@ void RenderingContext::CreateLogicalDevice()
 
 void RenderingContext::Create(std::weak_ptr<Window> window)
 {
-	instance.Create();
-	instance.CreateSurface(window);
+	instance.Create(window);
 	physicalDevice.Create(this);
 
 	// Initialize context variables
@@ -395,9 +394,11 @@ void RenderingContext::Create(std::weak_ptr<Window> window)
 
 float RenderingContext::UpdateDeltaTime()
 {
-	static float prevTime = glfwGetTime();
-	float time = glfwGetTime();
-	float dt = time - prevTime;
+  // Milliseconds
+	static uint32_t prevTime = 0;
+	uint32_t time = SDL_GetTicks();
+
+	float dt = static_cast<float>(time - prevTime) * 0.001f;
 
 	prevTime = time;
 	return dt;
