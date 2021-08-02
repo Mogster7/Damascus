@@ -1,5 +1,7 @@
 #pragma once
 struct SDL_Window;
+union SDL_Event;
+
 namespace dm {
 class Window
 {
@@ -23,12 +25,12 @@ public:
 		return dimensions;
 	}
 
+  std::vector<std::function<bool(SDL_Event*)>> eventProcessors;
 
 private:
 	glm::uvec2 dimensions = {};
-	const std::string name = "";
-
-	SDL_Window* winHandle = {};
+	const std::string name = {};
+  SDL_Window* winHandle = {};
 };
 
 

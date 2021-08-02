@@ -37,6 +37,11 @@ bool Window::Update(float dt)
 
   while(SDL_PollEvent(&event))
   {
+    for(auto& eventProcessor : eventProcessors)
+    {
+      eventProcessor(&event);
+    }
+
     switch (event.type)
     {
       case SDL_MOUSEBUTTONDOWN:
