@@ -41,8 +41,8 @@
     } while (false)
 
 #else
-#   define DM_ASSERT(condition) do { } while (false)
-#   define DM_ASSERT_MSG(condition, message) do { } while(false)
+#   define DM_ASSERT(condition) do { (void)(condition); } while (false)
+#   define DM_ASSERT_MSG(condition, message) do { (void)(condition); } while(false)
 #endif
 
 
