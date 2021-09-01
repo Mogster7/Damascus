@@ -12,6 +12,7 @@
 #include <optional>
 #include <memory>
 #include <vector>
+#include <unordered_map>
 #include <array>
 #include <queue>
 #include <algorithm>
