@@ -18,7 +18,6 @@ set(FRAMEWORK_SRC
         InternalStructures/RenderPass.cpp
         InternalStructures/ShaderModule.cpp
         InternalStructures/Pipeline.cpp
-        InternalStructures/FrameBuffer.cpp
         InternalStructures/CommandBuffer.cpp
         InternalStructures/CommandPool.cpp
         InternalStructures/Semaphore.cpp
