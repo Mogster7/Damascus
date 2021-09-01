@@ -9,18 +9,18 @@
 
 namespace dm {
 
-//BK_TYPE(DescriptorPool)
+//DM_TYPE(DescriptorPool)
 class DescriptorPool : public IVulkanType<vk::DescriptorPool>, public IOwned<Device>
 {
-	BK_TYPE_VULKAN_OWNED_BODY(DescriptorPool, IOwned<Device>)
-	BK_TYPE_VULKAN_OWNED_GENERIC(DescriptorPool, DescriptorPool)
+	DM_TYPE_VULKAN_OWNED_BODY(DescriptorPool, IOwned<Device>)
+	DM_TYPE_VULKAN_OWNED_GENERIC(DescriptorPool, DescriptorPool)
 };
 
-//BK_TYPE(DescriptorSetLayout)
+//DM_TYPE(DescriptorSetLayout)
 class DescriptorSetLayout : public IVulkanType<vk::DescriptorSetLayout>, public IOwned<Device>
 {
-	BK_TYPE_VULKAN_OWNED_BODY(DescriptorSetLayout, IOwned<Device>)
-	BK_TYPE_VULKAN_OWNED_GENERIC(DescriptorSetLayout, DescriptorSetLayout)
+	DM_TYPE_VULKAN_OWNED_BODY(DescriptorSetLayout, IOwned<Device>)
+	DM_TYPE_VULKAN_OWNED_GENERIC(DescriptorSetLayout, DescriptorSetLayout)
 };
 
 class DescriptorSetLayoutBinding
@@ -33,7 +33,7 @@ public:
 		uint32_t descriptorCount = 1);
 };
 
-//BK_TYPE(WriteDescriptorSet)
+//DM_TYPE(WriteDescriptorSet)
 class WriteDescriptorSet : public IVulkanType<vk::WriteDescriptorSet, VkWriteDescriptorSet>
 {
 public:
@@ -118,7 +118,7 @@ public:
 class Descriptors : public IOwned<Device>
 {
 public:
-	BK_TYPE_OWNED_BODY(Descriptors, IOwned<Device>)
+	DM_TYPE_OWNED_BODY(Descriptors, IOwned<Device>)
 
 	template<uint32_t SetCount>
 	void Create(

@@ -8,11 +8,11 @@
 #pragma once
 namespace dm {
 
-//BK_TYPE(FrameBufferAttachment)
+//DM_TYPE(FrameBufferAttachment)
 class FrameBufferAttachment : public IOwned<Device>
 {
 public:
-	BK_TYPE_OWNED_BODY(FrameBufferAttachment, IOwned<Device>)
+	DM_TYPE_OWNED_BODY(FrameBufferAttachment, IOwned<Device>)
 
 	void Create(
 		vk::Format format,

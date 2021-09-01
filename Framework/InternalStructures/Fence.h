@@ -9,11 +9,11 @@
 
 namespace dm {
 
-//BK_TYPE(Fence)
+//DM_TYPE(Fence)
 class Fence : public IVulkanType<vk::Fence>, public IOwned<Device>
 {
-	BK_TYPE_VULKAN_OWNED_BODY(Fence, IOwned<Device>)
-	BK_TYPE_VULKAN_OWNED_GENERIC(Fence, Fence)
+	DM_TYPE_VULKAN_OWNED_BODY(Fence, IOwned<Device>)
+	DM_TYPE_VULKAN_OWNED_GENERIC(Fence, Fence)
 };
 
 }

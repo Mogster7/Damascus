@@ -8,11 +8,11 @@
 #pragma once
 namespace dm {
 
-////BK_TYPE(FrameBuffer)
+////DM_TYPE(FrameBuffer)
 class FrameBuffer : public IVulkanType<vk::Framebuffer>, public IOwned<Device>
 {
-	BK_TYPE_VULKAN_OWNED_BODY(FrameBuffer, IOwned<Device>)
-	BK_TYPE_VULKAN_OWNED_GENERIC(FrameBuffer, Framebuffer)
+	DM_TYPE_VULKAN_OWNED_BODY(FrameBuffer, IOwned<Device>)
+	DM_TYPE_VULKAN_OWNED_GENERIC(FrameBuffer, Framebuffer)
 };
 
 

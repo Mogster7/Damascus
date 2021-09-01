@@ -2,11 +2,11 @@
 
 namespace dm {
 
-//BK_TYPE(Texture)
+//DM_TYPE(Texture)
 class Texture : public IOwned<Device>
 {
 public:
-	BK_TYPE_OWNED_BODY(Texture, IOwned<Device>)
+	DM_TYPE_OWNED_BODY(Texture, IOwned<Device>)
 
 	void Create(const std::string& filepath, Device* owner);
 

@@ -28,7 +28,7 @@ struct DeviceContext : public Context
 /**
  * Handles all of the rendering state, any application should extend and work with this class
  */
-//BK_TYPE(RenderingContext)
+//DM_TYPE(RenderingContext)
 class RenderingContext : public DeviceContext
 {
 public:

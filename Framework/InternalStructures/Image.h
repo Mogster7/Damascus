@@ -9,11 +9,11 @@
 
 namespace dm {
 
-//BK_TYPE(Image)
+//DM_TYPE(Image)
 class Image : public IVulkanType<vk::Image>, public IOwned<Device>
 {
 public:
-	BK_TYPE_VULKAN_OWNED_BODY(Image, IOwned<Device>)
+	DM_TYPE_VULKAN_OWNED_BODY(Image, IOwned<Device>)
 
 	void Create(
 		vk::ImageCreateInfo& imageCreateInfo,

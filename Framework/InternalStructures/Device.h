@@ -11,7 +11,7 @@ namespace dm {
 class Device : public IVulkanType<vk::Device>, public IOwned<PhysicalDevice>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(Device, IOwned<PhysicalDevice>)
+DM_TYPE_VULKAN_OWNED_BODY(Device, IOwned<PhysicalDevice>)
 
 	void Create(const vk::DeviceCreateInfo& createInfo, PhysicalDevice* owner);
 

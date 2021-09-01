@@ -2,7 +2,7 @@
 
 namespace dm {
 
-//BK_TYPE(RenderQueue)
+//DM_TYPE(RenderQueue)
 class RenderQueue
 {
 public:

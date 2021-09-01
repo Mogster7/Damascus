@@ -14,7 +14,7 @@ class Instance : public IVulkanType<vk::Instance>, public IOwned<RenderingContex
 {
 
 public:
-	BK_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<RenderingContext>)
+	DM_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<RenderingContext>)
 
 	void Create(std::weak_ptr<dm::Window> inWindow);
 	~Instance() noexcept;

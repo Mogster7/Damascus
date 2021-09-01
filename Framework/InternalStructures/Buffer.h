@@ -14,7 +14,7 @@ class Device;
 class Buffer : public IVulkanType<vk::Buffer, VkBuffer>, public IOwned<Device>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(Buffer, IOwned < Device >)
+DM_TYPE_VULKAN_OWNED_BODY(Buffer, IOwned < Device >)
 	Buffer(Buffer&& other) noexcept;
 	Buffer& operator=(Buffer&& other) noexcept;
 
@@ -84,7 +84,7 @@ template<class VertexType>
 class VertexBuffer : public Buffer
 {
 public:
-BK_TYPE_OWNED_BODY(VertexBuffer<VertexType>, Buffer)
+DM_TYPE_OWNED_BODY(VertexBuffer<VertexType>, Buffer)
 	VertexBuffer(VertexBuffer&& other) noexcept = default;
 	VertexBuffer& operator=(VertexBuffer&& other) noexcept = default;
 	~VertexBuffer() noexcept = default;
@@ -122,7 +122,7 @@ private:
 class IndexBuffer : public Buffer
 {
 public:
-BK_TYPE_OWNED_BODY(IndexBuffer, Buffer)
+DM_TYPE_OWNED_BODY(IndexBuffer, Buffer)
 	IndexBuffer& operator=(IndexBuffer&& other) noexcept = default;
 	IndexBuffer(IndexBuffer&& other) noexcept = default;
 	~IndexBuffer() noexcept = default;

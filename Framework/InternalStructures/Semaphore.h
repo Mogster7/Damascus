@@ -9,12 +9,12 @@
 
 namespace dm {
 
-//BK_TYPE(Semaphore)
+//DM_TYPE(Semaphore)
 class Semaphore : public IVulkanType<vk::Semaphore>, public IOwned<Device>
 {
-BK_TYPE_VULKAN_OWNED_BODY(Semaphore, IOwned<Device>)
+DM_TYPE_VULKAN_OWNED_BODY(Semaphore, IOwned<Device>)
 
-BK_TYPE_VULKAN_OWNED_GENERIC(Semaphore, Semaphore)
+DM_TYPE_VULKAN_OWNED_GENERIC(Semaphore, Semaphore)
 };
 
 }

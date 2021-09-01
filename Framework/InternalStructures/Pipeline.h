@@ -10,20 +10,20 @@
 namespace dm
 {
 
-//BK_TYPE(PipelineLayout)
+//DM_TYPE(PipelineLayout)
 class PipelineLayout : public IVulkanType<vk::PipelineLayout>, public IOwned<Device>
 {
-BK_TYPE_VULKAN_OWNED_BODY(PipelineLayout, IOwned < Device >)
+DM_TYPE_VULKAN_OWNED_BODY(PipelineLayout, IOwned < Device >)
 
-BK_TYPE_VULKAN_OWNED_GENERIC(PipelineLayout, PipelineLayout)
+DM_TYPE_VULKAN_OWNED_GENERIC(PipelineLayout, PipelineLayout)
 };
 
-//BK_TYPE(GraphicsPipeline)
+//DM_TYPE(GraphicsPipeline)
 class GraphicsPipeline : public IVulkanType<vk::Pipeline>, public IOwned<Device>
 {
-BK_TYPE_VULKAN_OWNED_BODY(GraphicsPipeline, IOwned < Device >)
+DM_TYPE_VULKAN_OWNED_BODY(GraphicsPipeline, IOwned < Device >)
 
-BK_TYPE_VULKAN_OWNED_GENERIC_FULL(GraphicsPipeline, Pipeline, , GraphicsPipeline, GraphicsPipelines)
+DM_TYPE_VULKAN_OWNED_GENERIC_FULL(GraphicsPipeline, Pipeline, , GraphicsPipeline, GraphicsPipelines)
 
 	void Create(const vk::GraphicsPipelineCreateInfo& createInfo, Device* owner)
 	{
@@ -33,7 +33,7 @@ BK_TYPE_VULKAN_OWNED_GENERIC_FULL(GraphicsPipeline, Pipeline, , GraphicsPipeline
 
 class PipelinePass : public IOwned<Device>
 {
-BK_TYPE_OWNED_BODY(PipelinePass, IOwned < Device >)
+DM_TYPE_OWNED_BODY(PipelinePass, IOwned < Device >)
 
 	template <size_t AttachmentCount>
 	void Create(

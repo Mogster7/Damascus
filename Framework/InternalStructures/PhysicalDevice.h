@@ -27,7 +27,7 @@ class RenderingContext;
 class PhysicalDevice : public IVulkanType<vk::PhysicalDevice>, public IOwned<RenderingContext>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(PhysicalDevice, IOwned<RenderingContext>)
+DM_TYPE_VULKAN_OWNED_BODY(PhysicalDevice, IOwned<RenderingContext>)
 
 	void Create(RenderingContext* owner);
 	~PhysicalDevice() = default;

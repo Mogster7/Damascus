@@ -150,7 +150,7 @@ struct IVulkanType : public Type
 	}
 };
 
-#define BK_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, EXT, CreateName, ConstructName)    \
+#define DM_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, EXT, CreateName, ConstructName)    \
     public:                                                                                    \
         Type(Type&& other) noexcept = default;                                                          \
         Type& operator=(Type&& other) noexcept = default;\
@@ -166,24 +166,24 @@ struct IVulkanType : public Type
 		{                                                                                            \
 			if (created) owner->destroy##VulkanName##EXT(VkType());\
 		}
-#define BK_TYPE_VULKAN_OWNED_GENERIC(Type, VulkanName) \
-    BK_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, ,VulkanName, VulkanName)         \
+#define DM_TYPE_VULKAN_OWNED_GENERIC(Type, VulkanName) \
+    DM_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, ,VulkanName, VulkanName)         \
 
 /**
  * Defines things common to each owned vulkan type
  */
-#define BK_TYPE_BODY(Type) \
+#define DM_TYPE_BODY(Type) \
 public:                    \
 
-#define BK_TYPE_OWNED_BODY(Type, DerivedOwner) \
-BK_TYPE_BODY(Type)                             \
+#define DM_TYPE_OWNED_BODY(Type, DerivedOwner) \
+DM_TYPE_BODY(Type)                             \
 	Type() = default;                                                                          \
 	Type(const Type& other) = delete;\
 	virtual Type& operator=(const Type& other) = delete;                                       \
 
 
-#define BK_TYPE_VULKAN_OWNED_BODY(Type, DerivedOwner)\
-BK_TYPE_OWNED_BODY(Type, DerivedOwner)               \
+#define DM_TYPE_VULKAN_OWNED_BODY(Type, DerivedOwner)\
+DM_TYPE_OWNED_BODY(Type, DerivedOwner)               \
     explicit operator bool()                         \
     { return VulkanInterface::operator bool() && OwnerInterface::operator bool(); }
 

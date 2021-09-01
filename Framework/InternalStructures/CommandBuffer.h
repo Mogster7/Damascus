@@ -4,7 +4,7 @@ namespace dm
 {
 class CommandPool;
 
-//BK_TYPE(CommandBuffer)
+//DM_TYPE(CommandBuffer)
 class CommandBuffer : public IVulkanType<vk::CommandBuffer>
 {
 public:

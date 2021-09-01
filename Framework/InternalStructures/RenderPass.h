@@ -8,11 +8,11 @@
 #pragma once
 namespace dm {
 
-//BK_TYPE(RenderPass)
+//DM_TYPE(RenderPass)
 class RenderPass : public IVulkanType<vk::RenderPass>, public IOwned<Device>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(RenderPass, IOwned<Device>)
+DM_TYPE_VULKAN_OWNED_BODY(RenderPass, IOwned<Device>)
 
 	void Create(
 			const vk::RenderPassCreateInfo& info,

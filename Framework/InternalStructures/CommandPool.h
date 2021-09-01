@@ -9,12 +9,12 @@
 
 namespace dm {
 
-//BK_TYPE(CommandPool)
+//DM_TYPE(CommandPool)
 class CommandPool : public IVulkanType<vk::CommandPool>, public IOwned<Device>
 {
 public:
-	BK_TYPE_VULKAN_OWNED_BODY(CommandPool, IOwned<Device>)
-	BK_TYPE_VULKAN_OWNED_GENERIC(CommandPool, CommandPool)
+	DM_TYPE_VULKAN_OWNED_BODY(CommandPool, IOwned<Device>)
+	DM_TYPE_VULKAN_OWNED_GENERIC(CommandPool, CommandPool)
 	vk::UniqueCommandBuffer BeginCommandBuffer();
 
 	void EndCommandBuffer(vk::CommandBuffer buffer) const;

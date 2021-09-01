@@ -8,11 +8,11 @@
 #pragma once
 namespace dm {
 
-//BK_TYPE(Swapchain)
+//DM_TYPE(Swapchain)
 class Swapchain : public IVulkanType<vk::SwapchainKHR>, public IOwned<Device>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(Swapchain, IOwned<Device>)
+DM_TYPE_VULKAN_OWNED_BODY(Swapchain, IOwned<Device>)
 
 	void Create(
 		const vk::SwapchainCreateInfoKHR& createInfo,
