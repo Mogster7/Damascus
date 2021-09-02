@@ -71,7 +71,10 @@ vk::SurfaceFormatKHR Swapchain::ChooseSurfaceFormat(const std::vector<vk::Surfac
 	// If restricted, search for optimal format
 	for (const auto& format : availableFormats)
 	{
-		if ((format.format == vk::Format::eR8G8B8A8Unorm || format.format == vk::Format::eB8G8R8A8Unorm)
+		if ((format.format == vk::Format::eR8G8B8A8Unorm ||
+             format.format == vk::Format::eB8G8R8A8Unorm ||
+             format.format == vk::Format::eB8G8R8Unorm   ||
+             format.format == vk::Format::eR8G8B8Unorm)
 			&& format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
 		{
 			return format;

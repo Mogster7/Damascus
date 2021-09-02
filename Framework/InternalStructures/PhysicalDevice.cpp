@@ -41,6 +41,12 @@ bool PhysicalDevice::IsDeviceSuitable(vk::PhysicalDevice device) const
 		device.getSurfacePresentModesKHR(surface).empty())
 		return false;
 
+    vk::PhysicalDeviceProperties physicalDeviceProperties;
+    device.getProperties(&physicalDeviceProperties);
+    if (physicalDeviceProperties.deviceType != vk::PhysicalDeviceType::eDiscreteGpu)
+    {
+        return false;
+    }
 
 	return true;
 }
