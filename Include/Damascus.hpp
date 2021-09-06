@@ -3,9 +3,9 @@
 #include <glm/gtc/constants.hpp>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan.hpp>
-#include "Damascus/Utilities/Utilities.h"
-#include "Damascus/Framework/RenderingDefines.hpp"
-#include "Damascus/Framework/RenderingStructures.hpp"
+#include "Utilities/Utilities.h"
+#include "Framework/RenderingDefines.hpp"
+#include "Framework/RenderingStructures.hpp"
 
 
 
