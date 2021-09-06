@@ -21,7 +21,7 @@ add_library(Damascus INTERFACE)
 add_subdirectory(Framework)
 add_subdirectory(Utilities)
 add_subdirectory(ThirdParty)
-target_include_directories(Damascus INTERFACE Include)
+target_include_directories(Damascus INTERFACE Include ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Damascus INTERFACE ${LINK_LIBS})
 
 target_precompile_headers(Framework REUSE_FROM DamascusUtilities)
