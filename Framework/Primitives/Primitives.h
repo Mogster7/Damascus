@@ -52,11 +52,11 @@ namespace dm::Primitives
 
 	static Primitives::Plane GenerateRandomPlane(Box area)
 	{
-		#define R(axis) utils::Random(-area.halfExtent.axis, area.halfExtent.axis, area.position.axis)
+		#define DM_RANDOM(axis) utils::Random(-area.halfExtent.axis, area.halfExtent.axis, area.position.axis)
 
-		glm::vec3 p1(R(x), R(y), R(z));
-		glm::vec3 p2(R(x), R(y), R(z));
-		glm::vec3 p3(R(x), R(y), R(z));
+		glm::vec3 p1(DM_RANDOM(x), DM_RANDOM(y), DM_RANDOM(z));
+		glm::vec3 p2(DM_RANDOM(x), DM_RANDOM(y), DM_RANDOM(z));
+		glm::vec3 p3(DM_RANDOM(x), DM_RANDOM(y), DM_RANDOM(z));
 
 		glm::vec3 v1 = p2 - p1;
 		glm::vec3 v2 = p3 - p1;
