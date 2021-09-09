@@ -32,9 +32,6 @@ struct DeviceContext : public Context
 class RenderingContext : public DeviceContext
 {
 public:
-	// Must be defined by a compilation unit for any application
-	static RenderingContext& Get();
-
 	[[nodiscard]] size_t GetImageViewCount() const
 	{ return swapchain.imageViews.size(); }
 
