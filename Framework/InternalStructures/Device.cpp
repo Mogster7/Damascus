@@ -5,9 +5,9 @@
 // Date:		6/18/2020
 //
 //------------------------------------------------------------------------------
-#include "RenderingContext.h"
-#include "Window.h"
 #include "Device.h"
+#include "Renderer.h"
+#include "Window.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 

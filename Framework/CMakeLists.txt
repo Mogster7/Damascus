@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(FRAMEWORK_SRC
-        RenderingContext/RenderingContext.cpp
+        Renderer/Renderer.cpp
         Window/Window.cpp
         RenderingDefines.hpp
         RenderingStructures.hpp
@@ -51,7 +51,7 @@ target_include_directories(Framework PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${DAMASCUS_DIR}/Utilities
         ${DAMASCUS_DIR}/ThirdParty
-        RenderingContext
+        Renderer
         InternalStructures
         Window
         )

@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #include "PhysicalDevice.h"
-#include "RenderingContext.h"
+#include "Renderer.h"
 
 namespace dm {
 

@@ -1,4 +1,4 @@
-#include "RenderingContext.h"
+#include "Renderer.h"
 #include "Window.h"
 
 #include <SDL.h>

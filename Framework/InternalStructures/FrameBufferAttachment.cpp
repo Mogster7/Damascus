@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #include "FrameBufferAttachment.h"
-#include "RenderingContext.h"
+#include "Renderer.h"
 
 namespace dm {
 

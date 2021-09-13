@@ -6,7 +6,7 @@
 //
 //------------------------------------------------------------------------------
 #define STB_IMAGE_IMPLEMENTATION
-#include "RenderingContext.h"
+#include "Renderer.h"
 #include "stb/stb_image.h"
 
 namespace dm {
