@@ -67,7 +67,7 @@ void Image::Create2D(
 void Image::CreateDepthImage(glm::vec2 size, Device* owner)
 {
 	Create2D(size,
-		FrameBufferAttachment::GetDepthFormat(&owner->OwnerGet<RenderingContext>()),
+		FrameBufferAttachment::GetDepthFormat(&owner->OwnerGet<Renderer>()),
 		1,
 		vk::ImageTiling::eOptimal,
 		vk::ImageUsageFlagBits::eDepthStencilAttachment,
@@ -84,7 +84,7 @@ void Image::TransitionLayout(
 	uint32_t mipLevels
 )
 {
-	auto& rc = OwnerGet<RenderingContext>();
+	auto& rc = OwnerGet<Renderer>();
 	auto cmdBuf = rc.commandPool.BeginCommandBuffer();
 
 	TransitionLayout(cmdBuf.get(),

@@ -2,95 +2,86 @@
 //
 // File Name:	RenderingContext.h
 // Author(s):	Jonathan Bourim (j.bourim)
-// Date:        6/5/2020 
+// Date:        6/5/2020
 //
 //------------------------------------------------------------------------------
 #pragma once
 namespace dm {
 
-class RenderingContext;
+struct Renderer;
+
+class RenderingContext : public IOwned<Device>
+{
+protected:
+    explicit RenderingContext(Renderer& inRenderer) : renderer(inRenderer) {}
+    virtual void Update(float dt) {};
+    virtual vk::CommandBuffer Record() = 0;
+
+    Renderer& renderer;
+    friend class Renderer;
+};
 
 /**
  * Base structures to handle cleaning up lower level structures below the logical device
  */
-struct Context
+struct BaseRenderer
 {
-	Instance instance;
-	PhysicalDevice physicalDevice;
+    Instance instance;
+    PhysicalDevice physicalDevice;
 };
 
-struct DeviceContext : public Context
+struct Renderer : public BaseRenderer
 {
-	Device device;
+    void Create(std::weak_ptr<Window> inWindow);
+    ~Renderer();
+
+    template<class Context>
+    Context* AddRenderingContext()
+    {
+        auto* context = new Context(*this);
+        renderingContexts.push_back(context);
+        return context;
+    }
+
+    void DeleteRenderingContext(RenderingContext* context)
+    {
+        device.waitIdle();
+        auto it = std::remove(renderingContexts.begin(), renderingContexts.end(), context);
+        delete *it;
+        renderingContexts.erase(it);
+    }
+
+    Device device;
+    CommandPool commandPool;
+    Swapchain swapchain;
+
+    /** Semaphore signaling swapchain availability for the requested image */
+    std::vector<Semaphore> imageAvailable;
+
+    /** Semaphore signalling end of the render phase, so presentation may occur */
+    std::vector<Semaphore> renderFinished;
+
+    /** Used to determine when drawing is available */
+    std::vector<Fence> drawFences;
+
+    int frameIndex = 0;
+    int imageIndex = 0;
+
+    std::vector<RenderingContext*> renderingContexts;
+    void Update(float dt);
+    void Render();
+
+private:
+    bool created = false;
+
+    void CreateDevice();
+    void CreateSwapchain(bool recreate = false);
+    void CreateSync();
+    void CreateCommandPool();
+
+    bool PrepareFrame();
+    void SubmitFrame(unsigned submitInfoCount, vk::SubmitInfo* submitInfo, vk::Fence fence) const;
+    bool PresentFrame();
 };
 
-
-/**
- * Handles all of the rendering state, any application should extend and work with this class
- */
-//DM_TYPE(RenderingContext)
-class RenderingContext : public DeviceContext
-{
-public:
-	[[nodiscard]] size_t GetImageViewCount() const
-	{ return swapchain.imageViews.size(); }
-
-	virtual void Create(std::weak_ptr<Window> window);
-
-	// Draw
-	virtual void Draw() = 0;
-
-	static float UpdateDeltaTime();
-	// Update
-	virtual void Update(float dt);
-	virtual void Destroy();
-
-	Swapchain swapchain = {};
-	CommandPool commandPool;
-
-	// Descriptors for forward pipeline
-	Descriptors descriptors = {};
-	vk::PushConstantRange pushRange = {};
-	std::vector<Buffer> uniformBufferViewProjection = {};
-
-	struct ForwardPass : public PipelinePass
-	{
-		FrameBufferAttachment depth;
-	} forwardPass;
-	// ---------------
-
-	std::vector <FrameBuffer> frameBuffers = {};
-	std::vector <CommandBuffer> drawBuffers = {};
-	std::vector <Semaphore> imageAvailable = {};
-	std::vector <Semaphore> renderFinished = {};
-	std::vector <Fence> drawFences = {};
-	RenderPass renderPass = {};
-	FrameBufferAttachment depth;
-
-	// Values for tracking current async state
-	uint32_t currentFrame = 0;
-	uint32_t imageIndex = -1;
-
-	std::weak_ptr <Window> window;
-
-	// Default values
-	std::array<float, 4> defaultClearColor = { 0.2f, 0.2f, 0.2f, 1.0f };
-	float defaultClearDepth = 1.0f;
-
-	// Return if surface is out of date
-	bool PrepareFrame(uint32_t frameIndex);
-	bool SubmitFrame(const vk::Semaphore *wait, uint32_t waitCount);
-
-protected:
-	void CreateLogicalDevice();
-	void CreateSwapchain(bool recreate = false);
-	void CreateRenderPass();
-	void CreateForwardPipeline();
-	void CreateSync();
-	void CreateFramebuffers(bool recreate = false);
-	void CreateDepthBuffer(bool recreate = false);
-	void CreateCommandBuffers(bool recreate = false);
-	void CreateCommandPool();
-};
-
-}
+}// namespace dm

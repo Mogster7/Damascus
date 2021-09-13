@@ -28,14 +28,13 @@ void Swapchain::Create(
 }
 
 
-vk::Extent2D Swapchain::ChooseExtent(RenderingContext* context, glm::uvec2 windowDimensions, vk::SurfaceCapabilitiesKHR capabilities)
+vk::Extent2D Swapchain::ChooseExtent(glm::uvec2 windowDimensions, vk::SurfaceCapabilitiesKHR capabilities)
 {
 	if (capabilities.currentExtent.width != UINT32_MAX)
 	{
 		return capabilities.currentExtent;
 	}
-	glm::uvec2 winDims = context->instance.window.lock()->GetDimensions();
-	vk::Extent2D actualExtent = {winDims.x, winDims.y};
+	vk::Extent2D actualExtent = { windowDimensions.x, windowDimensions.y };
 
 	// Clamp the capable extent to the limits defined by the program
 	actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));

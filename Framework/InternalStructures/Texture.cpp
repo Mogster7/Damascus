@@ -68,7 +68,7 @@ void Texture::Create(const std::string& filepath, Device* owner)
 		1
 	};                              // Layer count
 
-	auto& commandPool = OwnerGet<RenderingContext>().commandPool;
+	auto& commandPool = OwnerGet<Renderer>().commandPool;
 	vk::UniqueCommandBuffer cmdBuf = commandPool.BeginCommandBuffer();
 
 	vk::Extent3D imageExtent{

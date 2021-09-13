@@ -8,13 +8,13 @@
 #pragma once
 namespace dm {
 class Window;
-class RenderingContext;
+class Renderer;
 
-class Instance : public IVulkanType<vk::Instance>, public IOwned<RenderingContext>
+class Instance : public IVulkanType<vk::Instance>, public IOwned<Renderer>
 {
 
 public:
-	DM_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<RenderingContext>)
+	DM_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<Renderer>)
 
 	void Create(std::weak_ptr<dm::Window> inWindow);
 	~Instance() noexcept;

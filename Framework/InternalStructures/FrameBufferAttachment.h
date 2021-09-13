@@ -7,6 +7,7 @@
 //------------------------------------------------------------------------------
 #pragma once
 namespace dm {
+struct Renderer;
 
 //DM_TYPE(FrameBufferAttachment)
 class FrameBufferAttachment : public IOwned<Device>
@@ -35,7 +36,7 @@ public:
 
 	void CreateDepth(Device* owner);
 
-	~FrameBufferAttachment() noexcept = default;
+	~FrameBufferAttachment() noexcept override = default;
 
 	[[nodiscard]] vk::DescriptorImageInfo GetDescriptor(
 		vk::ImageLayout imageLayout
@@ -46,7 +47,7 @@ public:
 	Sampler sampler;
 	vk::Format format = {};
 
-	static vk::Format GetDepthFormat(RenderingContext* context);
+	static vk::Format GetDepthFormat(Renderer* context);
 };
 
 }

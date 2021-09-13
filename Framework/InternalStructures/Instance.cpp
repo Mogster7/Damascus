@@ -99,7 +99,6 @@ void Instance::Create(std::weak_ptr<dm::Window> inWindow)
     createInfo.enabledExtensionCount = (unsigned) requiredExtensions.size();
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-
     if (enableValidationLayers)
     {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());

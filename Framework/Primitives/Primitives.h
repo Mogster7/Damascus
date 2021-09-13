@@ -1,4 +1,6 @@
 #pragma once
+#include "glm/gtc/random.hpp"
+
 namespace dm::Primitives
 {
 	struct Box
@@ -52,16 +54,19 @@ namespace dm::Primitives
 
 	static Primitives::Plane GenerateRandomPlane(Box area)
 	{
-		#define DM_RANDOM(axis) utils::Random(-area.halfExtent.axis, area.halfExtent.axis, area.position.axis)
+	    glm::vec3 points[3];
+	    auto min = glm::vec3(-area.halfExtent);
+	    auto max = glm::vec3(area.halfExtent);
 
-		glm::vec3 p1(DM_RANDOM(x), DM_RANDOM(y), DM_RANDOM(z));
-		glm::vec3 p2(DM_RANDOM(x), DM_RANDOM(y), DM_RANDOM(z));
-		glm::vec3 p3(DM_RANDOM(x), DM_RANDOM(y), DM_RANDOM(z));
+	    for(auto & point : points)
+        {
+	        point = glm::linearRand<glm::vec3>(min, max) + area.position;
+        }
 
-		glm::vec3 v1 = p2 - p1;
-		glm::vec3 v2 = p3 - p1;
+		glm::vec3 v1 = points[1] - points[0];
+		glm::vec3 v2 = points[2] - points[1];
 
-		return { glm::normalize(glm::cross(v1, v2)), (p1 + p2 + p3) / 3.0f };
+		return { glm::normalize(glm::cross(v1, v2)), (points[0] + points[1] + points[2]) / 3.0f };
 	}
 
 	static Primitives::Plane GeneratePlane(glm::vec3 p[3])
@@ -74,7 +79,7 @@ namespace dm::Primitives
 
 	static Primitives::Plane GeneratePlaneBetweenTwoPoints(glm::vec3& a, glm::vec3& b)
 	{
-		Plane plane;
+		Plane plane{};
 		plane.position = (a + b) * 0.5f;
 		plane.normal = glm::normalize(b - a);
 

@@ -182,7 +182,7 @@ const void* Buffer::GetMappedData() const
 
 void Buffer::StageTransferSingleSubmit(Buffer& src, Buffer& dst, vk::DeviceSize size, const Device& device)
 {
-	CommandPool& commandPool = src.OwnerGet<RenderingContext>().commandPool;
+	CommandPool& commandPool = src.OwnerGet<Renderer>().commandPool;
 	auto cmdBuf = commandPool.BeginCommandBuffer();
 
 	StageTransfer(src, dst, size, cmdBuf.get(), device);
@@ -225,8 +225,6 @@ std::vector<vk::DescriptorBufferInfo*> Buffer::AggregateDescriptorInfo(std::vect
 Buffer& Buffer::operator=(Buffer&& other) noexcept
 {
 	assert(this != &other);
-	VulkanInterface::operator=(std::move(other));
-	OwnerInterface::operator=(std::move(other));
 
 	allocation = other.allocation;
 	other.allocation = {};
@@ -237,6 +235,9 @@ Buffer& Buffer::operator=(Buffer&& other) noexcept
 	stagingBuffer = std::move(other.stagingBuffer);
 	allocationCI = other.allocationCI;
 	bufferCI = other.bufferCI;
+
+    VulkanInterface::operator=((VulkanInterface&)other);
+    OwnerInterface::operator=(std::move((OwnerInterface&)other));
 
 	return *this;
 }

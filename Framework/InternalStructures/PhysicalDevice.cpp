@@ -28,7 +28,7 @@ bool PhysicalDevice::CheckDeviceExtensionSupport(vk::PhysicalDevice device) cons
 
 bool PhysicalDevice::IsDeviceSuitable(vk::PhysicalDevice device) const
 {
-	auto indices = FindQueueFamilies(&OwnerGet<RenderingContext>(), device);
+	auto indices = FindQueueFamilies(&OwnerGet<Renderer>(), device);
 	if (!indices.isComplete())
 		return false;
 
@@ -36,7 +36,7 @@ bool PhysicalDevice::IsDeviceSuitable(vk::PhysicalDevice device) const
 	if (!extensionsSupported)
 		return false;
 
-	vk::SurfaceKHR surface = OwnerGet<RenderingContext>().instance.surface;
+	vk::SurfaceKHR surface = OwnerGet<Renderer>().instance.surface;
 	if (device.getSurfaceFormatsKHR(surface).empty() ||
 		device.getSurfacePresentModesKHR(surface).empty())
 		return false;
@@ -52,10 +52,10 @@ bool PhysicalDevice::IsDeviceSuitable(vk::PhysicalDevice device) const
 }
 
 
-void PhysicalDevice::Create(RenderingContext* owner)
+void PhysicalDevice::Create(Renderer* owner)
 {
 	this->owner = owner;
-	std::vector<vk::PhysicalDevice> devices = OwnerGet<RenderingContext>().instance.enumeratePhysicalDevices();
+	std::vector<vk::PhysicalDevice> devices = OwnerGet<Renderer>().instance.enumeratePhysicalDevices();
 	assert(!devices.empty());
 
 	auto it = std::find_if(devices.begin(), devices.end(), [this](const auto& device) -> bool
@@ -66,7 +66,7 @@ void PhysicalDevice::Create(RenderingContext* owner)
 	assert(it != devices.end());
 
 	VkType() = *it;
-	queueFamilyIndices = FindQueueFamilies(&OwnerGet<RenderingContext>(), VkType());
+	queueFamilyIndices = FindQueueFamilies(&OwnerGet<Renderer>(), VkType());
 	getProperties(&properties);
 }
 
@@ -82,7 +82,7 @@ vk::DeviceSize PhysicalDevice::GetMinimumUniformBufferOffset() const
 	return properties.limits.minUniformBufferOffsetAlignment;
 }
 
-QueueFamilyIndices PhysicalDevice::FindQueueFamilies(RenderingContext* context, vk::PhysicalDevice pd)
+QueueFamilyIndices PhysicalDevice::FindQueueFamilies(Renderer* renderer, vk::PhysicalDevice pd)
 {
 	QueueFamilyIndices indices;
 
@@ -94,7 +94,7 @@ QueueFamilyIndices PhysicalDevice::FindQueueFamilies(RenderingContext* context, 
 		if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
 			indices.graphics = i;
 
-		if (pd.getSurfaceSupportKHR(i, context->instance.surface))
+		if (pd.getSurfaceSupportKHR(i, renderer->instance.surface))
 			indices.present = i;
 
 		if (indices.isComplete())
