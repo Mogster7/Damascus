@@ -6,7 +6,8 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace dm {
+namespace dm
+{
 
 struct Renderer;
 
@@ -14,7 +15,7 @@ class RenderingContext : public IOwned<Device>
 {
 protected:
     explicit RenderingContext(Renderer& inRenderer) : renderer(inRenderer) {}
-    virtual void Update(float dt) {};
+    virtual void Update(float dt){};
     virtual vk::CommandBuffer Record() = 0;
 
     Renderer& renderer;
