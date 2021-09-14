@@ -10,11 +10,6 @@ public:
 
 	~Window();
 
-	// bool returns whether or not window should close
-	bool Update(float dt);
-
-	void SwapBuffer();
-
 	[[nodiscard]] inline SDL_Window* GetHandle() const
 	{
 		return winHandle;
@@ -25,12 +20,11 @@ public:
 		return dimensions;
 	}
 
-  std::vector<std::function<bool(SDL_Event*)>> eventProcessors;
 
 private:
 	glm::uvec2 dimensions = {};
 	const std::string name = {};
-  SDL_Window* winHandle = {};
+    SDL_Window* winHandle = {};
 };
 
 
