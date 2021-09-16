@@ -14,7 +14,7 @@ namespace dm::utils
 
     float Random(float min /* = 0.0f */, float max /* = 1.0f */, float offset)
     {
-        return min + ((float)rand() / (RAND_MAX)) * (max - min) + offset;
+        return min + ((float)rand() / ((float)RAND_MAX)) * (max - min) + offset;
     }
 
 	int RandomInt(int min /*= 0*/, int max /*= 1*/, int offset /*= 0*/)

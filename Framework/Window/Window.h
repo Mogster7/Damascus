@@ -20,11 +20,16 @@ public:
 		return dimensions;
 	}
 
+    [[nodiscard]] inline double GetDPIScale() const
+    {
+        return dpiScale;
+    }
 
 private:
 	glm::uvec2 dimensions = {};
 	const std::string name = {};
     SDL_Window* winHandle = {};
+    double dpiScale = 1.0;
 };
 
 
