@@ -62,6 +62,9 @@ Window::Window(const glm::uvec2& dimensions, const std::string& name)
             SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI
     );
     dpiScale = PlatformGetMonitorDPI(winHandle) / baseDPI;
+    // In case of a zero DPI return
+    if(dpiScale == 0)
+        dpiScale = 1;
     SDL_SetWindowSize(winHandle, dimensions.x * dpiScale, dimensions.y * dpiScale);
     DM_ASSERT(winHandle != nullptr);
 }
