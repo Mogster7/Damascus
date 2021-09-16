@@ -36,10 +36,9 @@ set(LINK_LIBS ${Vulkan_LIBRARIES} SDL2-static glm)
 
 
 if (WIN32)
-    if (MSVC)
-        target_include_directories(ThirdParty INTERFACE ${INCLUDE_DIRS})
-        target_link_libraries(ThirdParty INTERFACE ${LINK_LIBS})
-    endif()
+    message("Damascus linking for Windows")
+    target_include_directories(ThirdParty INTERFACE ${INCLUDE_DIRS})
+    target_link_libraries(ThirdParty INTERFACE ${LINK_LIBS})
 elseif(UNIX)
     message("Damascus linking for Linux")
     target_include_directories(ThirdParty INTERFACE ${INCLUDE_DIRS} ${X11_INCLUDE_DIR})
