@@ -29,7 +29,7 @@ add_library(
 target_link_directories(ThirdParty INTERFACE ${SDL2_INCLUDE_DIRS})
 
 set(INCLUDE_DIRS VulkanMemoryAllocator/src
-        ${Vulkan_INCLUDE_DIR}/vulkan
+        ${Vulkan_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${SDL2_INCLUDE_DIRS})
 set(LINK_LIBS ${Vulkan_LIBRARIES} SDL2-static glm)
