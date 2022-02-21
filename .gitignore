@@ -16,3 +16,5 @@ cmake-build-debug/
 .idea/
 
 cmake-build-debug-coverage/
+
+.DS_Store

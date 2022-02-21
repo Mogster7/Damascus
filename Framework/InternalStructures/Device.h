@@ -39,14 +39,11 @@ DM_TYPE_VULKAN_OWNED_BODY(Device, IOwned<PhysicalDevice>)
 //    {
 //
 //    }
-
-
+    //std::vector<std::vector<std::vector<vk::DescriptorSet>>> setsToFree;
 
 	VmaAllocator allocator = {};
 	vk::Queue graphicsQueue = {};
 	vk::Queue presentQueue = {};
-
-    //std::vector<std::vector<std::vector<vk::DescriptorSet>>> setsToFree;
 
 private:
 	void CreateAllocator();

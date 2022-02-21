@@ -56,9 +56,7 @@ inline void PushIdentityModel(
     );
 }
 
-// Set to 1 for now to aid debugging
 constexpr int MAX_FRAME_DRAWS = 2;
-
 
 #ifdef USE_MSAA
 constexpr vk::SampleCountFlagBits MSAA_SAMPLES = vk::SampleCountFlagBits::e4;
