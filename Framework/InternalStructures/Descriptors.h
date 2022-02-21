@@ -749,9 +749,6 @@ public:
         return pipelineDescriptors[typeid(Pipeline)];
     }
 
-    // @Jon TODO: Make way to free allocated descriptor sets, currently not set to be a "freeing paradigm"
-    // so no risk of memory leaks, in case any of you nerds are reading this
-
     std::unordered_map<std::type_index, PipelineDescriptors> pipelineDescriptors;
     std::vector<DescriptorSetLayoutData> globalLayoutData;
 
