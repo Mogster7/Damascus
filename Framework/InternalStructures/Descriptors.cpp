@@ -59,22 +59,9 @@ void Descriptors::RecreateGlobalSet()
 
     globalSet->Create<0, 1, 2>(owner);
     globalSet->SetDirtyBindings(true);
-    //globalSet->WriteSet();
     owner->waitIdle();
     globalSetDirty = false;
 }
-
-//void Descriptors::UpdateUniforms(vk::CommandBuffer commandBuffer)
-//{
-//    int imageIndex = owner->ImageIndex();
-//
-//    globalSetData.UpdateBindings(commandBuffer, imageIndex);
-//    for(auto& [ti, pipeline] : pipelineDescriptors)
-//    {
-//        DM_ASSERT_MSG(ti != typeid(Descriptors), "This type being enumerated means some bit of legacy code is remaining. REMOVE IT CUH");
-//        pipeline.UpdateSets(commandBuffer, imageIndex);
-//    }
-//}
 
 void Descriptors::BindGlobalSet(int imageIndex,
                                 vk::CommandBuffer commandBuffer,
@@ -101,7 +88,6 @@ void Descriptors::WriteUniforms()
     globalSetData.WriteSets(owner);
     for(auto& [ti, pipeline] : pipelineDescriptors)
     {
-        DM_ASSERT_MSG(ti != typeid(Descriptors), "This type being enumerated means some bit of legacy code is remaining. REMOVE IT CUH");
         auto& setData = pipeline.setData;
         for(auto& data : setData)
         {
