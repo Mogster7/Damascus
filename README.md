@@ -12,5 +12,9 @@ Damascus interface using a unity build with CMake
 ### Files of note
 
 Demonstration of simple type abstraction: `Framework/InternalStructures/Semaphore.h`
+
+
 Main descriptor set management logic: `Framework/InternalStructures/Descriptors.h`
+
+
 Type definitions: `Framework/RenderingDefines.hpp`
