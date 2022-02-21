@@ -6,19 +6,19 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm
+{
 
-//BK_TYPE(ShaderModule)
 class ShaderModule : public IVulkanType<vk::ShaderModule>, public IOwned<Device>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(ShaderModule, IOwned<Device>)
+DM_TYPE_VULKAN_OWNED_BODY(ShaderModule, IOwned<Device>)
 
-BK_TYPE_VULKAN_OWNED_GENERIC(ShaderModule, ShaderModule)
+DM_TYPE_VULKAN_OWNED_GENERIC(ShaderModule, ShaderModule)
 
 
 	vk::PipelineShaderStageCreateInfo Load(
-		const std::string& name,
+		const std::string& path,
 		vk::ShaderStageFlagBits stageFlags,
 		Device* inOwner
 	);

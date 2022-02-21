@@ -6,20 +6,20 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm
+{
 class Window;
-class RenderingContext;
+class Renderer;
 
-//BK_TYPE(Instance)
-class Instance : public IVulkanType<vk::Instance>, public IOwned<RenderingContext>
+class Instance : public IVulkanType<vk::Instance>, public IOwned<Renderer>
 {
 
 public:
-	BK_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<RenderingContext>)
+	DM_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<Renderer>)
 
-	void Create();
-	void CreateSurface(std::weak_ptr<Window> winHandle);
-	~Instance() noexcept;
+	void Create(std::weak_ptr<dm::Window> inWindow);
+    void Destroy();
+	~Instance() noexcept override;
 
 	std::weak_ptr<Window> window;
 	vk::SurfaceKHR surface;
@@ -29,6 +29,7 @@ public:
 
 private:
 	static void PopulateDebugCreateInfo(vk::DebugUtilsMessengerCreateInfoEXT& createInfo);
+  [[nodiscard]] std::vector<const char*> GetRequiredExtensions() const;
 
 	void ConstructDebugMessenger();
 

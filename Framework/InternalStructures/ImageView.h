@@ -7,13 +7,14 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace bk {
+namespace dm
+{
 
 class ImageView : public IVulkanType<vk::ImageView>, public IOwned<Device>
 {
 public:
-	BK_TYPE_VULKAN_OWNED_BODY(ImageView, IOwned<Device>)
-	BK_TYPE_VULKAN_OWNED_GENERIC(ImageView, ImageView)
+	DM_TYPE_VULKAN_OWNED_BODY(ImageView, IOwned<Device>)
+    DM_TYPE_VULKAN_OWNED_GENERIC_FULL(ImageView, ImageView, , ImageView, ImageView);
 	void CreateTexture2DView(vk::Image image, Device* owner);
 };
 

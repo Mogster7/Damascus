@@ -6,53 +6,55 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm
+{
+class Swapchain;
+class Descriptors;
+class DescriptorPool;
 
 class Device : public IVulkanType<vk::Device>, public IOwned<PhysicalDevice>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(Device, IOwned<PhysicalDevice>)
+DM_TYPE_VULKAN_OWNED_BODY(Device, IOwned<PhysicalDevice>)
 
 	void Create(const vk::DeviceCreateInfo& createInfo, PhysicalDevice* owner);
+    void Destroy();
 
-	~Device() noexcept;
+	~Device() noexcept override;
 
 	void Update(float dt);
+    [[nodiscard]] int ImageCount() const;
+    [[nodiscard]] Swapchain& Swapchain();
+    [[nodiscard]] Descriptors& Descriptors();
+    [[nodiscard]] DescriptorPool& DescriptorPool();
+    [[nodiscard]] int ImageIndex() const;
 
-	// Return whether or not the surface is out of date
-	bool PrepareFrame(const uint32_t frameIndex);
+    // Kept freeing behavior for descriptor sets, if we need it in the future
+//    void FreeDescriptorSet(vk::DescriptorSet set)
+//    {
+//        setsToFree[ImageIndex()][0].emplace_back(set);
+//    }
+//
+//    void FreeDescriptorSets(std::vector<vk::DescriptorSet>&& sets)
+//    {
+//
+//    }
 
-	bool SubmitFrame(const uint32_t frameIndex, const vk::Semaphore* wait, uint32_t waitCount);
 
-	void DrawFrame(const uint32_t frameIndex);
 
 	VmaAllocator allocator = {};
 	vk::Queue graphicsQueue = {};
 	vk::Queue presentQueue = {};
 
+    //std::vector<std::vector<std::vector<vk::DescriptorSet>>> setsToFree;
+
 private:
-
 	void CreateAllocator();
-
-	void CreateCommandPool();
-
-	void CreateCommandBuffers(bool recreate = false);
-
-	void CreateSync();
-
-	void RecordCommandBuffers(uint32_t imageIndex);
-
-	void CreateUniformBuffers();
-
-	void CreateDescriptorPool();
-
-	void CreateDescriptorSets();
-
-	void UpdateUniformBuffers(uint32_t imageIndex);
-
-	void UpdateModel(glm::mat4& newModel);
-
-	void RecreateSurface();
 };
 
+template <class T>
+using ImageAsync = std::vector<T>;
+
+template <class T>
+using FrameAsync = std::array<T, MAX_FRAME_DRAWS>;
 }

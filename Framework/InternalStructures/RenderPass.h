@@ -6,13 +6,14 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm
+{
 
-//BK_TYPE(RenderPass)
+//DM_TYPE(RenderPass)
 class RenderPass : public IVulkanType<vk::RenderPass>, public IOwned<Device>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(RenderPass, IOwned<Device>)
+DM_TYPE_VULKAN_OWNED_BODY(RenderPass, IOwned<Device>)
 
 	void Create(
 			const vk::RenderPassCreateInfo& info,
@@ -21,20 +22,26 @@ BK_TYPE_VULKAN_OWNED_BODY(RenderPass, IOwned<Device>)
 			Device* inOwner
 	)
 	{
-		IOwned::Create(inOwner);
+        IOwned::CreateOwned(inOwner);
 
 		extent = inExtent;
 		clearValues = inClearValues;
 
-		ASSERT_VK(owner->createRenderPass(&info, nullptr, &VkType()));
+		DM_ASSERT_VK(owner->createRenderPass(&info, nullptr, &VkType()));
 	}
 
-	~RenderPass() noexcept
+    void Destroy()
+    {
+        if (created)
+        {
+            owner->destroyRenderPass(VkType());
+            created = false;
+        }
+    }
+
+	~RenderPass() noexcept override
 	{
-		if (created)
-		{
-			owner->destroyRenderPass(VkType());
-		}
+		Destroy();
 	}
 
 	void Begin(
@@ -64,7 +71,6 @@ BK_TYPE_VULKAN_OWNED_BODY(RenderPass, IOwned<Device>)
 	{
 		cmdBuf.endRenderPass();
 	}
-
 
 	vk::Extent2D extent;
 	std::vector<vk::ClearValue> clearValues;

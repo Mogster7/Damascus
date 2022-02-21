@@ -6,200 +6,206 @@
 //
 //------------------------------------------------------------------------------
 #include "RenderingStructures.hpp"
-#include "Window.h"
+#include "Window/Window.h"
 #include "Instance.h"
 
-#include <glfw3.h>
+#include <SDL/include/SDL_vulkan.h>
+#include <utility>
 #include <vector>
 
-namespace bk {
+namespace dm
+{
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
-const bool enableValidationLayers = true;
+constexpr bool enableValidationLayers = true;
 #endif
 
 const std::vector<const char*> validationLayers = {
-	"VK_LAYER_KHRONOS_validation"
+        "VK_LAYER_KHRONOS_validation"
 };
 
 
 bool checkValidationLayerSupport()
 {
-	std::vector<vk::LayerProperties> availableLayers = vk::enumerateInstanceLayerProperties();
+    std::vector<vk::LayerProperties> availableLayers = vk::enumerateInstanceLayerProperties();
 
-	for (const char* layerName : validationLayers)
-	{
-		bool layerFound = false;
+    for (const char* layerName : validationLayers)
+    {
+        bool layerFound = false;
 
-		for (const auto& layerProperties : availableLayers)
-		{
-			if (strcmp(layerName, layerProperties.layerName) == 0)
-			{
-				layerFound = true;
-				break;
-			}
-		}
+        for (const auto& layerProperties : availableLayers)
+        {
+            if (strcmp(layerName, layerProperties.layerName) == 0)
+            {
+                layerFound = true;
+                break;
+            }
+        }
 
-		if (!layerFound)
-		{
-			return false;
-		}
-	}
+        if (!layerFound)
+        {
+            return false;
+        }
+    }
 
-	return true;
+    return true;
 }
 
 
-std::vector<const char*> GetRequiredExtensions()
+std::vector<const char*> Instance::GetRequiredExtensions() const
 {
-	unsigned glfwExtensionCount = 0;
-	const char** requiredExtensions;
-	requiredExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    unsigned extensionCount = 0;
+    DM_ASSERT_MSG(SDL_Vulkan_GetInstanceExtensions(window.lock()->GetHandle(), &extensionCount, nullptr) == SDL_TRUE, SDL_GetError());
 
-	std::vector<const char*> extensions(requiredExtensions, requiredExtensions + glfwExtensionCount);
+    std::vector<const char*> extensions;
+    if (extensionCount != 0)
+    {
+        extensions.resize(extensionCount);
+        DM_ASSERT(SDL_Vulkan_GetInstanceExtensions(window.lock()->GetHandle(), &extensionCount, extensions.data()) == SDL_TRUE);
+        if constexpr (enableValidationLayers)
+        {
+            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        }
+    }
 
-	if (enableValidationLayers)
-	{
-		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-	}
-
-	return extensions;
+    return extensions;
 }
 
-void Instance::Create()
+void Instance::Create(std::weak_ptr<dm::Window> inWindow)
 {
-	auto vkGetInstanceProcAddr = dynamicLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
-	VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
+    window = std::move(inWindow);
+    auto vkGetInstanceProcAddr = dynamicLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
-	if (enableValidationLayers)
-	{
-		assert(checkValidationLayerSupport());
-	}
+    if constexpr (enableValidationLayers)
+    {
+        assert(checkValidationLayerSupport());
+    }
 
-	vk::ApplicationInfo appInfo("Hello Triangle", VK_MAKE_VERSION(1, 0, 0),
-								"No Engine", VK_MAKE_VERSION(1, 0, 0),
-								VK_API_VERSION_1_0);
-	vk::InstanceCreateInfo createInfo({}, &appInfo);
+    vk::ApplicationInfo appInfo("Damascus", VK_MAKE_VERSION(1, 0, 0),
+                                "No Engine", VK_MAKE_VERSION(1, 0, 0),
+                                VK_API_VERSION_1_1);
+    vk::InstanceCreateInfo createInfo({}, &appInfo);
 
-	auto requiredExtensions = GetRequiredExtensions();
+    auto requiredExtensions = GetRequiredExtensions();
+#ifdef OS_Mac
+    //requiredExtensions.emplace_back("VK_KHR_portability_subset");
+    //requiredExtensions.emplace_back("VK_KHR_get_physical_device_properties2");
+#endif
 
-	std::cout << "Required Extensions: \n";
-	for (const auto& extension : requiredExtensions)
-	{
-		std::cout << '\t' << extension << '\n';
-	}
-	std::cout << '\n';
-	createInfo.enabledExtensionCount = (unsigned) requiredExtensions.size();
-	createInfo.ppEnabledExtensionNames = requiredExtensions.data();
+    std::cout << "Required Extensions: \n";
+    for (const auto& extension : requiredExtensions)
+    {
+        std::cout << '\t' << extension << '\n';
+    }
+    std::cout << '\n';
+    createInfo.enabledExtensionCount = (unsigned) requiredExtensions.size();
+    createInfo.ppEnabledExtensionNames = requiredExtensions.data();
+
+    if constexpr (enableValidationLayers)
+    {
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
 
 
-	if (enableValidationLayers)
-	{
-		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-		createInfo.ppEnabledLayerNames = validationLayers.data();
+        vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo;
+        PopulateDebugCreateInfo(debugCreateInfo);
+        createInfo.pNext = (vk::DebugUtilsMessengerCreateInfoEXT * ) & debugCreateInfo;
+    }
+    else
+    {
+        createInfo.enabledLayerCount = 0;
+    }
+
+    std::vector<vk::ExtensionProperties> extensions = vk::enumerateInstanceExtensionProperties();
+
+    std::cout << "Available Extensions: \n";
+
+    for (const auto& extension : extensions)
+    {
+        std::cout << '\t' << extension.extensionName << '\n';
+    }
+
+    std::cout << VK_HEADER_VERSION << std::endl;
+
+    DM_ASSERT_VK(vk::createInstance(&createInfo, nullptr, this));
+
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(VkType());
+
+    ConstructDebugMessenger();
 
 
-		vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo;
-		PopulateDebugCreateInfo(debugCreateInfo);
-		createInfo.pNext = (vk::DebugUtilsMessengerCreateInfoEXT * ) & debugCreateInfo;
-	}
-	else
-	{
-		createInfo.enabledLayerCount = 0;
-	}
-
-	std::vector<vk::ExtensionProperties> extensions = vk::enumerateInstanceExtensionProperties();
-
-	std::cout << "Available Extensions: \n";
-
-	for (const auto& extension : extensions)
-	{
-		std::cout << '\t' << extension.extensionName << '\n';
-	}
-
-	std::cout << VK_HEADER_VERSION << std::endl;
-
-	ASSERT_VK(vk::createInstance(&createInfo, nullptr, this));
-
-	VULKAN_HPP_DEFAULT_DISPATCHER.init(VkType());
-
-	ConstructDebugMessenger();
-}
-
-void Instance::CreateSurface(std::weak_ptr<Window> winHandle)
-{
-	window = winHandle;
-	if (glfwCreateWindowSurface((VkInstance) (*this), window.lock()->GetHandle(), nullptr, (VkSurfaceKHR*) &surface) !=
-		VK_SUCCESS)
-	{
-		ASSERT(false, "Failed to create window surface");
-	}
+    DM_ASSERT(SDL_Vulkan_CreateSurface(window.lock()->GetHandle(), VkCType(), (VkSurfaceKHR*) &surface) == SDL_TRUE);
 }
 
 static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(
-	vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	vk::DebugUtilsMessageTypeFlagsEXT messageType,
-	const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void* pUserData
+        vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        vk::DebugUtilsMessageTypeFlagsEXT messageType,
+        const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData,
+        void* pUserData
 )
 {
-	if (messageSeverity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose)
-	{
-		return VK_FALSE;
-	}
+    if (messageSeverity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose)
+    {
+        return VK_FALSE;
+    }
 
-	std::cerr << "validation layer: " << pCallbackData->pMessage << '\n' << std::endl;
+    std::cerr << "validation layer: " << pCallbackData->pMessage << '\n' << std::endl;
 
-	return VK_FALSE;
+    return VK_FALSE;
 }
 
 
 void Instance::PopulateDebugCreateInfo(vk::DebugUtilsMessengerCreateInfoEXT& createInfo)
 {
-	createInfo = vk::DebugUtilsMessengerCreateInfoEXT(
-		{},
+    createInfo = vk::DebugUtilsMessengerCreateInfoEXT(
+            {},
 
-		vk::DebugUtilsMessageSeverityFlagsEXT(VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-											  VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-											  VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT),
+            vk::DebugUtilsMessageSeverityFlagsEXT(VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                                                  VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                                  VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT),
 
-		vk::DebugUtilsMessageTypeFlagsEXT(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-										  VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-										  VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT),
+            vk::DebugUtilsMessageTypeFlagsEXT(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT),
 
-		(PFN_vkDebugUtilsMessengerCallbackEXT) DebugCallback
-	);
+            (PFN_vkDebugUtilsMessengerCallbackEXT) DebugCallback
+    );
 }
 
 void Instance::ConstructDebugMessenger()
 {
-	if (!enableValidationLayers)
-	{
-		return;
-	}
+    if constexpr (!enableValidationLayers)
+    {
+        return;
+    }
 
-	vk::DebugUtilsMessengerCreateInfoEXT info;
-	PopulateDebugCreateInfo(info);
+    vk::DebugUtilsMessengerCreateInfoEXT info;
+    PopulateDebugCreateInfo(info);
 
-	ASSERT_VK(createDebugUtilsMessengerEXT(&info, nullptr, &debugMessenger));
+    DM_ASSERT_VK(createDebugUtilsMessengerEXT(&info, nullptr, &debugMessenger));
 }
 
-Instance::~Instance()
+Instance::~Instance() noexcept
 {
-	if (!created)
-	{
-		return;
-	}
+    Destroy();
+}
+void Instance::Destroy()
+{
+    if (!created)
+    {
+        return;
+    }
 
-	if (enableValidationLayers)
-	{
-		destroyDebugUtilsMessengerEXT(debugMessenger, nullptr);
-	}
+    if constexpr (enableValidationLayers)
+    {
+        destroyDebugUtilsMessengerEXT(debugMessenger, nullptr);
+    }
 
-	destroySurfaceKHR(surface);
-	destroy();
+    destroySurfaceKHR(surface);
+    destroy();
 }
 
 

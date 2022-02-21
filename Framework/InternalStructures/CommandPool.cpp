@@ -1,4 +1,3 @@
-#include "CommandPool.h"
 //------------------------------------------------------------------------------
 //
 // File Name:	CommandPool.cpp
@@ -7,7 +6,8 @@
 //
 //------------------------------------------------------------------------------
 
-namespace bk {
+namespace dm
+{
 
 
 vk::UniqueCommandBuffer CommandPool::BeginCommandBuffer()
@@ -54,9 +54,7 @@ void CommandPool::EndCommandBuffer(vk::CommandBuffer buffer) const
 	};
 
 	// Submit it with a fence, making it wait until the command buffer is done submitting
-	utils::CheckVkResult(owner->graphicsQueue.submit(1, &submitInfo, vk::Fence()),
-		"Failed to submit command buffer to the queue"
-	);
+	DM_ASSERT_VK(owner->graphicsQueue.submit(1, &submitInfo, vk::Fence()));
 	owner->graphicsQueue.waitIdle();
 }
 

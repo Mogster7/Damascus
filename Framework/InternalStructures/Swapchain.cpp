@@ -5,12 +5,11 @@
 // Date:		6/23/2020
 //
 //------------------------------------------------------------------------------
-#include "RenderingContext.h"
-#include "Window.h"
 #include "Swapchain.h"
+#include "Window/Window.h"
 
-
-namespace bk {
+namespace dm
+{
 void Swapchain::Create(
 	const vk::SwapchainCreateInfoKHR& createInfo,
 	vk::Format inImageFormat,
@@ -18,9 +17,9 @@ void Swapchain::Create(
 	Device* inOwner
 )
 {
-	IOwned::Create(inOwner);
+    IOwned::CreateOwned(inOwner);
 
-	ASSERT_VK(owner->createSwapchainKHR(&createInfo, nullptr, &VkType()));
+	DM_ASSERT_VK(owner->createSwapchainKHR(&createInfo, nullptr, &VkType()));
 	imageFormat = inImageFormat;
 	extent = inExtent;
 	images = owner->getSwapchainImagesKHR(VkType());
@@ -34,8 +33,7 @@ vk::Extent2D Swapchain::ChooseExtent(glm::uvec2 windowDimensions, vk::SurfaceCap
 	{
 		return capabilities.currentExtent;
 	}
-	glm::uvec2 winDims = RenderingContext::Get().instance.window.lock()->GetDimensions();
-	vk::Extent2D actualExtent = {winDims.x, winDims.y};
+	vk::Extent2D actualExtent = { windowDimensions.x, windowDimensions.y };
 
 	// Clamp the capable extent to the limits defined by the program
 	actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
@@ -46,13 +44,14 @@ vk::Extent2D Swapchain::ChooseExtent(glm::uvec2 windowDimensions, vk::SurfaceCap
 
 vk::PresentModeKHR Swapchain::ChoosePresentMode(const std::vector<vk::PresentModeKHR>& presentModes)
 {
+    //return vk::PresentModeKHR::eImmediateKHR;
 	//// Mailbox replaces already queued images with newer ones instead of blocking
 	//// when the queue is full. Used for triple buffering
-	//for (const auto& availablePresentMode : availablePresentModes) {
-	//	if (availablePresentMode == vk::PresentModeKHR::eMailbox) {
-	//		return availablePresentMode;
-	//	}
-	//}
+//	for (const auto& availablePresentMode : presentModes) {
+//		if (availablePresentMode == vk::PresentModeKHR::eMailbox) {
+//			return availablePresentMode;
+//		}
+//	}
 
 	// FIFO takes an image from the front of the queue and inserts it in the back
 	// If queue is full then the program is blocked. Resembles v-sync
@@ -71,7 +70,10 @@ vk::SurfaceFormatKHR Swapchain::ChooseSurfaceFormat(const std::vector<vk::Surfac
 	// If restricted, search for optimal format
 	for (const auto& format : availableFormats)
 	{
-		if ((format.format == vk::Format::eR8G8B8A8Unorm || format.format == vk::Format::eB8G8R8A8Unorm)
+		if ((format.format == vk::Format::eR8G8B8A8Unorm ||
+             format.format == vk::Format::eB8G8R8A8Unorm ||
+             format.format == vk::Format::eB8G8R8Unorm   ||
+             format.format == vk::Format::eR8G8B8Unorm)
 			&& format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
 		{
 			return format;
@@ -84,7 +86,7 @@ vk::SurfaceFormatKHR Swapchain::ChooseSurfaceFormat(const std::vector<vk::Surfac
 
 void Swapchain::CreateImageViews()
 {
-	size_t imagesSize = images.size();
+	size_t imagesSize = ImageCount();
 	imageViews.resize(imagesSize);
 
 	for (size_t i = 0; i < imagesSize; ++i)
@@ -102,12 +104,18 @@ void Swapchain::CreateImageViews()
 
 		assert(bool(imageViews[i].VkType()));
 	}
-
 }
 
 Swapchain::~Swapchain() noexcept
 {
-	owner->destroySwapchainKHR(VkType());
+    Destroy();
+}
+void Swapchain::Destroy()
+{
+    if (created)
+    {
+        owner->destroySwapchainKHR(VkType());
+    }
 }
 
 }

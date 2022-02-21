@@ -6,32 +6,34 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm
+{
 
 class Device;
 
 class Buffer : public IVulkanType<vk::Buffer, VkBuffer>, public IOwned<Device>
 {
 public:
-	BK_TYPE_VULKAN_OWNED_BODY(Buffer, IOwned<Device>)
-
-	virtual Buffer& operator=(Buffer&& other) noexcept;
+DM_TYPE_VULKAN_OWNED_BODY(Buffer, IOwned < Device >)
 	Buffer(Buffer&& other) noexcept;
-	~Buffer() noexcept;
+	Buffer& operator=(Buffer&& other) noexcept;
+	~Buffer() noexcept override;
 
-	Buffer(
+	void Create(
 		const vk::BufferCreateInfo& bufferCreateInfo,
 		const VmaAllocationCreateInfo& allocCreateInfo,
 		Device* inOwner
 	);
 
-	Buffer(
+    void Destroy();
+
+	void CreateStaged(
 		void* data,
 		vk::DeviceSize size,
 		vk::BufferUsageFlags bufferUsage,
 		VmaMemoryUsage memoryUsage,
 		bool submitToGPU,
-		bool persistentMapped,
+		bool inPersistentMapped,
 		Device* owner
 	);
 
@@ -61,11 +63,13 @@ public:
 	void UpdateData(void* data, vk::DeviceSize size, bool submitToGPU);
 
 	void StageTransferDynamic(vk::CommandBuffer commandBuffer);
+    void StageTransferDynamicSingleSubmit();
 
 	static std::vector<vk::DescriptorBufferInfo*> AggregateDescriptorInfo(std::vector<Buffer>& buffers);
 
 	VmaAllocation allocation = {};
 	bool persistentMapped = false;
+    bool dirty = false;
 	VmaAllocationInfo allocationInfo = {};
 	vk::DescriptorBufferInfo descriptorInfo = {};
 	std::shared_ptr<Buffer> stagingBuffer = {};
@@ -83,22 +87,23 @@ template<class VertexType>
 class VertexBuffer : public Buffer
 {
 public:
-BK_TYPE_OWNED_BODY(VertexBuffer<VertexType>, Buffer)
-	VertexBuffer& operator=(VertexBuffer&& other) noexcept = default;
+DM_TYPE_OWNED_BODY(VertexBuffer<VertexType>, Buffer)
 	VertexBuffer(VertexBuffer&& other) noexcept = default;
-	~VertexBuffer() noexcept = default;
+	VertexBuffer& operator=(VertexBuffer&& other) noexcept = default;
+	~VertexBuffer() noexcept override = default;
 
-	VertexBuffer(const std::vector<VertexType>& vertices, bool dynamic, Device* owner)
-		: Buffer(
-		(void*) &vertices[0], vertices.size() * sizeof(VertexType),
-		vk::BufferUsageFlagBits::eVertexBuffer,
-		VMA_MEMORY_USAGE_GPU_ONLY,
-		!dynamic,
-		true,
-		owner)
-		, vertexCount(vertices.size())
+	void Create(const std::vector<VertexType>& vertices, bool dynamic, Device* owner)
 	{
 		assert(!vertices.empty());
+		vertexCount = vertices.size();
+		Buffer::CreateStaged(
+			(void*) &vertices[0], vertices.size() * sizeof(VertexType),
+			vk::BufferUsageFlagBits::eVertexBuffer,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			!dynamic,
+			dynamic,
+			owner
+		);
 	}
 
 	void UpdateData(void* data, vk::DeviceSize size, uint32_t newVertexCount, bool submitToGPU)
@@ -120,22 +125,22 @@ private:
 class IndexBuffer : public Buffer
 {
 public:
-BK_TYPE_OWNED_BODY(IndexBuffer, Buffer)
+DM_TYPE_OWNED_BODY(IndexBuffer, Buffer)
 	IndexBuffer& operator=(IndexBuffer&& other) noexcept = default;
 	IndexBuffer(IndexBuffer&& other) noexcept = default;
-	~IndexBuffer() noexcept = default;
+	~IndexBuffer() noexcept override = default;
 
-	IndexBuffer(const std::vector<uint32_t>& indices, bool dynamic, Device* owner)
-		: Buffer(
-		(void*) indices.data(), indices.size() * sizeof(uint32_t),
-		vk::BufferUsageFlagBits::eIndexBuffer,
-		VMA_MEMORY_USAGE_GPU_ONLY,
-		!dynamic,
-		true,
-		owner)
-		, indexCount(indices.size())
+	void Create(const std::vector<uint32_t>& indices, bool dynamic, Device* owner)
 	{
 		assert(!indices.empty());
+		indexCount = indices.size();
+		Buffer::CreateStaged(
+			(void*) indices.data(), indices.size() * sizeof(uint32_t),
+			vk::BufferUsageFlagBits::eIndexBuffer,
+			VMA_MEMORY_USAGE_GPU_ONLY,
+			!dynamic,
+			dynamic,
+			owner);
 	}
 
 	void UpdateData(void* data, vk::DeviceSize size, uint32_t newIndexCount, bool submitToGPU)
@@ -151,6 +156,37 @@ BK_TYPE_OWNED_BODY(IndexBuffer, Buffer)
 
 private:
 	uint32_t indexCount = 0;
+};
+
+template <class T, size_t N>
+struct InstancedBuffer : public Buffer
+{
+    DM_TYPE_OWNED_BODY(InstancedBuffer, Buffer)
+    InstancedBuffer& operator=(InstancedBuffer&& other) noexcept = default;
+    InstancedBuffer(InstancedBuffer&& other) noexcept = default;
+    ~InstancedBuffer() noexcept override = default;
+
+    void CreateStaged(Device* owner)
+    {
+        static_assert(N != 0);
+        Buffer::CreateStaged(
+            nullptr,
+            sizeof(T) * N,
+            vk::BufferUsageFlagBits::eVertexBuffer,
+            VMA_MEMORY_USAGE_GPU_ONLY,
+            false,
+            true,
+            owner);
+    }
+
+
+    T* Data()
+    {
+       return reinterpret_cast<T*>(allocationInfo.pMappedData);
+    }
+
+    constexpr size_t Count() { return N; }
+    constexpr size_t MemorySize() { return sizeof(T) * N; };
 };
 
 }

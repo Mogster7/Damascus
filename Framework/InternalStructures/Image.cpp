@@ -7,17 +7,18 @@
 //------------------------------------------------------------------------------
 #include "Image.h"
 
-namespace bk {
+namespace dm
+{
 void Image::Create(
 	vk::ImageCreateInfo& imageCreateInfo,
 	VmaAllocationCreateInfo& allocCreateInfo,
 	Device* inOwner
 )
 {
-	IOwned::Create(inOwner);
+    IOwned::CreateOwned(inOwner);
 	this->allocator = owner->allocator;
 
-	ASSERT_VK((vk::Result) vmaCreateImage(allocator, (VkImageCreateInfo * ) & imageCreateInfo, &allocCreateInfo,
+	DM_ASSERT_VK((vk::Result) vmaCreateImage(allocator, (VkImageCreateInfo * ) & imageCreateInfo, &allocCreateInfo,
 		& VkCType(), &allocation, &allocationInfo));
 }
 
@@ -67,7 +68,7 @@ void Image::Create2D(
 void Image::CreateDepthImage(glm::vec2 size, Device* owner)
 {
 	Create2D(size,
-		FrameBufferAttachment::GetDepthFormat(),
+		FrameBufferAttachment::GetDepthFormat(&owner->OwnerGet<Renderer>()),
 		1,
 		vk::ImageTiling::eOptimal,
 		vk::ImageUsageFlagBits::eDepthStencilAttachment,
@@ -84,7 +85,7 @@ void Image::TransitionLayout(
 	uint32_t mipLevels
 )
 {
-	auto& rc = OwnerGet<RenderingContext>();
+	auto& rc = OwnerGet<Renderer>();
 	auto cmdBuf = rc.commandPool.BeginCommandBuffer();
 
 	TransitionLayout(cmdBuf.get(),
@@ -220,12 +221,17 @@ void Image::TransitionLayout(
 		1, &barrier);
 }
 
-Image::~Image()
+Image::~Image() noexcept
 {
-	if (created)
-	{
-		vmaDestroyImage(allocator, VkCType(), allocation);
-	}
+    Destroy();
+}
+void Image::Destroy()
+{
+    if (created)
+    {
+        vmaDestroyImage(allocator, VkCType(), allocation);
+        created = false;
+    }
 }
 
 }

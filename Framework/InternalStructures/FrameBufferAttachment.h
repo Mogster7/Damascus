@@ -6,36 +6,53 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm
+{
+struct Renderer;
 
-//BK_TYPE(FrameBufferAttachment)
 class FrameBufferAttachment : public IOwned<Device>
 {
 public:
-	BK_TYPE_OWNED_BODY(FrameBufferAttachment, IOwned<Device>)
+	DM_TYPE_OWNED_BODY(FrameBufferAttachment, IOwned<Device>)
 
 	void Create(
+		vk::Format format,
+		vk::ImageAspectFlags aspectMask,
+        vk::ImageCreateInfo& imageCreateInfo,
+		Device* owner
+	);
+
+    void Create(
+        vk::Format format,
+        vk::Extent2D extent,
+        vk::ImageUsageFlags usage,
+        vk::ImageAspectFlags aspectMask,
+        vk::ImageLayout destinationLayout,
+        Device* owner);
+
+	void CreateSampled(
 		vk::Format format,
 		vk::Extent2D extent,
 		vk::ImageUsageFlags usage,
 		vk::ImageAspectFlags aspectMask,
 		vk::ImageLayout destinationLayout,
+		vk::SamplerCreateInfo& samplerCreateInfo,
 		Device* owner
 	);
 
-	void Create(
-		vk::Format format,
-		vk::Extent2D extent,
-		vk::ImageUsageFlags usage,
-		vk::ImageAspectFlags aspectMask,
-		vk::ImageLayout destinationLayout,
-		vk::SamplerCreateInfo samplerCreateInfo,
-		Device* owner
-	);
+    void CreateSampled(
+        vk::Format format,
+        vk::ImageAspectFlags aspectMask,
+        vk::ImageCreateInfo& imageCreateInfo,
+        vk::SamplerCreateInfo& samplerCreateInfo,
+        Device* owner
+    );
+
+    void Destroy();
 
 	void CreateDepth(Device* owner);
 
-	~FrameBufferAttachment() noexcept = default;
+	~FrameBufferAttachment() noexcept override;
 
 	[[nodiscard]] vk::DescriptorImageInfo GetDescriptor(
 		vk::ImageLayout imageLayout
@@ -46,7 +63,7 @@ public:
 	Sampler sampler;
 	vk::Format format = {};
 
-	static vk::Format GetDepthFormat();
+	static vk::Format GetDepthFormat(Renderer* context);
 };
 
 }

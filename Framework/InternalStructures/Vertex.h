@@ -6,13 +6,13 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace bk {
+namespace dm
+{
 struct PosVertex
 {
 	glm::vec3 pos = glm::vec3(0.0f);
 	inline static const uint32_t NUM_ATTRIBS = 1;
 };
-
 
 struct ColorVertex
 {

@@ -6,8 +6,10 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
+#include <optional>
 
-namespace bk {
+namespace dm
+{
 
 class QueueFamilyIndices
 {
@@ -22,15 +24,15 @@ public:
 };
 
 class Device;
-class RenderingContext;
+struct Renderer;
 
-class PhysicalDevice : public IVulkanType<vk::PhysicalDevice>, public IOwned<RenderingContext>
+class PhysicalDevice : public IVulkanType<vk::PhysicalDevice>, public IOwned<Renderer>
 {
 public:
-BK_TYPE_VULKAN_OWNED_BODY(PhysicalDevice, IOwned<RenderingContext>)
+DM_TYPE_VULKAN_OWNED_BODY(PhysicalDevice, IOwned<Renderer>)
 
-	void Create(RenderingContext* owner);
-	~PhysicalDevice() = default;
+	void Create(Renderer* owner);
+	~PhysicalDevice() override = default;
 
 	[[nodiscard]] const QueueFamilyIndices& GetQueueFamilyIndices() const;
 
@@ -45,7 +47,7 @@ BK_TYPE_VULKAN_OWNED_BODY(PhysicalDevice, IOwned<RenderingContext>)
 	vk::PhysicalDeviceProperties properties;
 
 private:
-	static QueueFamilyIndices FindQueueFamilies(vk::PhysicalDevice pd);
+	static QueueFamilyIndices FindQueueFamilies(Renderer* renderer, vk::PhysicalDevice pd);
 
 	[[nodiscard]] bool IsDeviceSuitable(vk::PhysicalDevice) const;
 

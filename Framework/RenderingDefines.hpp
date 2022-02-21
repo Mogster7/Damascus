@@ -8,14 +8,127 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
+#include <set>
+#include <cstdlib>
+#include <thread>
+#include <optional>
+#include <memory>
+#include <vector>
+#include <unordered_map>
+#include <array>
+#include <queue>
+#include <algorithm>
+#include <stack>
+#include <tuple>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <variant>
+#include <typeindex>
 
-constexpr std::string_view ASSET_DIR = "Assets/";
-constexpr size_t MAX_FRAME_DRAWS = 2;
+namespace dm
+{
 
+struct UBOModel
+{
+    glm::mat4 model;
+};
+
+struct UBOColor
+{
+    glm::vec4 color;
+};
+
+constexpr static glm::mat4 identityMatrix{};
+
+inline void PushIdentityModel(
+    vk::CommandBuffer commandBuffer,
+    vk::PipelineLayout pipelineLayout
+)
+{
+    commandBuffer.pushConstants(
+        pipelineLayout,
+        vk::ShaderStageFlagBits::eVertex,
+        0, sizeof(glm::mat4), &identityMatrix
+    );
+}
+
+// Set to 1 for now to aid debugging
+constexpr int MAX_FRAME_DRAWS = 2;
+
+
+#ifdef USE_MSAA
+constexpr vk::SampleCountFlagBits MSAA_SAMPLES = vk::SampleCountFlagBits::e4;
+#else
+constexpr vk::SampleCountFlagBits MSAA_SAMPLES = vk::SampleCountFlagBits::e1;
+#endif
 
 const std::vector<const char*> deviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+#ifdef OS_Mac
+    "VK_KHR_portability_subset"
+#endif
 };
+
+#ifdef __aarch64__
+#define DM_BREAKPOINT() asm("brk #0")
+#else
+#define DM_BREAKPOINT()
+#endif
+
+#ifndef NDEBUG
+#   define DM_ASSERT_MSG(condition, message) \
+    do { \
+        if (! (condition)) {                 \
+            std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
+                      << " line " << __LINE__ << ": " << message << std::endl; \
+                DM_BREAKPOINT();                                 \
+            std::terminate(); \
+        } \
+    } while (false)
+
+    #   define DM_ASSERT(condition) \
+    do { \
+        if (! (condition)) { \
+            std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
+                      << " line " << __LINE__ << std::endl; \
+                DM_BREAKPOINT();                                 \
+            std::terminate(); \
+        } \
+    } while (false)
+
+#else
+#   define DM_ASSERT(condition) do { (void)(condition); } while (false)
+#   define DM_ASSERT_MSG(condition, message) do { (void)(condition); } while(false)
+#endif
+
+inline void CheckVkResult(vk::Result result)
+{
+    DM_ASSERT_MSG(result == vk::Result::eSuccess, "Assertion failed when testing VkResult!");
+}
+
+inline void CheckVkResult(VkResult result)
+{
+    DM_ASSERT_MSG(result == VK_SUCCESS, "Assertion failed when testing VkResult!");
+}
+
+inline void CheckVkResult(vk::Result result, const std::string& error)
+{
+    DM_ASSERT_MSG(result == vk::Result::eSuccess, error.c_str());
+}
+
+inline void AssertVkBase(VkResult result)
+{
+    if (!(result == VK_SUCCESS)) DM_BREAKPOINT();
+    assert(result == VK_SUCCESS);
+}
+
+#define DM_ASSERT_VK(VkResult) DM_ASSERT_MSG((VkResult) == vk::Result::eSuccess, "Assertion failed testing VkResult")
+
+
 
 
 template<class Type>
@@ -49,8 +162,12 @@ public:
 		*this = std::move(other);
 	}
 
+	explicit operator bool()
+	{
+		return created;
+	}
 
-	IOwned(
+	explicit IOwned(
 		OwnerType* inOwner
 	)
 		: owner(inOwner)
@@ -58,7 +175,7 @@ public:
 	{
 	}
 
-	void Create(
+	void CreateOwned(
 		OwnerType* inOwner
 	)
 	{
@@ -90,7 +207,6 @@ public:
 };
 
 
-#define ASSERT_VK(VkResult) utils::CheckVkResult(VkResult)
 
 template<class Type, class CType = typename Type::CType>
 struct IVulkanType : public Type
@@ -122,65 +238,61 @@ struct IVulkanType : public Type
 
 	const VulkanType* VkTypePtr() const
 	{
-		return reinterpret_cast<VulkanType*>(this);
+		return static_cast<VulkanType*>(this);
 	}
 
 	VulkanType* VkTypePtr()
 	{
-		return reinterpret_cast<VulkanType*>(this);
+		return static_cast<VulkanType*>(this);
 	}
 
 	const VulkanCType* VkCTypePtr() const
 	{
-		return reinterpret_cast<VulkanCType*>(this);
+		return reinterpret_cast<VulkanCType*>(VkTypePtr());
 	}
 
 	VulkanCType* VkCTypePtr()
 	{
-		return reinterpret_cast<VulkanCType*>(this);
+		return reinterpret_cast<VulkanCType*>(VkTypePtr());
 	}
-
 };
 
-#define BK_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, EXT, CreateName, ConstructName)    \
+#define DM_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, EXT, CreateName, ConstructName)    \
     public:                                                                                    \
         Type(Type&& other) noexcept = default;                                                          \
-        Type& operator=(Type&& other) noexcept = default;                                      \
-        template <class ...Args>\
-        Type(const vk::CreateName##CreateInfo##EXT & createInfo,                \
-            OwnerType* inOwner, Args&&... args)                                               \
-            : OwnerInterface(inOwner)    \
-        {                                                                                     \
-            utils::CheckVkResult(owner->create##ConstructName##EXT(args... , &createInfo, nullptr, &VkType()), \
-                std::string("Failed to construct ") + #VulkanName );              \
-        }                                                                                      \
+        Type& operator=(Type&& other) noexcept = default;\
         template <class ...Args>\
         void Create(const vk::CreateName##CreateInfo##EXT & createInfo,                \
             OwnerType* inOwner, Args&&... args)                                               \
         {                                                                                     \
-            OwnerInterface::Create(inOwner);    \
-            utils::CheckVkResult(owner->create##ConstructName##EXT(args... , &createInfo, nullptr, &VkType()), \
+            OwnerInterface::CreateOwned(inOwner);    \
+            DM_ASSERT_MSG(owner->create##ConstructName##EXT(args... , &createInfo, nullptr, &VkType()) == vk::Result::eSuccess, \
                 std::string("Failed to construct ") + #VulkanName );              \
-        }\
+        }                                                                                      \
+        void Destroy() { if (created) { owner->destroy##VulkanName##EXT(VkType()); created = false; } }\
 		~Type() noexcept\
 		{                                                                                            \
-			if (created) owner->destroy##VulkanName##EXT(VkType());\
+			Destroy();\
 		}
-#define BK_TYPE_VULKAN_OWNED_GENERIC(Type, VulkanName) \
-    BK_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, ,VulkanName, VulkanName)         \
+#define DM_TYPE_VULKAN_OWNED_GENERIC(Type, VulkanName) \
+    DM_TYPE_VULKAN_OWNED_GENERIC_FULL(Type, VulkanName, ,VulkanName, VulkanName)         \
 
 /**
  * Defines things common to each owned vulkan type
  */
-#define BK_TYPE_BODY(Type) \
+#define DM_TYPE_BODY(Type) \
 public:                    \
 
-#define BK_TYPE_OWNED_BODY(Type, DerivedOwner) \
-BK_TYPE_BODY(Type)                             \
+#define DM_TYPE_OWNED_BODY(Type, DerivedOwner) \
+DM_TYPE_BODY(Type)                             \
 	Type() = default;                                                                          \
 	Type(const Type& other) = delete;\
-	virtual Type& operator=(const Type& other) = delete;\
+	virtual Type& operator=(const Type& other) = delete;                                       \
 
-#define BK_TYPE_VULKAN_OWNED_BODY(Type, DerivedOwner)\
-BK_TYPE_OWNED_BODY(Type, DerivedOwner)\
 
+#define DM_TYPE_VULKAN_OWNED_BODY(Type, DerivedOwner)\
+DM_TYPE_OWNED_BODY(Type, DerivedOwner)               \
+    explicit operator bool()                         \
+    { return VulkanInterface::operator bool() && OwnerInterface::operator bool(); }
+
+}

@@ -12,7 +12,6 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/compatibility.hpp>
-#include <glfw3.h>
 
 class Camera
 {
@@ -78,13 +77,13 @@ public:
 		bool down = false;
 	} keys;
 
-	void ProcessKeyboardInput(GLFWwindow* window)
-	{
-		int action;
-		keys.up = glfwGetKey(window, GLFW_KEY_W);
-		keys.down = glfwGetKey(window, GLFW_KEY_S);
-		keys.left = glfwGetKey(window, GLFW_KEY_A);
-		keys.right = glfwGetKey(window, GLFW_KEY_D);
+	//void ProcessKeyboardInput(GLFWwindow* window)
+	//{
+	//	int action;
+//		keys.up = glfwGetKey(window, GLFW_KEY_W);
+//		keys.down = glfwGetKey(window, GLFW_KEY_S);
+//		keys.left = glfwGetKey(window, GLFW_KEY_A);
+//		keys.right = glfwGetKey(window, GLFW_KEY_D);
 		//if (glfwGetKey(window, GLFW_KEY_W))
 		//{
 		//		keys.up = true;
@@ -111,7 +110,7 @@ public:
 		//	else if (action == GLFW_RELEASE)
 		//		keys.right = false;
 		//}
-	}
+	//}
 
 	void ProcessMouseInput(glm::vec2 cursorPos)
 	{
