@@ -15,8 +15,8 @@ Demonstration of simple type abstraction: `Framework/InternalStructures/Semaphor
 
 Type definitions for abstraction: `Framework/RenderingDefines.hpp`
 
-Main descriptor set management logic: `Framework/InternalStructures/Descriptors.h`
+Main descriptor set management logic: `Framework/InternalStructures/Descriptors.h/cpp`
 
-Renderer (rendering context management): `Framework/Renderer/Renderer.h`
+Renderer (rendering context management): `Framework/Renderer/Renderer.h/cpp`
 
 
