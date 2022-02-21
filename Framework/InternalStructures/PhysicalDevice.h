@@ -6,8 +6,10 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
+#include <optional>
 
-namespace dm {
+namespace dm
+{
 
 class QueueFamilyIndices
 {

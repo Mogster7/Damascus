@@ -6,9 +6,9 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace dm {
+namespace dm
+{
 
-//DM_TYPE(ShaderModule)
 class ShaderModule : public IVulkanType<vk::ShaderModule>, public IOwned<Device>
 {
 public:

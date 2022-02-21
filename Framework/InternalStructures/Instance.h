@@ -6,7 +6,8 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace dm {
+namespace dm
+{
 class Window;
 class Renderer;
 
@@ -17,7 +18,8 @@ public:
 	DM_TYPE_VULKAN_OWNED_BODY(Instance, IOwned<Renderer>)
 
 	void Create(std::weak_ptr<dm::Window> inWindow);
-	~Instance() noexcept;
+    void Destroy();
+	~Instance() noexcept override;
 
 	std::weak_ptr<Window> window;
 	vk::SurfaceKHR surface;

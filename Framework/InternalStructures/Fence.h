@@ -7,9 +7,9 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace dm {
+namespace dm
+{
 
-//DM_TYPE(Fence)
 class Fence : public IVulkanType<vk::Fence>, public IOwned<Device>
 {
 	DM_TYPE_VULKAN_OWNED_BODY(Fence, IOwned<Device>)

@@ -7,7 +7,8 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace dm {
+namespace dm
+{
 
 //DM_TYPE(Image)
 class Image : public IVulkanType<vk::Image>, public IOwned<Device>
@@ -20,8 +21,9 @@ public:
 		VmaAllocationCreateInfo& allocCreateInfo,
 		Device* owner
 	);
+    void Destroy();
 
-	~Image() noexcept;
+	~Image() noexcept override;
 
 	void Create2D(
 		glm::uvec2 size,

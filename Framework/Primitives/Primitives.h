@@ -1,7 +1,6 @@
 #pragma once
-#include "glm/gtc/random.hpp"
 
-namespace dm::Primitives
+namespace dm::primitives
 {
 	struct Box
 	{
@@ -52,24 +51,7 @@ namespace dm::Primitives
 		Coplanar
 	};
 
-	static Primitives::Plane GenerateRandomPlane(Box area)
-	{
-	    glm::vec3 points[3];
-	    auto min = glm::vec3(-area.halfExtent);
-	    auto max = glm::vec3(area.halfExtent);
-
-	    for(auto & point : points)
-        {
-	        point = glm::linearRand<glm::vec3>(min, max) + area.position;
-        }
-
-		glm::vec3 v1 = points[1] - points[0];
-		glm::vec3 v2 = points[2] - points[1];
-
-		return { glm::normalize(glm::cross(v1, v2)), (points[0] + points[1] + points[2]) / 3.0f };
-	}
-
-	static Primitives::Plane GeneratePlane(glm::vec3 p[3])
+	static Plane GeneratePlane(glm::vec3 p[3])
 	{
 		glm::vec3 v1 = glm::normalize(p[1] - p[0]);
 		glm::vec3 v2 = glm::normalize(p[2] - p[0]);
@@ -77,7 +59,7 @@ namespace dm::Primitives
 		return { glm::normalize(glm::cross(v1, v2)), (p[0] + p[1] + p[2]) / 3.0f };
 	}
 
-	static Primitives::Plane GeneratePlaneBetweenTwoPoints(glm::vec3& a, glm::vec3& b)
+	static Plane GeneratePlaneBetweenTwoPoints(glm::vec3& a, glm::vec3& b)
 	{
 		Plane plane{};
 		plane.position = (a + b) * 0.5f;
@@ -338,69 +320,5 @@ namespace dm::Primitives
 				return (t >= 0);
 			*/
 			//	}
-
-		return false;
 	}
-
-	static bool TriangleBox(Triangle& tri, Box& box)
-	{
-
-	}
-
-	static bool TrianglePoint(Triangle& tri, Point& point)
-	{
-
-	}
-
-	static bool TriangleRay(Triangle& tri, Point& point)
-	{
-		//// compute plane's normal
-		//Vec3f v0v1 = v1 - v0;
-		//Vec3f v0v2 = v2 - v0;
-		//// no need to normalize
-		//Vec3f N = v0v1.crossProduct(v0v2); // N 
-		//float area2 = N.length();
-
-		//// Step 1: finding P
-
-		//// check if ray and plane are parallel ?
-		//float NdotRayDirection = N.dotProduct(dir);
-		//if (fabs(NdotRayDirection) < kEpsilon) // almost 0 
-		//	return false; // they are parallel so they don't intersect ! 
-
-		//// compute d parameter using equation 2
-		//float d = N.dotProduct(v0);
-
-		//// compute t (equation 3)
-		//t = (N.dotProduct(orig) + d) / NdotRayDirection;
-		//// check if the triangle is in behind the ray
-		//if (t < 0) return false; // the triangle is behind 
-
-		//// compute the intersection point using equation 1
-		//Vec3f P = orig + t * dir;
-
-		//// Step 2: inside-outside test
-		//Vec3f C; // vector perpendicular to triangle's plane 
-
-		//// edge 0
-		//Vec3f edge0 = v1 - v0;
-		//Vec3f vp0 = P - v0;
-		//C = edge0.crossProduct(vp0);
-		//if (N.dotProduct(C) < 0) return false; // P is on the right side 
-
-		//// edge 1
-		//Vec3f edge1 = v2 - v1;
-		//Vec3f vp1 = P - v1;
-		//C = edge1.crossProduct(vp1);
-		//if (N.dotProduct(C) < 0)  return false; // P is on the right side 
-
-		//// edge 2
-		//Vec3f edge2 = v0 - v2;
-		//Vec3f vp2 = P - v2;
-		//C = edge2.crossProduct(vp2);
-		//if (N.dotProduct(C) < 0) return false; // P is on the right side; 
-
-		//return true; // this ray hits the triangle 
-	}
-
 }

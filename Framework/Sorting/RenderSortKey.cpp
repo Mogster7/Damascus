@@ -1,12 +1,9 @@
 //------------------------------------------------------------------------------
 //
-// File Name:	Vertex.cpp
-// Author(s):	Jonathan Bourim (j.bourim)
-// Date:		6/8/2020
+// File Name:	RenderSortKey.cpp
+// Author(s):	Roland Munguia (roland.m)
+// Date:		09/29/2021
 //
 //------------------------------------------------------------------------------
-#include "Vertex.h"
 
-
-
-
+#include "RenderSortKey.h"

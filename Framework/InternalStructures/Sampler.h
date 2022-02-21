@@ -3,7 +3,6 @@
 namespace dm
 {
 
-//DM_TYPE(Sampler)
 class Sampler : public IVulkanType<vk::Sampler>, public IOwned<Device>
 {
 	DM_TYPE_VULKAN_OWNED_BODY(Sampler, IOwned<Device>)

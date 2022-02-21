@@ -6,19 +6,20 @@
 //
 //------------------------------------------------------------------------------
 #include "RenderingStructures.hpp"
-#include "Window.h"
+#include "Window/Window.h"
 #include "Instance.h"
 
 #include <SDL/include/SDL_vulkan.h>
 #include <utility>
 #include <vector>
 
-namespace dm {
+namespace dm
+{
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
-const bool enableValidationLayers = true;
+constexpr bool enableValidationLayers = true;
 #endif
 
 const std::vector<const char*> validationLayers = {
@@ -56,14 +57,14 @@ bool checkValidationLayerSupport()
 std::vector<const char*> Instance::GetRequiredExtensions() const
 {
     unsigned extensionCount = 0;
-    DM_ASSERT(SDL_Vulkan_GetInstanceExtensions(window.lock()->GetHandle(), &extensionCount, nullptr) == SDL_TRUE);
+    DM_ASSERT_MSG(SDL_Vulkan_GetInstanceExtensions(window.lock()->GetHandle(), &extensionCount, nullptr) == SDL_TRUE, SDL_GetError());
 
     std::vector<const char*> extensions;
     if (extensionCount != 0)
     {
         extensions.resize(extensionCount);
         DM_ASSERT(SDL_Vulkan_GetInstanceExtensions(window.lock()->GetHandle(), &extensionCount, extensions.data()) == SDL_TRUE);
-        if (enableValidationLayers)
+        if constexpr (enableValidationLayers)
         {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
@@ -78,7 +79,7 @@ void Instance::Create(std::weak_ptr<dm::Window> inWindow)
     auto vkGetInstanceProcAddr = dynamicLoader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
-    if (enableValidationLayers)
+    if constexpr (enableValidationLayers)
     {
         assert(checkValidationLayerSupport());
     }
@@ -89,6 +90,10 @@ void Instance::Create(std::weak_ptr<dm::Window> inWindow)
     vk::InstanceCreateInfo createInfo({}, &appInfo);
 
     auto requiredExtensions = GetRequiredExtensions();
+#ifdef OS_Mac
+    //requiredExtensions.emplace_back("VK_KHR_portability_subset");
+    //requiredExtensions.emplace_back("VK_KHR_get_physical_device_properties2");
+#endif
 
     std::cout << "Required Extensions: \n";
     for (const auto& extension : requiredExtensions)
@@ -99,7 +104,7 @@ void Instance::Create(std::weak_ptr<dm::Window> inWindow)
     createInfo.enabledExtensionCount = (unsigned) requiredExtensions.size();
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-    if (enableValidationLayers)
+    if constexpr (enableValidationLayers)
     {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
@@ -172,7 +177,7 @@ void Instance::PopulateDebugCreateInfo(vk::DebugUtilsMessengerCreateInfoEXT& cre
 
 void Instance::ConstructDebugMessenger()
 {
-    if (!enableValidationLayers)
+    if constexpr (!enableValidationLayers)
     {
         return;
     }
@@ -185,12 +190,16 @@ void Instance::ConstructDebugMessenger()
 
 Instance::~Instance() noexcept
 {
+    Destroy();
+}
+void Instance::Destroy()
+{
     if (!created)
     {
         return;
     }
 
-    if (enableValidationLayers)
+    if constexpr (enableValidationLayers)
     {
         destroyDebugUtilsMessengerEXT(debugMessenger, nullptr);
     }

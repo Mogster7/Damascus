@@ -17,31 +17,42 @@ if (UNIX)
     if(X11_FOUND)
         message("X11 Found!")
     else ()
-        message(FATAL_ERROR "no X11 cuh")
+        message("no X11 cuh")
+    endif()
+    if(APPLE)
     endif()
 endif()
 
 add_library(
-        ThirdParty INTERFACE
+        DamascusThirdParty
+        spirv_reflect/spirv_reflect.c
 )
 
-
-target_link_directories(ThirdParty INTERFACE ${SDL2_INCLUDE_DIRS})
+target_link_directories(DamascusThirdParty PUBLIC ${SDL2_INCLUDE_DIRS})
 
 set(INCLUDE_DIRS VulkanMemoryAllocator/src
         ${Vulkan_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${SDL2_INCLUDE_DIRS})
-set(LINK_LIBS ${Vulkan_LIBRARIES} SDL2-static glm)
+        ${SDL2_INCLUDE_DIRS}
+        )
 
+if (OS_Mac)
+find_library(SDL2 sdl2)
+find_package(SDL2 REQUIRED)
+
+set(LINK_LIBS ${Vulkan_LIBRARIES} glm ${SDL2})
+set(INCLUDE_DIRS ${INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS})
+else()
+    set(LINK_LIBS "${Vulkan_LIBRARIES}" glm SDL2-static)
+endif()
 
 if (WIN32)
-    message("Damascus linking for Windows")
-    target_include_directories(ThirdParty INTERFACE ${INCLUDE_DIRS})
-    target_link_libraries(ThirdParty INTERFACE ${LINK_LIBS})
+message("Damascus linking for Windows")
+    target_include_directories(DamascusThirdParty PUBLIC ${INCLUDE_DIRS})
+    target_link_libraries(DamascusThirdParty PUBLIC ${LINK_LIBS})
 elseif(UNIX)
     message("Damascus linking for Linux")
-    target_include_directories(ThirdParty INTERFACE ${INCLUDE_DIRS} ${X11_INCLUDE_DIR})
-    target_link_libraries(ThirdParty INTERFACE ${LINK_LIBS} ${X11_LIBRARIES})
+    target_include_directories(DamascusThirdParty PUBLIC ${INCLUDE_DIRS} ${X11_INCLUDE_DIR})
+    target_link_libraries(DamascusThirdParty PUBLIC ${LINK_LIBS} ${X11_LIBRARIES})
 endif()
 

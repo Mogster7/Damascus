@@ -6,10 +6,9 @@
 //
 //------------------------------------------------------------------------------
 #include "PhysicalDevice.h"
-#include "Renderer.h"
 
-namespace dm {
-
+namespace dm
+{
 
 bool PhysicalDevice::CheckDeviceExtensionSupport(vk::PhysicalDevice device) const
 {
@@ -43,10 +42,12 @@ bool PhysicalDevice::IsDeviceSuitable(vk::PhysicalDevice device) const
 
     vk::PhysicalDeviceProperties physicalDeviceProperties;
     device.getProperties(&physicalDeviceProperties);
+#ifndef OS_Mac
     if (physicalDeviceProperties.deviceType != vk::PhysicalDeviceType::eDiscreteGpu)
     {
         return false;
     }
+#endif
 
 	return true;
 }

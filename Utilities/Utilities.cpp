@@ -8,10 +8,10 @@
 #include <string>
 #include <fstream>
 #include <cassert>
+#include <vector>
 
 namespace dm::utils
 {
-
     float Random(float min /* = 0.0f */, float max /* = 1.0f */, float offset)
     {
         return min + ((float)rand() / ((float)RAND_MAX)) * (max - min) + offset;
@@ -19,12 +19,12 @@ namespace dm::utils
 
 	int RandomInt(int min /*= 0*/, int max /*= 1*/, int offset /*= 0*/)
 	{
-        return static_cast<int>(Random(min, max-1) + offset);
+        return (int)(Random(min, max-1, (float)offset));
 	}
 
 	std::vector<char> ReadFile(const std::string& filename)
     {
-        std::string convertedName = filename.c_str();
+        const std::string& convertedName = filename;
         std::ifstream file(convertedName, std::ios::ate | std::ios::binary);
 
         assert(file.is_open());
@@ -40,10 +40,6 @@ namespace dm::utils
         return buffer;
     }
 
-    void AssertVkBase(VkResult result)
-    {
-        assert(result == VK_SUCCESS);
-    }
 
 }
 

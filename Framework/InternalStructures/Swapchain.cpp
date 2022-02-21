@@ -6,11 +6,10 @@
 //
 //------------------------------------------------------------------------------
 #include "Swapchain.h"
-#include "Renderer.h"
-#include "Window.h"
+#include "Window/Window.h"
 
-
-namespace dm {
+namespace dm
+{
 void Swapchain::Create(
 	const vk::SwapchainCreateInfoKHR& createInfo,
 	vk::Format inImageFormat,
@@ -18,7 +17,7 @@ void Swapchain::Create(
 	Device* inOwner
 )
 {
-	IOwned::Create(inOwner);
+    IOwned::CreateOwned(inOwner);
 
 	DM_ASSERT_VK(owner->createSwapchainKHR(&createInfo, nullptr, &VkType()));
 	imageFormat = inImageFormat;
@@ -45,13 +44,14 @@ vk::Extent2D Swapchain::ChooseExtent(glm::uvec2 windowDimensions, vk::SurfaceCap
 
 vk::PresentModeKHR Swapchain::ChoosePresentMode(const std::vector<vk::PresentModeKHR>& presentModes)
 {
+    //return vk::PresentModeKHR::eImmediateKHR;
 	//// Mailbox replaces already queued images with newer ones instead of blocking
 	//// when the queue is full. Used for triple buffering
-	//for (const auto& availablePresentMode : availablePresentModes) {
-	//	if (availablePresentMode == vk::PresentModeKHR::eMailbox) {
-	//		return availablePresentMode;
-	//	}
-	//}
+//	for (const auto& availablePresentMode : presentModes) {
+//		if (availablePresentMode == vk::PresentModeKHR::eMailbox) {
+//			return availablePresentMode;
+//		}
+//	}
 
 	// FIFO takes an image from the front of the queue and inserts it in the back
 	// If queue is full then the program is blocked. Resembles v-sync
@@ -86,7 +86,7 @@ vk::SurfaceFormatKHR Swapchain::ChooseSurfaceFormat(const std::vector<vk::Surfac
 
 void Swapchain::CreateImageViews()
 {
-	size_t imagesSize = images.size();
+	size_t imagesSize = ImageCount();
 	imageViews.resize(imagesSize);
 
 	for (size_t i = 0; i < imagesSize; ++i)
@@ -104,12 +104,18 @@ void Swapchain::CreateImageViews()
 
 		assert(bool(imageViews[i].VkType()));
 	}
-
 }
 
 Swapchain::~Swapchain() noexcept
 {
-	owner->destroySwapchainKHR(VkType());
+    Destroy();
+}
+void Swapchain::Destroy()
+{
+    if (created)
+    {
+        owner->destroySwapchainKHR(VkType());
+    }
 }
 
 }

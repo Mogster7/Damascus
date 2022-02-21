@@ -6,10 +6,10 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace dm {
+namespace dm
+{
 struct Renderer;
 
-//DM_TYPE(FrameBufferAttachment)
 class FrameBufferAttachment : public IOwned<Device>
 {
 public:
@@ -17,26 +17,42 @@ public:
 
 	void Create(
 		vk::Format format,
-		vk::Extent2D extent,
-		vk::ImageUsageFlags usage,
 		vk::ImageAspectFlags aspectMask,
-		vk::ImageLayout destinationLayout,
+        vk::ImageCreateInfo& imageCreateInfo,
 		Device* owner
 	);
 
-	void Create(
+    void Create(
+        vk::Format format,
+        vk::Extent2D extent,
+        vk::ImageUsageFlags usage,
+        vk::ImageAspectFlags aspectMask,
+        vk::ImageLayout destinationLayout,
+        Device* owner);
+
+	void CreateSampled(
 		vk::Format format,
 		vk::Extent2D extent,
 		vk::ImageUsageFlags usage,
 		vk::ImageAspectFlags aspectMask,
 		vk::ImageLayout destinationLayout,
-		vk::SamplerCreateInfo samplerCreateInfo,
+		vk::SamplerCreateInfo& samplerCreateInfo,
 		Device* owner
 	);
 
+    void CreateSampled(
+        vk::Format format,
+        vk::ImageAspectFlags aspectMask,
+        vk::ImageCreateInfo& imageCreateInfo,
+        vk::SamplerCreateInfo& samplerCreateInfo,
+        Device* owner
+    );
+
+    void Destroy();
+
 	void CreateDepth(Device* owner);
 
-	~FrameBufferAttachment() noexcept override = default;
+	~FrameBufferAttachment() noexcept override;
 
 	[[nodiscard]] vk::DescriptorImageInfo GetDescriptor(
 		vk::ImageLayout imageLayout

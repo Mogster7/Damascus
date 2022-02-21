@@ -6,17 +6,13 @@
 //
 //------------------------------------------------------------------------------
 #include "Device.h"
-#include "Renderer.h"
-#include "Window.h"
-
-#include <glm/gtc/matrix_transform.hpp>
 
 #define VMA_IMPLEMENTATION
 #define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
 #include <vk_mem_alloc.h>
 
-namespace dm {
-
+namespace dm
+{
 
 void Device::CreateAllocator()
 {
@@ -29,17 +25,13 @@ void Device::CreateAllocator()
 	vmaCreateAllocator(&info, &allocator);
 }
 
-void Device::RecreateSurface()
-{
-}
-
 void Device::Update(float dt)
 {
 }
 
 void Device::Create(const vk::DeviceCreateInfo& createInfo, PhysicalDevice* inOwner)
 {
-	IOwned::Create(inOwner);
+    IOwned::CreateOwned(inOwner);
 	DM_ASSERT_VK(owner->createDevice(&createInfo, nullptr, &VkType()));
 	const QueueFamilyIndices& indices = owner->GetQueueFamilyIndices();
 	getQueue(indices.graphics.value(), 0, &graphicsQueue);
@@ -47,14 +39,46 @@ void Device::Create(const vk::DeviceCreateInfo& createInfo, PhysicalDevice* inOw
 	CreateAllocator();
 }
 
+int Device::ImageCount() const
+{
+    return OwnerGet<Renderer>().ImageCount();
+}
+
+Swapchain& Device::Swapchain()
+{
+    return *OwnerGet<Renderer>().swapchain;
+}
+
+Descriptors& Device::Descriptors()
+{
+    return OwnerGet<Renderer>().descriptors;
+}
+
+DescriptorPool& Device::DescriptorPool()
+{
+    return OwnerGet<Renderer>().descriptorPool;
+}
+
+int Device::ImageIndex() const
+{
+    return OwnerGet<Renderer>().imageIndex;
+}
+
+void Device::Destroy()
+{
+    if (created)
+    {
+        vmaDestroyAllocator(allocator);
+        destroy();
+        created = false;
+    }
+}
+
 Device::~Device() noexcept
 {
-	if (created)
-	{
-		vmaDestroyAllocator(allocator);
-		destroy();
-	}
+    Destroy();
 }
+
 
 
 }

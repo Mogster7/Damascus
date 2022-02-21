@@ -7,9 +7,9 @@
 //------------------------------------------------------------------------------
 #pragma once
 
-namespace dm {
+namespace dm
+{
 
-//DM_TYPE(Semaphore)
 class Semaphore : public IVulkanType<vk::Semaphore>, public IOwned<Device>
 {
 DM_TYPE_VULKAN_OWNED_BODY(Semaphore, IOwned<Device>)

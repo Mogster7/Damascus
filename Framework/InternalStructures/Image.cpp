@@ -7,14 +7,15 @@
 //------------------------------------------------------------------------------
 #include "Image.h"
 
-namespace dm {
+namespace dm
+{
 void Image::Create(
 	vk::ImageCreateInfo& imageCreateInfo,
 	VmaAllocationCreateInfo& allocCreateInfo,
 	Device* inOwner
 )
 {
-	IOwned::Create(inOwner);
+    IOwned::CreateOwned(inOwner);
 	this->allocator = owner->allocator;
 
 	DM_ASSERT_VK((vk::Result) vmaCreateImage(allocator, (VkImageCreateInfo * ) & imageCreateInfo, &allocCreateInfo,
@@ -222,10 +223,15 @@ void Image::TransitionLayout(
 
 Image::~Image() noexcept
 {
-	if (created)
-	{
-		vmaDestroyImage(allocator, VkCType(), allocation);
-	}
+    Destroy();
+}
+void Image::Destroy()
+{
+    if (created)
+    {
+        vmaDestroyImage(allocator, VkCType(), allocation);
+        created = false;
+    }
 }
 
 }

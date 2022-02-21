@@ -5,8 +5,8 @@
 // Date:		6/23/2020
 //
 //------------------------------------------------------------------------------
-namespace dm {
-
+namespace dm
+{
 
 vk::PipelineShaderStageCreateInfo ShaderModule::Load(const std::string& path, vk::ShaderStageFlagBits stageFlags, Device* inOwner)
 {

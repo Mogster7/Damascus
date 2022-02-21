@@ -7,7 +7,8 @@
 //------------------------------------------------------------------------------
 #include "ImageView.h"
 
-namespace dm {
+namespace dm
+{
 
 void ImageView::CreateTexture2DView(vk::Image image, Device* owner)
 {

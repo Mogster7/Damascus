@@ -6,9 +6,9 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace dm {
+namespace dm
+{
 
-//DM_TYPE(Swapchain)
 class Swapchain : public IVulkanType<vk::SwapchainKHR>, public IOwned<Device>
 {
 public:
@@ -20,15 +20,17 @@ DM_TYPE_VULKAN_OWNED_BODY(Swapchain, IOwned<Device>)
 		vk::Extent2D extent,
 		Device* owner
 	);
+    void Destroy();
 
-	~Swapchain() noexcept;
+	~Swapchain() noexcept override;
+
+    int ImageCount() const { return (int)images.size(); }
 
     static vk::Extent2D ChooseExtent(glm::uvec2 windowDimensions, vk::SurfaceCapabilitiesKHR capabilities);
 
 	static vk::PresentModeKHR ChoosePresentMode(const std::vector<vk::PresentModeKHR>&);
 
 	static vk::SurfaceFormatKHR ChooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>&);
-
 
 	// Uses same index as framebuffer & command buffer
 	std::vector<vk::Image> images = {};
@@ -45,5 +47,6 @@ DM_TYPE_VULKAN_OWNED_BODY(Swapchain, IOwned<Device>)
 private:
 	void CreateImageViews();
 };
+
 
 }

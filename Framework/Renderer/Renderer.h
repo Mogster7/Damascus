@@ -11,12 +11,19 @@ namespace dm
 
 struct Renderer;
 
-class RenderingContext : public IOwned<Device>
+class IRenderingContext : public IOwned<Device>
 {
 protected:
-    explicit RenderingContext(Renderer& inRenderer) : renderer(inRenderer) {}
+    explicit IRenderingContext(Renderer& inRenderer);
+    virtual void Create() {};
+    virtual void OnRecreateSwapchain() = 0;
     virtual void Update(float dt){};
-    virtual vk::CommandBuffer Record() = 0;
+    virtual void AssignGlobalUniform(GlobalUniforms& globalUniforms) {}
+    virtual std::vector<vk::SubmitInfo> Record() = 0;
+
+    FrameAsync<Semaphore> ready;
+    FrameAsync<Semaphore> finished;
+    vk::PipelineStageFlags stageFlags = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
     Renderer& renderer;
     friend class Renderer;
@@ -31,7 +38,12 @@ struct BaseRenderer
     PhysicalDevice physicalDevice;
 };
 
-struct Renderer : public BaseRenderer
+struct BaseDeviceRenderer : public BaseRenderer
+{
+    Device device;
+};
+
+struct Renderer : public BaseDeviceRenderer
 {
     void Create(std::weak_ptr<Window> inWindow);
     ~Renderer();
@@ -40,35 +52,65 @@ struct Renderer : public BaseRenderer
     Context* AddRenderingContext()
     {
         auto* context = new Context(*this);
-        renderingContexts.push_back(context);
+        renderingContexts.emplace_back(typeid(Context), context).second->Create();
         return context;
     }
 
-    void DeleteRenderingContext(RenderingContext* context)
+    template <class Context>
+    void DeleteRenderingContext()
     {
+        std::type_index type = typeid(Context);
         device.waitIdle();
-        auto it = std::remove(renderingContexts.begin(), renderingContexts.end(), context);
-        delete *it;
+        auto it = std::find_if(
+            renderingContexts.begin(),
+            renderingContexts.end(),
+            [type](const std::pair<std::type_index, IRenderingContext*> & rc) { return rc.first == type; });
+
+        DM_ASSERT(it != renderingContexts.end());
+
+        delete it->second;
         renderingContexts.erase(it);
     }
 
-    Device device;
+    template <class Context>
+    Context& GetRenderingContext()
+    {
+        std::type_index type = typeid(Context);
+        auto it = std::find_if(
+            renderingContexts.begin(),
+            renderingContexts.end(),
+            [type](const std::pair<std::type_index, IRenderingContext*> & rc) { return rc.first == type; });
+
+        DM_ASSERT(it != renderingContexts.end());
+        return *static_cast<Context*>(it->second);
+    }
+
+    [[nodiscard]] int ImageCount() const;
+
     CommandPool commandPool;
-    Swapchain swapchain;
+    DescriptorPool descriptorPool;
+    Descriptors descriptors;
+    CommandBufferVector commandBuffers;
 
-    /** Semaphore signaling swapchain availability for the requested image */
-    std::vector<Semaphore> imageAvailable;
+    // Swapchain objects
+    std::shared_ptr<Swapchain> swapchain = nullptr;     //< Current swapchain
+    std::shared_ptr<Swapchain> oldSwapchain = nullptr;  //< Retired swapchain after swapchain reconstruction
 
-    /** Semaphore signalling end of the render phase, so presentation may occur */
-    std::vector<Semaphore> renderFinished;
+    // Sync resources GPU-GPU
+    std::vector<Semaphore> imageAvailable;  //< Semaphore signaling swapchain availability for the requested image.
+    std::vector<Semaphore> renderFinished;  //< Semaphore signalling end of the render phase, so presentation may occur .
 
-    /** Used to determine when drawing is available */
-    std::vector<Fence> drawFences;
+    // Sync resources CPU-GPU
+    std::vector<Fence> frameResourcesInUse; //< Used to determine if frame sync resources is in use by GPU.
+    std::vector<Fence> imagesInUse;         //< Used to determine if swapchain image is in use by GPU.
 
-    int frameIndex = 0;
-    int imageIndex = 0;
+    int frameIndex = 0; //< Current frame we are submitting info to.
+    int imageIndex = 0; //< Current image acquired from the swapchain.
 
-    std::vector<RenderingContext*> renderingContexts;
+    std::vector<std::pair<std::type_index, IRenderingContext*>> renderingContexts;
+
+    bool framebufferResize = false; //< Flag to tell the renderer that window was resized.
+
     void Update(float dt);
     void Render();
 
@@ -76,13 +118,18 @@ private:
     bool created = false;
 
     void CreateDevice();
-    void CreateSwapchain(bool recreate = false);
+    void CreateSwapchain();
+    void RecreateSwapchain();
     void CreateSync();
     void CreateCommandPool();
+    void CreateCommandBuffers();
+    void CreateDescriptorPool();
 
     bool PrepareFrame();
     void SubmitFrame(unsigned submitInfoCount, vk::SubmitInfo* submitInfo, vk::Fence fence) const;
     bool PresentFrame();
 };
+
+
 
 }// namespace dm

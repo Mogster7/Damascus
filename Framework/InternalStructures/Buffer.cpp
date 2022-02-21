@@ -5,11 +5,10 @@
 // Date:		6/9/2020
 //
 //------------------------------------------------------------------------------
-
 #include "Buffer.h"
 
-namespace dm {
-
+namespace dm
+{
 
 void Buffer::Create(
 	const vk::BufferCreateInfo& bufferCreateInfo,
@@ -17,42 +16,54 @@ void Buffer::Create(
 	Device* inOwner
 )
 {
-	IOwned<Device>::Create(inOwner);
+    IOwned<Device>::CreateOwned(inOwner);
+
 	bufferCI = bufferCreateInfo;
 	allocationCI = allocCreateInfo;
-	assert(bufferCreateInfo.size != 0);
-	DM_ASSERT_VK(vmaCreateBuffer(owner->allocator,
+    if (allocationCI.flags & VMA_ALLOCATION_CREATE_MAPPED_BIT)
+        persistentMapped = true;
+
+	DM_ASSERT(bufferCreateInfo.size != 0);
+	DM_ASSERT_MSG(vmaCreateBuffer(owner->allocator,
 							  (VkBufferCreateInfo*) &bufferCreateInfo,
 							  &allocCreateInfo,
 							  VkCTypePtr(),
 							  &allocation,
 							  &allocationInfo
-	));
+	) == VK_SUCCESS, "Failed to create buffer");
 
 	descriptorInfo.offset = 0;
 	descriptorInfo.range = bufferCreateInfo.size;
 	descriptorInfo.buffer = VkType();
 }
 
+
+void Buffer::Destroy()
+{
+    if(created)
+    {
+        vmaDestroyBuffer(owner->allocator, VkCType(), allocation);
+    }
+}
+
 Buffer::~Buffer() noexcept
 {
-	if(created)
-	{
-		vmaDestroyBuffer(owner->allocator, VkCType(), allocation);
-	}
+	Destroy();
 }
 
 void Buffer::CreateStaged(
-	void* data, const vk::DeviceSize size,
+	void* data,
+    const vk::DeviceSize size,
 	vk::BufferUsageFlags bufferUsage,
 	VmaMemoryUsage memoryUsage,
 	bool submitToGPU,
-	bool persistentMapped,
+	bool inPersistentMapped,
 	Device* inOwner
 )
 {
 	assert(size > 0);
-	assert(data != nullptr);
+    // If data is nullptr, it must not be submitting to GPU
+	assert(data != nullptr || !submitToGPU);
 
 	vk::BufferCreateInfo bufferCreateInfo;
 	bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferDst | bufferUsage;
@@ -63,7 +74,7 @@ void Buffer::CreateStaged(
 
 	// Create THIS buffer, which is the destination buffer
 	Create(bufferCreateInfo, allocCreateInfo, inOwner);
-	this->persistentMapped = persistentMapped;
+	persistentMapped = inPersistentMapped;
 
 	// Reuse create info, except this time its the source
 	bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
@@ -79,7 +90,14 @@ void Buffer::CreateStaged(
 
 	if (persistentMapped)
 	{
-		memcpy(stagingBuffer->allocationInfo.pMappedData, data, (size_t) size);
+        if (data)
+        {
+            std::memcpy(stagingBuffer->allocationInfo.pMappedData, data, (size_t) size);
+        }
+        else
+        {
+            std::memset(stagingBuffer->allocationInfo.pMappedData, 0, (size_t) size);
+        }
 	}
 	else
 	{
@@ -88,7 +106,14 @@ void Buffer::CreateStaged(
 
 		//// Map and copy data to the memory, then unmap
 		vmaMapMemory(owner->allocator, stagingBuffer->allocation, &mapped);
-		std::memcpy(mapped, data, (size_t) size);
+        if (data)
+        {
+            std::memcpy(mapped, data, (size_t) size);
+        }
+        else
+        {
+            std::memset(mapped, 0, (size_t) size);
+        }
 		vmaUnmapMemory(owner->allocator, stagingBuffer->allocation);
 	}
 
@@ -116,7 +141,7 @@ void Buffer::Map(Buffer& buffer, void* data)
 	else
 	{
 		auto result = buffer.owner->mapMemory(memory, offset, buffer.bufferCI.size, {}, &toMap);
-		utils::CheckVkResult(result, "Failed to map uniform buffer memory");
+		DM_ASSERT_VK(result);
 	}
 
 	memcpy(toMap, data, buffer.bufferCI.size);
@@ -125,6 +150,8 @@ void Buffer::Map(Buffer& buffer, void* data)
 	{
 		buffer.owner->unmapMemory(memory);
 	}
+
+    buffer.dirty = true;
 }
 
 
@@ -167,7 +194,7 @@ void Buffer::MapToStagingBuffer(void* data)
 
 void* Buffer::GetMappedData()
 {
-	assert(persistentMapped);
+	DM_ASSERT(persistentMapped);
 
 	return stagingBuffer->allocationInfo.pMappedData;
 }
@@ -175,7 +202,7 @@ void* Buffer::GetMappedData()
 
 const void* Buffer::GetMappedData() const
 {
-	assert(persistentMapped);
+	DM_ASSERT(persistentMapped);
 
 	return stagingBuffer->allocationInfo.pMappedData;
 }
@@ -206,11 +233,17 @@ void Buffer::StageTransfer(
 
 	// Command to copy src to dst
 	commandBuffer.copyBuffer(src.VkType(), dst.VkType(), 1, &copyRegion);
+    dst.dirty = false;
 }
 
 void Buffer::StageTransferDynamic(vk::CommandBuffer commandBuffer)
 {
 	StageTransfer(*stagingBuffer, *this, bufferCI.size, commandBuffer, *owner);
+}
+
+void Buffer::StageTransferDynamicSingleSubmit()
+{
+    StageTransferSingleSubmit(*stagingBuffer, *this, bufferCI.size, *owner);
 }
 
 

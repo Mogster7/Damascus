@@ -4,12 +4,4 @@ add_library(DamascusUtilities
 
 target_include_directories(DamascusUtilities PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${VMA_INCLUDE_DIR}
-    ${FRAMEWORK_INCLUDE_DIR}
     )
-
-
-target_link_libraries(DamascusUtilities PUBLIC ThirdParty)
-target_link_directories(DamascusUtilities PUBLIC ThirdParty)
-target_precompile_headers(DamascusUtilities PUBLIC damascus_pch.hpp)
-

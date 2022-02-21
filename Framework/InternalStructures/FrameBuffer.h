@@ -6,9 +6,9 @@
 //
 //------------------------------------------------------------------------------
 #pragma once
-namespace dm {
+namespace dm
+{
 
-////DM_TYPE(FrameBuffer)
 class FrameBuffer : public IVulkanType<vk::Framebuffer>, public IOwned<Device>
 {
 	DM_TYPE_VULKAN_OWNED_BODY(FrameBuffer, IOwned<Device>)
