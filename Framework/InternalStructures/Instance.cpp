@@ -90,10 +90,6 @@ void Instance::Create(std::weak_ptr<dm::Window> inWindow)
     vk::InstanceCreateInfo createInfo({}, &appInfo);
 
     auto requiredExtensions = GetRequiredExtensions();
-#ifdef OS_Mac
-    //requiredExtensions.emplace_back("VK_KHR_portability_subset");
-    //requiredExtensions.emplace_back("VK_KHR_get_physical_device_properties2");
-#endif
 
     std::cout << "Required Extensions: \n";
     for (const auto& extension : requiredExtensions)

@@ -182,9 +182,7 @@ struct UniformImage final : public IGlobalUniformStructure
 
     void WriteToSet(vk::WriteDescriptorSet& writeSet) override
     {
-        // @Jon TODO: Make it so that it doesn't literally copy
-        // everything just to avoid null handles, jesus what has my life become
-
+        // @Jon TODO: Make it so that it doesn't literally copy everything to avoid null handles of bindless sets
         for (int i = 0; i < imageInfo.size(); ++i)
         {
             if (i >= currentIndex)
@@ -192,6 +190,7 @@ struct UniformImage final : public IGlobalUniformStructure
                 imageInfo[i] = imageInfo[0];
             }
         }
+
         writeSet.pImageInfo = imageInfo.data();
         writeSet.descriptorCount = imageInfo.size();
     }
@@ -664,7 +663,6 @@ public:
             }
         }
         DM_ASSERT_MSG(false, "Requesting invalid uniform buffer");
-        // if this bites anyone in the butt I blame tristan
         exit(1);
     }
 
@@ -886,29 +884,23 @@ public:
         std::vector<vk::WriteDescriptorSet> writeSets;
         writeSets.reserve(imageCount * dirtyCount);
 
-        //for (int i = 0; i < imageCount; ++i)
+        for (const BindingReference &bindingRef : bindingReferences)
         {
-            for (const BindingReference& bindingRef : bindingReferences)
-            {
-                DescriptorBinding& binding = bindingRef.binding;
-                // Not dirty, continue
-                if (!binding.IsDirty(imageIndex, descriptorID))
-                    continue;
+            DescriptorBinding &binding = bindingRef.binding;
+            // Not dirty, continue
+            if (!binding.IsDirty(imageIndex, descriptorID))
+                continue;
 
-                vk::WriteDescriptorSet& writeSet = writeSets.emplace_back();
+            vk::WriteDescriptorSet &writeSet = writeSets.emplace_back();
 
-                // Get buffer at image index's descriptor info
-                binding.WriteToSet(writeSet, imageIndex, descriptorID);
-                writeSet.dstSet = *setData->GetSet(imageIndex, descriptorID);
-            }
+            // Get buffer at image index's descriptor info
+            binding.WriteToSet(writeSet, imageIndex, descriptorID);
+            writeSet.dstSet = *setData->GetSet(imageIndex, descriptorID);
         }
 
-        //for (int i = 0; i < imageCount; ++i)
+        for (const BindingReference &bindingRef : bindingReferences)
         {
-            for (const BindingReference& bindingRef : bindingReferences)
-            {
-                bindingRef.binding.SetDirty(false, imageIndex, descriptorID);
-            }
+            bindingRef.binding.SetDirty(false, imageIndex, descriptorID);
         }
 
         owner->updateDescriptorSets(
