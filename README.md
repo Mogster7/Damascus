@@ -9,3 +9,8 @@ Damascus interface using a unity build with CMake
 * Descriptor set management with automatic host-to-device uploading
 * Shader reflection 
 
+### Files of note
+
+Demonstration of simple type abstraction: `Framework/InternalStructures/Semaphore.h`
+Main descriptor set management logic: `Framework/InternalStructures/Descriptors.h`
+Type definitions: `Framework/RenderingDefines.hpp`
